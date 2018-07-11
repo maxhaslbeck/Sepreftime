@@ -454,16 +454,34 @@ lemma bindT_mono:
    by fastforce+
 
 
+lemma bindT_mono'[refine_mono]: 
+  "m \<le> m' \<Longrightarrow> (\<And>x.   f x \<le> f' x)
+ \<Longrightarrow> bindT m f \<le> bindT  m' f'"
+  apply(rule bindT_mono) by auto
+
 section \<open>RECT\<close>
 
 definition "RECT B x = 
   (if (mono B) then (gfp B x) else (top::'a::complete_lattice))"
-
-
+ 
 lemma RECT_unfold: "\<lbrakk>mono B\<rbrakk> \<Longrightarrow> RECT B = B (RECT B)"
   unfolding RECT_def [abs_def]
   by (simp add: gfp_unfold[ symmetric])
 
+
+definition whileT :: "('a \<Rightarrow> bool) \<Rightarrow> ('a \<Rightarrow> 'a nrest) \<Rightarrow> 'a \<Rightarrow> 'a nrest" where
+  "whileT b c = RECT (\<lambda>whileT s. (if b s then bindT (c s) whileT else RETURNT s))"
+
+
+lemma [refine_mono]: "(\<And>f g x. (\<And>x. f x \<le> g x) \<Longrightarrow> B f x \<le> B g x) \<Longrightarrow> mono B"
+  apply(rule monoI) apply(rule le_funI)
+  by (simp add: le_funD)
+    
+thm refine_mono
+
+lemma whileT_unfold: "whileT b c = (\<lambda>s. (if b s then bindT (c s) (whileT b c) else RETURNT s))"
+  unfolding whileT_def
+  by(rule RECT_unfold, refine_mono)
 
 lemma RECT_mono[refine_mono]:
   assumes [simp]: "mono B'"
@@ -472,6 +490,39 @@ lemma RECT_mono[refine_mono]:
   unfolding RECT_def
   apply clarsimp
   by (meson LE gfp_mono le_fun_def) 
+
+
+find_theorems RECT
+
+lemma wf_fp_induct:
+  assumes fp: "\<And>x. f x = B (f) x"
+  assumes wf: "wf R"
+  assumes "\<And>x D. \<lbrakk>\<And>y. (y,x)\<in>R \<Longrightarrow> P y (D y)\<rbrakk> \<Longrightarrow> P x (B D x)"
+  shows "P x (f x)"
+  using wf
+  apply induction
+  apply (subst fp)
+  apply fact  
+  done
+
+thm wf_fp_induct[where f="RECT B" and B=B] RECT_unfold
+
+
+lemma RECT_wf_induct_aux:
+  assumes wf: "wf R"
+  assumes mono: "mono B"
+  assumes "(\<And>x D. (\<And>y. (y, x) \<in> R \<Longrightarrow> P y (D y)) \<Longrightarrow> P x (B D x))"
+  shows "P x (RECT B x)"
+  using wf_fp_induct[where f="RECT B" and B=B] RECT_unfold assms 
+  by metis
+
+theorem RECT_wf_induct[consumes 1]:
+  assumes "RECT B x = r"
+  assumes "wf R"
+    and "mono B"
+    and "\<And>x D r. (\<And>y r. (y, x) \<in> R \<Longrightarrow> D y = r \<Longrightarrow> P y r) \<Longrightarrow> B D x = r \<Longrightarrow> P x r"
+  shows "P x r"
+  using RECT_wf_induct_aux[where P = "\<lambda>x fx. \<forall>r. fx=r \<longrightarrow> P x r"] assms by metis
 
 
 
@@ -919,7 +970,58 @@ qed
 
 lemma T_RETURNT: "T Q (RETURNT x) = Q x"
   unfolding RETURNT_alt apply(rule trans) apply(rule T_REST) by simp
-      
+                
+thm T_pw
+
+find_theorems "Inf _ = Some _"  
+
+
+lemma aux1: "Some t \<le> mm2 Q (Some t') \<longleftrightarrow> Some (t+t') \<le> Q"
+  apply (auto simp: mm2_def split: option.splits)
+  subgoal for t''
+    by (cases t; cases t'; cases t''; auto)
+  subgoal for t''
+    by (cases t; cases t'; cases t''; auto)
+  subgoal for t''
+    by (cases t; cases t'; cases t''; auto)
+  done
+
+lemma aux1a: "(\<forall>x t''. Q' x = Some t'' \<longrightarrow> (Q x) \<ge> Some (t + t''))
+      = (\<forall>x. mm2 (Q x) (Q' x) \<ge> Some t) " 
+  apply (auto simp: )
+  subgoal for x apply(cases "Q' x") apply simp
+    by(simp add: aux1)  
+  subgoal for x t'' using aux1 by metis
+  done
+
+thm aux1a[where Q="%_. Q" and Q'="%_. Q'" for Q Q', simplified]
+
+lemma aux1a': "(\<forall>t''. Q' = Some t'' \<longrightarrow> (Q) \<ge> Some (t + t''))
+      = (mm2 (Q) (Q') \<ge> Some t) " 
+  apply (auto simp: )
+  subgoal apply(cases "Q'") apply simp
+    by(simp add: aux1)  
+  subgoal for t'' using aux1 by metis
+  done
+
+lemma "T Q (SPECT P) \<ge> Some t \<longleftrightarrow> (\<forall>x t'. P x = Some t' \<longrightarrow> (Q x \<ge> Some (t + t')))"
+  apply (auto simp: T_pw mii_alt)
+  apply (metis aux1)
+  apply (simp add: aux1a'[symmetric])
+  done
+
+
+lemma "T Q (SPECT P) \<ge> Some t \<longleftrightarrow> (\<forall>x t'. P x = Some t' \<longrightarrow> (\<exists>t''. Q x = Some t'' \<and> t'' \<ge> t + t'))"
+  apply (auto simp: T_pw mii_alt )
+   apply (metis aux1 le_some_optE)
+  apply (simp add: aux1a'[symmetric])
+  apply auto 
+  by fastforce
+
+lemma "T Q (SPECT P) = Some t \<longleftrightarrow> (\<forall>x t'. P x = Some t' \<longrightarrow> (\<exists>t''. Q x = Some t'' \<and> t'' = t + t'))"
+  apply (auto simp: T_def )
+   
+              
 section "Experimental Hoare reasoning"
 
 
@@ -939,19 +1041,6 @@ lemma assumes
     shows T_conseq2: "T Q f \<ge> Some 0"
   sorry
 
-lemma assumes 
-      "T Q' f \<ge> Some t'"
-      "\<And>x. mm2 (Q x) (Q' x) \<ge> Some (t - t')" 
-    shows T_conseq3: "T Q f \<ge> Some t"
-  sorry
-
-
-definition "P f g = bindT f (\<lambda>x. bindT g (\<lambda>y. RETURNT (x+(y::nat))))"
-
-
-definition emb where "emb Q (t::enat) = (\<lambda>x. if Q x then Some t else None)"
-
-definition emb' where "\<And>Q T. emb' Q (T::'a \<Rightarrow> enat) = (\<lambda>x. if Q x then Some (T x) else None)"
 
 
 lemma aux1: "Some t \<le> mm2 Q (Some t') \<longleftrightarrow> Some (t+t') \<le> Q"
@@ -964,31 +1053,212 @@ lemma aux1: "Some t \<le> mm2 Q (Some t') \<longleftrightarrow> Some (t+t') \<le
     by (cases t; cases t'; cases t''; auto)
   done
 
-lemma [simp]: "Some (t::enat) \<le> mm2 Q (emb Q' t' x) \<longleftrightarrow> (Q' x \<longrightarrow> Some (t+t') \<le> Q)"
-  by (auto simp: emb_def aux1)
+lemma T_conseq4:
+  assumes 
+    "T Q' f \<ge> Some t'"
+    "\<And>x t''. Q' x = Some t'' \<Longrightarrow> (Q x) \<ge> Some ((t - t') + t'')" 
+  shows "T Q f \<ge> Some t"
+proof -
+  {
+    fix x
+    from assms(1)[unfolded T_pw] have i: "Some t' \<le> mii Q' f x" by auto
+    from assms(2) have ii: "\<And>t''. Q' x = Some t'' \<Longrightarrow> (Q x) \<ge> Some ((t - t') + t'')" by auto
+    from i ii have "Some t \<le> mii Q f x"
+      unfolding mii_alt apply(auto split: nrest.splits)
+      subgoal for x2 apply(cases "x2 x") apply simp
+        apply(simp add: aux1)  
+        apply(cases "Q' x") apply simp
+        apply auto 
+        apply(cases "Q x") apply auto 
+        subgoal for a b c apply(cases t; cases t'; cases a; cases b; cases c) apply auto
+          using le_add2 by force
+        done
+      done
+  } 
+  thus ?thesis
+    unfolding T_pw ..
+qed
 
-lemma [simp]: "Some t' \<le> emb Q t x \<longleftrightarrow> ( t'\<le>t \<and> Q x)"
-  by (auto simp: emb_def)
 
-lemma [simp]: "emb' Q T x = emb Q (T x) x" for T
-  by (auto simp: emb_def emb'_def)
-  
+lemma T_conseq3: 
+  assumes 
+    "T Q' f \<ge> Some t'"
+    "\<And>x. mm2 (Q x) (Q' x) \<ge> Some (t - t')" 
+  shows "T Q f \<ge> Some t"
+  using assms T_conseq4 aux1a by metis
 
 
-lemma assumes
-  f_spec: "T ( emb' (\<lambda>x. x > 2) (enat o op * 2) ) f \<ge> Some 0"
-and 
-  g_spec: "T ( emb' (\<lambda>x. x > 2) (enat) ) g \<ge> Some 0"
-shows "T ( emb' (\<lambda>x. x > 5) (enat o op * 3) ) (P f g) \<ge> Some 0"
-  unfolding P_def apply(simp add: T_bindT )
-  apply(simp add:  T_RETURNT)
-  apply(rule T_conseq3[OF f_spec])
-    apply(clarsimp)
-  apply(rule T_conseq3[OF g_spec])
-  apply clarsimp 
+
+definition "P f g = bindT f (\<lambda>x. bindT g (\<lambda>y. RETURNT (x+(y::nat))))"
+
+ 
+definition emb' where "\<And>Q T. emb' Q (T::'a \<Rightarrow> enat) = (\<lambda>x. if Q x then Some (T x) else None)"
+
+abbreviation "emb Q t \<equiv> emb' Q (\<lambda>_. t)" 
+
+lemma emb_eq_Some_conv: "\<And>T. emb' Q T x = Some t' \<longleftrightarrow> (t'=T x \<and> Q x)"
+  by (auto simp: emb'_def)
+
+lemma emb_le_Some_conv: "\<And>T. Some t' \<le> emb' Q T x \<longleftrightarrow> ( t'\<le>T x \<and> Q x)"
+  by (auto simp: emb'_def)
+
+named_theorems vcg_rules
+
+method vcg uses rls = ((rule rls vcg_rules[THEN T_conseq4] | clarsimp simp: emb_eq_Some_conv emb_le_Some_conv T_bindT T_RETURNT)+)
+
+
+find_theorems "T _ _ \<ge> _"
+
+lemma [simp]: "mm2 None q = (case q of None \<Rightarrow> Some \<infinity> | _ \<Rightarrow> None)"
+  apply (cases q) apply (auto simp: mm2_def) done
+
+thm mm2_def
+term mii
+
+lemma [simp]: "a - enat n = \<infinity> \<longleftrightarrow> a=\<infinity>" by (cases a) auto
+lemma [simp]: "a - enat n = enat m \<longleftrightarrow> (\<exists>k. a=enat k \<and> m = k - n)" by (cases a) auto
+
+lemma auxXX1: "Some t \<le> mm2 (Q x) (Some t') \<Longrightarrow> Some t' \<le> mm2 (Q x) (Some t)"
+  apply (auto simp: mm2_def split: option.splits if_splits)
+  apply (metis helper2 idiff_0_right leD less_le_trans zero_le) 
+  apply (auto simp: less_eq_enat_def split: enat.splits)
   done
 
 
+definition "TSPEC Q m \<equiv> T Q m \<ge> Some 0"
+
+lemma "TSPEC Q m \<longleftrightarrow> (case m of FAILi \<Rightarrow> False | REST M \<Rightarrow> 
+  \<forall>x. mm2 (Q x) (M x) \<ge> Some 0
+)"
+  by (auto simp: T_pw TSPEC_def mii_alt split: option.splits nrest.splits)
+
+
+lemma fold_TSPEC: "T Q m \<ge> Some t \<longleftrightarrow> TSPEC (\<lambda>x. mm2 (Q x) (Some t)) m"
+  apply (auto simp: TSPEC_def T_pw mii_alt split: option.splits nrest.splits simp: aux1a'[where t=0, symmetric, simplified])
+
+  subgoal for x
+    apply (drule spec[where x=x])
+    apply (auto simp: auxXX1)
+    done
+
+  subgoal for x f
+    apply (drule spec[where x=x])
+    apply (cases "f x")
+    apply (auto simp: auxXX1)
+    done
+  done
+
+
+(*
+thm T_bindT
+
+find_theorems "T _ (REST _)"
+
+lemma "TSPEC Q (bindT m f) \<longleftrightarrow> TSPEC (emb (%x. TSPEC Q (f x)) 0) m"
+  unfolding TSPEC_def T_bindT
+*)
+
+
+  subgoal for x a b c
+    apply (drule spec[where x=x])
+    apply (auto simp: mm2_def split: option.splits if_splits)
+    apply (cases b; cases c; simp) 
+    done
+
+  thm aux1a'[where t=0, symmetric, simplified]
+
+  oops
+      apply (auto simp: mm2_def split: option.splits if_splits)
+
+  oops
+  subgoal sledgehammer sorry
+  subgoal sledgehammer sorry
+  subgoal sledgehammer sorry
+  subgoal sledgehammer sorry
+  subgoal sledgehammer sorry
+  subgoal sledgehammer sorry
+
+
+  thm aux1a'
+  subgoal
+    by (metis aux1a' less_eq_option_Some_None) sorry
+
+
+
+lemma
+  assumes "whileT b c s = r"
+  assumes IS: "\<And>s t'. I s = Some t' \<Longrightarrow> b s  \<Longrightarrow> T I (c s) \<ge> Some (t_op t t')"
+  assumes IR: "\<And>t'. t'\<in>ran I \<Longrightarrow> t'\<ge>t"
+  assumes "I s \<noteq> None"
+  shows "T (\<lambda>x. if b x then None else I x) r \<ge> Some t"
+  using assms(1,4)
+  unfolding whileT_def
+proof (induction rule: RECT_wf_induct[where R=R])
+  case 1
+  then show ?case sorry
+next
+  case 2
+  then show ?case by refine_mono
+next
+  case step: (3 x D r)
+
+  note IH = step.IH[OF _ refl]
+
+  note step.hyps[symmetric, simp]
+
+  from step.prems
+  show ?case 
+    apply clarsimp apply safe
+    subgoal 
+      apply vcg
+      apply (rule T_conseq4)
+        apply (rule IS)
+      apply simp
+       apply simp
+
+      apply (rule T_conseq4)
+        apply (rule IH)
+      subgoal sorry
+       apply (auto split: if_splits simp: )
+      
+ 
+      apply simp
+      apply simp
+
+
+      sorry
+    subgoal by vcg
+
+qed
+    defer
+    apply refine_mono
+  apply vcg
+
+
+
+
+lemma assumes
+  f_spec[vcg_rules]: "T ( emb' (\<lambda>x. x > 2) (enat o op * 2) ) f \<ge> Some 0"
+and 
+  g_spec[vcg_rules]: "T ( emb' (\<lambda>x. x > 2) (enat) ) g \<ge> Some 0"
+shows "T ( emb' (\<lambda>x. x > 5) (enat o op * 3) ) (P f g) \<ge> Some 0"
+proof -
+  have ?thesis
+    unfolding P_def
+    apply vcg
+    done  
+
+  have ?thesis
+    unfolding P_def
+    apply(simp add: T_bindT )
+    apply(simp add:  T_RETURNT)
+    apply(rule T_conseq4[OF f_spec])
+      apply(clarsimp simp: emb_eq_Some_conv)
+    apply(rule T_conseq4[OF g_spec])
+    apply (clarsimp simp: emb_eq_Some_conv emb_le_Some_conv)
+    done
+  thus ?thesis .
+qed
 
  
 end
