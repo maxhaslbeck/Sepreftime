@@ -3,6 +3,103 @@ theory Sepreftime
   "HOL-Library.Monad_Syntax"  "HOL-Library.Extended_Nat"
 begin
 
+
+section "Auxiliaries"
+
+subsection "Auxiliaries for option"
+
+lemma less_eq_option_None_is_None': "x \<le> None \<longleftrightarrow> x = None" by(auto simp: less_eq_option_None_is_None)
+
+lemma everywhereNone: "(\<forall>x\<in>X. x = None) \<longleftrightarrow> X = {} \<or> X = {None}"
+  by auto
+
+subsection "Auxiliaries for enat"
+
+
+lemma helper: "x2 \<le> x2a \<Longrightarrow> \<not> x2 < a \<Longrightarrow> \<not> x2a < a \<Longrightarrow>  x2 - (a::enat) \<le> x2a - a"
+  apply(cases x2; cases x2a) apply auto apply(cases a) by auto
+
+lemma helper2: "x2b \<le> x2 \<Longrightarrow> \<not> x2a < x2  \<Longrightarrow> \<not> x2a < x2b \<Longrightarrow> x2a - (x2::enat) \<le> x2a - x2b"
+  apply(cases x2; cases x2a) apply auto apply(cases x2b) by auto
+
+lemma Sup_finite_enat: "Sup X = Some (enat a) \<Longrightarrow> Some (enat a) \<in> X"
+  by (auto simp: Sup_option_def Sup_enat_def these_empty_eq Max_eq_iff in_these_eq split: if_splits)
+
+lemma Sup_enat_less2: "X \<noteq> {} \<Longrightarrow> Sup X = \<infinity> \<Longrightarrow> (\<exists>x\<in>X. enat t < x)"
+  unfolding  Sup_enat_def using    finite_enat_bounded linear 
+  apply(auto split: if_splits)  
+   apply (smt Max_in empty_iff enat_ord_code(4))
+  by (smt not_less)  
+
+
+lemma [simp]: "t \<le> Some (\<infinity>::enat)"
+  by (cases t, auto)
+
+subsection "Auxiliary (for Sup and Inf)"
+
+
+
+lemma aux11: "f`X={y} \<longleftrightarrow> (X\<noteq>{} \<and> (\<forall>x\<in>X. f x = y))" by auto
+ 
+lemma aux2: "(\<lambda>f. f x) ` {[x \<mapsto> t1] |x t1. M x = Some t1} = {None} \<longleftrightarrow> (M x = None \<and> M\<noteq>Map.empty)"
+  apply (cases "M x"; auto simp: aux11)
+  by force
+
+lemma aux3: "(\<lambda>f. f x) ` {[x \<mapsto> t1] |x t1. M x = Some t1} = {Some t1 | t1. M x = Some t1} \<union> ({None | y. y\<noteq>x \<and> M y \<noteq> None })"
+  by (fastforce split: if_splits simp: image_iff) 
+
+lemma Sup_pointwise_eq_fun: "(SUP f:{[x \<mapsto> t1] |x t1. M x = Some t1}. f x) = M x"
+  unfolding Sup_option_def  
+  apply (simp add: aux2) 
+  apply (auto simp: aux3)
+  by (metis (mono_tags, lifting) Some_image_these_eq Sup_least in_these_eq mem_Collect_eq sup_absorb1 these_image_Some_eq)
+
+
+lemma SUP_eq_None_iff: "(SUP f:X. f x) = None \<longleftrightarrow> X={} \<or> (\<forall>f\<in>X. f x = None)"
+  by (smt SUP_bot_conv(2) SUP_empty Sup_empty empty_Sup)
+
+lemma SUP_eq_Some_iff: "(SUP f:X. f x) = Some t \<longleftrightarrow> (\<exists>f\<in>X. f x \<noteq> None) \<and> (t=Sup {t' | f t'. f\<in>X \<and> f x = Some t' })"
+  apply auto
+  subgoal 
+    by (smt Sup_bot_conv(1) Sup_empty Sup_option_def Sup_pointwise_eq_fun imageE option.distinct(1))
+  subgoal 
+    unfolding Sup_option_def
+    apply (clarsimp split: if_splits)
+    apply (fo_rule arg_cong)
+    apply (auto simp: Option.these_def)
+    apply (metis (mono_tags, lifting) image_iff mem_Collect_eq option.sel)
+    apply (metis (mono_tags, lifting) image_iff mem_Collect_eq option.sel)
+    done
+  subgoal 
+    unfolding Sup_option_def
+    apply (clarsimp split: if_splits; safe)
+    subgoal by (force simp: image_iff)
+    apply (fo_rule arg_cong)
+    apply (auto simp: Option.these_def)
+    apply (metis (mono_tags, lifting) image_iff mem_Collect_eq option.sel)
+    done
+  done  
+
+
+
+lemma Sup_enat_less: "X \<noteq> {} \<Longrightarrow> enat t \<le> Sup X \<longleftrightarrow> (\<exists>x\<in>X. enat t \<le> x)"
+  apply rule
+  subgoal 
+  by (metis Max_in Sup_enat_def finite_enat_bounded linear) 
+  subgoal apply auto
+    by (simp add: Sup_upper2)
+  done
+
+
+(* 
+  This is how implication can be phrased with an Inf operation.
+  Generalization from boolean to enat can be explained this way.
+ *)
+
+lemma fixes Q P  shows
+    "Inf { P x \<le> Q x |x. True}  \<longleftrightarrow> P \<le> Q" unfolding le_fun_def by simp
+
+
 section "NREST"
 
 datatype 'a nrest = FAILi | REST "'a \<Rightarrow> enat option"
@@ -67,8 +164,10 @@ end
 definition "RETURNT x \<equiv> REST (\<lambda>e. if e=x then Some 0 else None)"
 abbreviation "FAILT \<equiv> top::'a nrest"
 abbreviation "SUCCEEDT \<equiv> bot::'a nrest"
+abbreviation SPECT where "SPECT \<equiv> REST"
 
-
+lemma RETURNT_alt: "RETURNT x = REST [x\<mapsto>0]"
+  unfolding RETURNT_def by auto
 
 lemma nrest_inequalities[simp]: 
   "FAILT \<noteq> REST X"
@@ -94,45 +193,10 @@ lemma nrest_more_simps[simp]:
   by (metis option.distinct(1)) 
 
 
-  
-definition "nofailT S \<equiv> S\<noteq>FAILT"
-definition inresT :: "'a nrest \<Rightarrow> 'a \<Rightarrow> nat \<Rightarrow> bool" where 
-  "inresT S x t \<equiv> (case S of FAILi \<Rightarrow> True | REST X \<Rightarrow> (\<exists>t'. X x = Some t' \<and>  enat t\<le>t'))"
-
-
-
-
-lemma inresT_alt: "inresT S x t \<longleftrightarrow> REST ([x\<mapsto>enat t]) \<le> S"
-  unfolding inresT_def apply(cases S)  
-  by (auto dest!: le_funD[where x=x] simp: le_funI less_eq_option_def split: option.splits )
-
-
-lemma inresT_mono: "inresT S x t \<Longrightarrow> t' \<le> t \<Longrightarrow> inresT S x t'"
-  unfolding inresT_def apply(cases S) apply auto
-  using enat_ord_simps(1) order_trans by blast
- 
-  
-
-lemma [simp]: "inresT (RETURNT x) y t \<longleftrightarrow> t = 0 \<and> y = x"
-  by(auto simp: inresT_def RETURNT_def enat_0_iff split: nrest.splits)
-
-named_theorems refine_pw_simps
-
-
-lemma nofailT_simps[simp]:
-  "nofailT FAILT \<longleftrightarrow> False"
-  "nofailT (REST X) \<longleftrightarrow> True"
-  "nofailT (RETURNT x) \<longleftrightarrow> True"
-  "nofailT SUCCEEDT \<longleftrightarrow> True"
-  unfolding nofailT_def
-  by (simp_all add: RETURNT_def)
-
-
 lemma nres_simp_internals: 
   "REST Map.empty = SUCCEEDT"
    "FAILi = FAILT" 
   unfolding top_nrest_def bot_nrest_def by simp_all
-
 
 
 lemma nres_order_simps[simp]:
@@ -146,77 +210,75 @@ lemma nres_top_unique[simp]:" FAILT \<le> S' \<longleftrightarrow> S' = FAILT"
 lemma FAILT_cases[simp]: "(case FAILT of FAILi \<Rightarrow> P | REST x \<Rightarrow> Q x) = P"
   by (auto simp: nres_simp_internals[symmetric])  
 
-lemma inresT_FAILT[simp]: "inresT FAILT r t"
-  by(simp add: inresT_def)
-
-lemma fail_inresT[refine_pw_simps]: "\<not> nofailT M \<Longrightarrow> inresT M x t"
-unfolding nofailT_def by simp
-
-declare nres_simp_internals(2)[simp]
-
-lemma ll: 
+lemma nrest_Sup_FAILT: 
   "Sup X = FAILT \<longleftrightarrow> FAILT \<in> X"
   "FAILT = Sup X \<longleftrightarrow> FAILT \<in> X"
   by (auto simp: nres_simp_internals Sup_nrest_def)
+
+
+lemma nrest_Sup_SPECT_D: "Sup X = SPECT m \<Longrightarrow> m x = Sup {f x | f. REST f \<in> X}"
+  unfolding Sup_nrest_def apply(auto split: if_splits) unfolding Sup_fun_def  
+  apply(fo_rule arg_cong) by blast
+
+declare nres_simp_internals(2)[simp]
+
+lemma nrest_noREST_FAILT[simp]: "(\<forall>x2. m \<noteq> REST x2) \<longleftrightarrow> m=FAILT"
+  apply (cases m) apply auto done
+
+lemma   no_FAILTE:  
+  assumes "g xa \<noteq> FAILT" 
+  obtains X where "g xa = REST X" using assms by (cases "g xa") auto
+
+section "pointwise reasoning"
+
+named_theorems refine_pw_simps
+  
+definition nofailT :: "'a nrest \<Rightarrow> bool" where "nofailT S \<equiv> S\<noteq>FAILT"
+
+
+lemma nofailT_simps[simp]:
+  "nofailT FAILT \<longleftrightarrow> False"
+  "nofailT (REST X) \<longleftrightarrow> True"
+  "nofailT (RETURNT x) \<longleftrightarrow> True"
+  "nofailT SUCCEEDT \<longleftrightarrow> True"
+  unfolding nofailT_def
+  by (simp_all add: RETURNT_def)
+
+
+
+definition inresT :: "'a nrest \<Rightarrow> 'a \<Rightarrow> nat \<Rightarrow> bool" where 
+  "inresT S x t \<equiv> (case S of FAILi \<Rightarrow> True | REST X \<Rightarrow> (\<exists>t'. X x = Some t' \<and>  enat t\<le>t'))"
+
+
+lemma inresT_alt: "inresT S x t \<longleftrightarrow> REST ([x\<mapsto>enat t]) \<le> S"
+  unfolding inresT_def apply(cases S)  
+  by (auto dest!: le_funD[where x=x] simp: le_funI less_eq_option_def split: option.splits )
+
+
+lemma inresT_mono: "inresT S x t \<Longrightarrow> t' \<le> t \<Longrightarrow> inresT S x t'"
+  unfolding inresT_def apply(cases S) apply auto
+  using enat_ord_simps(1) order_trans by blast
  
 
+lemma inresT_RETURNT[simp]: "inresT (RETURNT x) y t \<longleftrightarrow> t = 0 \<and> y = x"
+  by(auto simp: inresT_def RETURNT_def enat_0_iff split: nrest.splits)
 
 
-lemma aux11: "f`X={y} \<longleftrightarrow> (X\<noteq>{} \<and> (\<forall>x\<in>X. f x = y))" by auto
- 
-lemma aux2: "(\<lambda>f. f x) ` {[x \<mapsto> t1] |x t1. M x = Some t1} = {None} \<longleftrightarrow> (M x = None \<and> M\<noteq>Map.empty)"
-  apply (cases "M x"; auto simp: aux11)
-  by force
-
-lemma aux3: "(\<lambda>f. f x) ` {[x \<mapsto> t1] |x t1. M x = Some t1} = {Some t1 | t1. M x = Some t1} \<union> ({None | y. y\<noteq>x \<and> M y \<noteq> None })"
-  by (fastforce split: if_splits simp: image_iff) 
-
-lemma Sup_pointwise_eq_fun: "(SUP f:{[x \<mapsto> t1] |x t1. M x = Some t1}. f x) = M x"
-  unfolding Sup_option_def  
-  apply (simp add: aux2) 
-  apply (auto simp: aux3)
-  by (metis (mono_tags, lifting) Some_image_these_eq Sup_least in_these_eq mem_Collect_eq sup_absorb1 these_image_Some_eq)
+lemma inresT_FAILT[simp]: "inresT FAILT r t"
+  by(simp add: inresT_def)
 
 
-lemma SUP_eq_None_iff: "(SUP f:X. f x) = None \<longleftrightarrow> X={} \<or> (\<forall>f\<in>X. f x = None)"
-  by (smt SUP_bot_conv(2) SUP_empty Sup_empty empty_Sup)
+lemma fail_inresT[refine_pw_simps]: "\<not> nofailT M \<Longrightarrow> inresT M x t"
+  unfolding nofailT_def by simp
 
-lemma SUP_eq_Some_iff: "(SUP f:X. f x) = Some t \<longleftrightarrow> (\<exists>f\<in>X. f x \<noteq> None) \<and> (t=Sup {t' | f t'. f\<in>X \<and> f x = Some t' })"
-  apply auto
-  subgoal 
-    by (smt Sup_bot_conv(1) Sup_empty Sup_option_def Sup_pointwise_eq_fun imageE option.distinct(1))
-  subgoal 
-    unfolding Sup_option_def
-    apply (clarsimp split: if_splits)
-    apply (fo_rule arg_cong)
-    apply (auto simp: Option.these_def)
-    apply (metis (mono_tags, lifting) image_iff mem_Collect_eq option.sel)
-    apply (metis (mono_tags, lifting) image_iff mem_Collect_eq option.sel)
-    done
-  subgoal 
-    unfolding Sup_option_def
-    apply (clarsimp split: if_splits; safe)
-    subgoal by (force simp: image_iff)
-    apply (fo_rule arg_cong)
-    apply (auto simp: Option.these_def)
-    apply (metis (mono_tags, lifting) image_iff mem_Collect_eq option.sel)
-    done
-  done  
 
-lemma Sup_enat_less: "X \<noteq> {} \<Longrightarrow> enat t \<le> Sup X \<longleftrightarrow> (\<exists>x\<in>X. enat t \<le> x)"
-  apply rule
-  subgoal 
-  by (metis Max_in Sup_enat_def finite_enat_bounded linear) 
-  subgoal apply auto
-    by (simp add: Sup_upper2)
-  done
- 
+
 
 lemma pw_inresT_Sup[refine_pw_simps]: "inresT (Sup X) r t \<longleftrightarrow> (\<exists>M\<in>X. \<exists>t'\<ge>t.  inresT M r t')"
   apply(rule)
   subgoal (* \<rightarrow> *)
     apply(cases "Sup X")
-    subgoal by (force simp: ll)
+    subgoal by (force simp: nrest_Sup_FAILT)
     subgoal 
       apply(auto simp: inresT_def  Sup_nrest_def split: if_splits)
       apply(auto simp: SUP_eq_Some_iff split: nrest.splits)  
@@ -226,7 +288,7 @@ lemma pw_inresT_Sup[refine_pw_simps]: "inresT (Sup X) r t \<longleftrightarrow> 
     done
   subgoal (* <- *)
     apply(cases "Sup X")
-    subgoal by (auto simp: ll top_Sup)
+    subgoal by (auto simp: nrest_Sup_FAILT top_Sup)
     subgoal 
       apply(auto simp: inresT_def  Sup_nrest_def split: if_splits)
       apply(auto simp: SUP_eq_Some_iff split: nrest.splits)  
@@ -244,25 +306,12 @@ lemma inresT_REST[simp]:
   by (auto )
 
 
-lemma [simp]: "(\<forall>x2. m \<noteq> REST x2) \<longleftrightarrow> m=FAILT"
-  apply (cases m) apply auto done
-
- 
- 
 lemma pw_Sup_nofail[refine_pw_simps]: "nofailT (Sup X) \<longleftrightarrow> (\<forall>x\<in>X. nofailT x)"
   apply (cases "Sup X")  
    apply auto unfolding Sup_nrest_def apply (auto split: if_splits)
   apply force unfolding nofailT_def apply(force simp add: nres_simp_internals)
   done
 
-
-lemma   no_FAILTE:  
-  assumes "g xa \<noteq> FAILT" 
-  obtains X where "g xa = REST X" using assms by (cases "g xa") auto
-
-thm refine_pw_simps
-
- 
 
 lemma inres_simps[simp]:
   "inresT FAILT = (\<lambda>_ _. True)" 
@@ -279,7 +328,8 @@ lemma pw_le_iff:
   apply(auto intro!: le_funI simp: less_eq_option_def split: option.splits)
   apply (metis option.distinct(1) zero_enat_def zero_le)
   by (smt Suc_ile_eq enat.exhaust linorder_not_le option.simps(1) order_refl) 
-   
+
+
 lemma pw_eq_iff:
   "S=S' \<longleftrightarrow> (nofailT S = nofailT S' \<and> (\<forall>x t. inresT S x t \<longleftrightarrow> inresT S' x t))"
   apply (rule iffI)
@@ -288,101 +338,16 @@ lemma pw_eq_iff:
   apply (auto simp add: pw_le_iff)
   done
 
-lemma pw_T_eqI: 
+
+lemma pw_eqI: 
   assumes "nofailT S = nofailT S'" 
   assumes "\<And>x t. inresT S x t \<longleftrightarrow> inresT S' x t" 
   shows "S=S'"
   using assms by (simp add: pw_eq_iff)
-  
- 
-(*
-lemma infinite_chara: "\<infinity>\<notin>X \<Longrightarrow> infinite (X::enat set) = (\<forall>t. t \<noteq>\<infinity> \<longrightarrow> (\<exists>t'\<in>X. t\<le>t'))"
-  apply auto
-  subgoal for t apply(rule ccontr) apply (auto simp: not_le) 
-    using finite_enat_bounded less_imp_le by blast  
-     
-  subgoal
-    by (metis Collect_empty_eq Collect_mem_eq Max_ge Max_in eSuc_enat enat.exhaust iless_Suc_eq not_le) 
-  done
-
-lemma Sup_enat': "X \<noteq> {} \<Longrightarrow> (Sup X = (t::enat)) =
-                       ((t \<in> X  \<and> (\<forall>t'. t' \<in> X\<longrightarrow> t'\<le>t ) )
-                          \<or> (t=\<infinity> \<and> \<infinity>\<notin>X \<and> infinite X))"
-  apply(cases "t\<in>X") 
-  subgoal 
-    unfolding Sup_enat_def apply auto
-    using Max_eqI apply auto[1]
-    by (metis finite_enat_bounded not_infinity_eq)
-  subgoal
-    unfolding Sup_enat_def apply auto
-    using Max_in by blast  
-  done
-
-lemma Sup_enat:  "X \<noteq> {} \<Longrightarrow> (Sup X = (t::enat)) =
-                       ((t \<in> X  \<and> (\<forall>t'. t' \<in> X\<longrightarrow> t'\<le>t ) )
-                          \<or> (t=\<infinity>\<and> (\<forall>t. t \<noteq>\<infinity> \<longrightarrow> (\<exists>t'\<in>X. t\<le>t'))))"
-  apply(cases "\<infinity>\<notin>X")
-  subgoal using infinite_chara Sup_enat' by metis
-  subgoal using Sup_upper by fastforce+ 
-  done
 
 
-lemma Sup_enat_option: "Sup X = Some (t::enat) \<longleftrightarrow> (Some t \<in> X \<and> (\<forall>t'. Some t' \<in> X\<longrightarrow> t'\<le>t ) )
-                          \<or> (t=\<infinity> \<and> (\<forall>t'.  t' \<noteq>\<infinity> \<longrightarrow> (\<exists>t''. t''\<ge>t' \<and> Some t'' \<in>X)))"
-  apply(cases "X = {} \<or> X = {None}")
-  subgoal unfolding Sup_option_def by auto
-  subgoal unfolding Sup_option_def apply simp
-    apply(subst Sup_enat) subgoal unfolding Option.these_def by auto
-    apply(simp add: in_these_eq Bex_def) by auto 
-  done
 
-lemma inresT_Sup[refine_pw_simps]: "inresT (Sup X) r t \<longleftrightarrow> 
-  FAILT \<in> X 
-  \<or> ((\<exists>M\<in>X. inresT M r t) \<and> (\<forall>t'.\<forall>M'\<in>X. (inresT M' r t' \<longrightarrow> t'\<le>t)) )
-  \<or> (t=\<infinity> \<and> (\<forall>t'. t' \<noteq>\<infinity> \<longrightarrow>  (\<exists>M\<in>X. \<exists>t''\<ge>t'. inresT M r t'')) )"
-  apply (rule)
-  subgoal (* \<longrightarrow> *)
-    apply (cases "Sup X")
-    subgoal 
-      unfolding Ball_def
-      apply (simp add: nres_simp_internals)
-      by (simp add: ll) 
-    subgoal
-      unfolding Sup_nrest_def
-      apply (auto split: if_splits simp: l) 
-        subgoal unfolding inresT_def apply (auto simp: Sup_enat_option nres_simp_internals split: nrest.splits)
-            by fastforce
-        subgoal unfolding inresT_def apply (auto simp: Sup_enat_option nres_simp_internals split: nrest.splits)
-          by metis
-        subgoal unfolding inresT_def apply (auto simp: Sup_enat_option nres_simp_internals split: nrest.splits) 
-          apply blast by metis
-        subgoal unfolding inresT_def apply (auto simp: Sup_enat_option nres_simp_internals split: nrest.splits)
-          by metis
-        done
-    done
-  subgoal (* <-- *)
-    apply (cases "Sup X")
-    subgoal 
-      unfolding Ball_def
-      by (simp add: nres_simp_internals) 
-    subgoal
-      unfolding Sup_nrest_def
-      apply (auto split: if_splits simp: l)  
-        subgoal unfolding inresT_def apply (auto simp: Sup_enat_option nres_simp_internals split: nrest.splits)
-                    apply metis 
-          apply force          by force 
-        subgoal unfolding inresT_def apply (auto simp: Sup_enat_option nres_simp_internals split: nrest.splits)
-          by (metis (full_types) nres_simp_internals(2) nrest.exhaust)
-        done
-    done
-  done
-
-lemma "(\<lambda>y. case m2 y of None \<Rightarrow> None | Some t2 \<Rightarrow> Some (t2 + (t1::enat))) = (map_option ((op +) t1) o (m2))"
-  by (auto intro!: ext split: option.splits)
- *)
-
-
-subsubsection {* Monad Operators *}
+section \<open> Monad Operators \<close>
 
 
 definition bindT :: "'b nrest \<Rightarrow> ('b \<Rightarrow> 'a nrest) \<Rightarrow> 'a nrest" where
@@ -393,10 +358,12 @@ definition bindT :: "'b nrest \<Rightarrow> ('b \<Rightarrow> 'a nrest) \<Righta
                     |x t1. X x = Some t1}"
 
 
-
 lemma bindT_FAIL[simp]: "bindT FAILT g = FAILT"
-  by (auto simp: bindT_def)
+  by (auto simp: bindT_def)       
 
+
+lemma "bindT SUCCEEDT f = SUCCEEDT"
+  unfolding bindT_def by(auto split: nrest.split simp add: bot_nrest_def) 
 
 
 lemma pw_inresT_bindT_aux: "inresT (bindT m f) r t \<longleftrightarrow>
@@ -459,34 +426,25 @@ lemma pw_bindT_nofailT[refine_pw_simps]: "nofailT (bindT M f) \<longleftrightarr
   apply force+ 
   by (metis enat_ile le_cases nofailT_def)
 
-
-
-
-lemma bindT_FAILT[simp]: "bindT FAILT f = FAILT"
-  unfolding bindT_def by auto
-
-lemma "bindT SUCCEEDT f = SUCCEEDT"
-  unfolding bindT_def by(auto split: nrest.split simp add: bot_nrest_def) 
-
 lemma [simp]: "(op + (0::enat)) = id" by auto
 
 declare map_option.id[simp] 
 
 
-(* Monad Rules *)
+section \<open>Monad Rules\<close>
 
 lemma nres_bind_left_identity[simp]: "bindT (RETURNT x) f = f x"
   unfolding bindT_def RETURNT_def 
   by(auto split: nrest.split ) 
 
 lemma nres_bind_right_identity[simp]: "bindT M RETURNT = M" 
-  by(auto intro!: pw_T_eqI simp: refine_pw_simps) 
+  by(auto intro!: pw_eqI simp: refine_pw_simps) 
 
 lemma nres_bind_assoc[simp]: "bindT (bindT M (\<lambda>x. f x)) g = bindT M (%x. bindT (f x) g)"
-  apply(auto intro!: pw_T_eqI simp:  refine_pw_simps)  
+  apply(auto intro!: pw_eqI simp:  refine_pw_simps)  
   using inresT_mono by fastforce+
 
-
+section \<open>Monotonicity lemmas\<close>
 
 
 lemma bindT_mono: 
@@ -496,6 +454,7 @@ lemma bindT_mono:
    by fastforce+
 
 
+section \<open>RECT\<close>
 
 definition "RECT B x = 
   (if (mono B) then (gfp B x) else (top::'a::complete_lattice))"
@@ -523,15 +482,57 @@ term REST
 *)
 
 
-abbreviation SPECT where "SPECT \<equiv> REST"
 
-term "SPECT Q"
-term "(x::enat) - \<infinity>"
+section \<open>T - Generalized Weakest Precondition\<close>
+
+subsection "mm"
 
 definition mm :: "( 'a \<Rightarrow> enat option) \<Rightarrow> ( 'a \<Rightarrow> enat option) \<Rightarrow> ( 'a \<Rightarrow> enat option)" where
   "mm R m = (\<lambda>x. (case m x of None \<Rightarrow> Some \<infinity>
                                 | Some mt \<Rightarrow>
                                   (case R x of None \<Rightarrow> None | Some rt \<Rightarrow> (if rt < mt then None else Some (rt - mt)))))"
+
+lemma mm_mono: "Q1 x \<le> Q2 x \<Longrightarrow> mm Q1 M x \<le> mm Q2 M x"
+  unfolding mm_def apply(cases "M x") apply (auto split: option.splits)
+  using le_some_optE apply blast apply(rule helper) by auto
+
+
+lemma mm_antimono: "M1 x \<ge> M2 x \<Longrightarrow> mm Q M1 x \<le> mm Q M2 x"
+  unfolding mm_def   apply (auto split: option.splits)  
+  apply(rule helper2) by auto
+
+
+lemma mm_continous: "mm (\<lambda>x. Inf {u. \<exists>y. u = f y x}) m x = Inf {u. \<exists>y. u = mm (f y) m x}" 
+  apply(rule antisym)
+  subgoal apply(rule Inf_greatest) apply clarsimp
+  proof (cases "Inf {u. \<exists>y. u = f y x}")
+    case None
+    have f: "m x \<noteq> None \<Longrightarrow> mm (\<lambda>x. Inf {u. \<exists>y. u = f y x}) m x = None" unfolding mm_def None apply(cases "m x") by (auto ) 
+    then show "\<And>y. mm (\<lambda>x. Inf {u. \<exists>y. u = f y x}) m x \<le> mm (f y) m x"
+      apply(cases "m x") apply(auto simp: f) unfolding mm_def by auto
+  next
+    case (Some l)
+    then show "\<And>y. mm (\<lambda>x. Inf {u. \<exists>y. u = f y x}) m x \<le> mm (f y) m x"
+      apply(cases "m x") subgoal unfolding mm_def by auto
+    proof -
+      fix y a assume I: "Inf {u. \<exists>y. u = f y x} = Some l" " m x = Some a"
+      from I have i: "\<And>y. f y x \<ge> Some l"
+        by (metis (mono_tags, lifting) Inf_lower mem_Collect_eq) 
+      show "mm (\<lambda>x. Inf {u. \<exists>y. u = f y x}) m x \<le> mm (f y) m x"
+        apply(rule mm_mono) unfolding I apply(rule i) .
+    qed 
+  qed
+  subgoal   apply(rule Inf_lower) apply clarsimp 
+  proof -
+    have "\<exists>y. Inf {u. \<exists>y. u = f y x} = f y x"
+      unfolding Inf_option_def apply auto unfolding Inf_enat_def apply auto
+      apply (metis (mono_tags) empty_iff in_these_eq mem_Collect_eq option.exhaust)
+      by (smt LeastI in_these_eq mem_Collect_eq)
+    then obtain y where z: "Inf {u. \<exists>y. u = f y x} = f y x" by blast
+    show "\<exists>y. mm (\<lambda>x. Inf {u. \<exists>y. u = f y x}) m x = mm (f y) m x"
+      apply(rule exI[where x=y]) unfolding mm_def z ..
+  qed
+  done
 
 definition mm2 :: "(  enat option) \<Rightarrow> (   enat option) \<Rightarrow> (   enat option)" where
   "mm2 r m = (case m  of None \<Rightarrow> Some \<infinity>
@@ -541,31 +542,34 @@ definition mm2 :: "(  enat option) \<Rightarrow> (   enat option) \<Rightarrow> 
 
 lemma mm_alt: "mm R m x = mm2 (R x) (m x)" unfolding mm_def mm2_def ..
 
+lemma mm2_None[simp]: "mm2 q None = Some \<infinity>" unfolding mm2_def by auto
 
-lemma "\<infinity> -\<infinity> = (\<infinity>::enat)"  by simp
+lemma mm2_Some0[simp]: "mm2 q (Some 0) = q" unfolding mm2_def by (auto split: option.splits)
 
+lemma mm2_antimono: "x \<le> y \<Longrightarrow> mm2 q x \<ge> mm2 q y"
+  unfolding mm2_def apply (auto split: option.splits)
+  using helper2 by blast 
 
-
-lemma "(a::enat) - b = \<infinity> \<Longrightarrow> a = \<infinity>"
-  by (metis enat.distinct(2) enat_ord_simps(4) idiff_enat_enat idiff_infinity_right infinity_ne_i0 less_infinityE)
+lemma mm2_contiuous2: "\<forall>x\<in>X. t \<le> mm2 q x \<Longrightarrow> t \<le> mm2 q (Sup X)"
+  unfolding mm2_def apply(auto simp: everywhereNone bot_option_def less_eq_option_None_is_None' split: option.splits if_splits)
+  subgoal by (metis (no_types, lifting) Sup_option_def in_these_eq less_Sup_iff option.distinct(1) option.sel) 
+  subgoal for tx tq by(cases tq; cases tx; fastforce dest!: Sup_finite_enat)
+  done
+ 
 lemma fl: "(a::enat) - b = \<infinity> \<Longrightarrow> a = \<infinity>"
   apply(cases b; cases a) by auto
 
 lemma mm_inf1: "mm R m x = Some \<infinity> \<Longrightarrow> m x = None \<or> R x = Some \<infinity>"
   apply(auto simp: mm_def split: option.splits if_splits) using fl by metis
+
 lemma mm_inf2: "m x = None \<Longrightarrow> mm R m x = Some \<infinity>" 
   by(auto simp: mm_def split: option.splits if_splits)  
+
 lemma mm_inf3: " R x = Some \<infinity> \<Longrightarrow> mm R m x = Some \<infinity>" 
   by(auto simp: mm_def split: option.splits if_splits)  
 
 lemma mm_inf: "mm R m x = Some \<infinity> \<longleftrightarrow> m x = None \<or> R x = Some \<infinity>"
   using mm_inf1 mm_inf2 mm_inf3  by metis
-
-value "min None (Some t)"
-
-term "REST (\<lambda>y. Inf { case f y of FAILi \<Rightarrow> None
-                              | REST F \<Rightarrow> (mm (Q::'a \<Rightarrow> enat option) F) x |x. True})"
-term "bindT m f \<le> SPECT Q"
 
 lemma "REST Map.empty \<le> SPECT Q"
   by (auto simp: le_fun_def) 
@@ -576,40 +580,10 @@ lemma InfQ_E: "Inf Q = Some t \<Longrightarrow> None \<notin> Q"
 lemma InfQ_iff: "(\<exists>t'\<ge>enat t. Inf Q = Some t') \<longleftrightarrow> None \<notin> Q \<and> Inf (Option.these Q) \<ge> t"
   unfolding Inf_option_def 
   by auto
-
  
 
-definition mmm where "mmm f Q x y = (case f y of FAILi \<Rightarrow> None
-                              | REST F \<Rightarrow> (mm (Q::'a \<Rightarrow> enat option) F) x)"
-
-lemma None_mmm: "None \<notin> {mmm f Q x y |x. True} \<longleftrightarrow> (nofailT (f y) \<and> (\<forall>F x. f y = REST F \<longrightarrow> mm Q F x \<noteq> None))"
-  unfolding mmm_def apply (auto simp: nofailT_def split: nrest.splits)
-  apply (metis option.exhaust_sel)
-  by (metis option.distinct(1))
-    
-lemma None_mmm': "(\<forall>xa. None \<noteq> mmm f Q xa y) \<longleftrightarrow> (nofailT (f y) \<and> (\<forall>F x. f y = REST F \<longrightarrow> mm Q F x \<noteq> None))"
-  unfolding mmm_def apply (auto simp: nofailT_def split: nrest.splits)
-  apply (metis option.exhaust_sel)
-  by (metis option.distinct(1))
-  
-lemma mpaaD: "inresT m x t \<Longrightarrow> \<forall>x t. inresT m x t \<longrightarrow> Q x t \<Longrightarrow> Q x t"
-  by auto
-
-
-lemma fixes Q P  shows
-    "Inf { P x \<le> Q x |x. True}  \<longleftrightarrow> P \<le> Q" unfolding le_fun_def by simp
-
-  
-
-definition mmmi where "mmmi Q f x  = (case f of FAILi \<Rightarrow> None
-                              | REST F \<Rightarrow> (mm (Q::'a \<Rightarrow> enat option) F) x)"
-
-definition mi :: "'a nrest \<Rightarrow> 'a nrest \<Rightarrow> 'a \<Rightarrow> enat option" where 
-  "mi Q M x = (case Q of FAILi \<Rightarrow> Some \<infinity>
-                       | REST Qf \<Rightarrow> (case M of FAILi \<Rightarrow> None 
-                                             | REST Mf \<Rightarrow> (mm Qf Mf) x))"
-
  
+subsection "mii"
 
 definition mii :: "('a \<Rightarrow> enat option) \<Rightarrow> 'a nrest \<Rightarrow> 'a \<Rightarrow> enat option" where 
   "mii Qf M x =  (case M of FAILi \<Rightarrow> None 
@@ -621,47 +595,74 @@ lemma mii_alt: "mii Qf M x = (case M of FAILi \<Rightarrow> None
   unfolding mii_def mm_alt ..
 
 
+lemma mii_continuous: "mii (\<lambda>x. Inf {f y x|y. True}) m x = Inf {mii (%x. f y x) m x|y. True}"
+  unfolding mii_def apply(cases m) subgoal apply auto done
+  subgoal apply auto using mm_continous by metis 
+  done
+
+ 
+lemma mii_continuous2: "(mii Q (Sup {F x t1 |x t1. P x t1}) x \<ge> t) = (\<forall>y t1. P y t1 \<longrightarrow> mii Q (F y t1) x \<ge> t)"
+  unfolding mii_alt apply auto apply (auto simp: nrest_Sup_FAILT less_eq_option_None_is_None' split: nrest.splits)
+  subgoal by (smt nrest_Sup_FAILT(2) mem_Collect_eq nres_order_simps(1) top_greatest) 
+  subgoal for y t1 x2 x2a
+    apply(drule nrest_Sup_SPECT_D[where x=x])
+    apply(rule order.trans[where b="mm2 (Q x) (x2 x)"]) apply simp
+    apply(rule mm2_antimono) by (metis (mono_tags, lifting) Sup_upper mem_Collect_eq)
+  subgoal 
+    apply(drule nrest_Sup_SPECT_D[where x=x])
+    by (auto intro: mm2_contiuous2) 
+  done 
 
 
-thm mm_inf
 lemma mii_inf: "mii Qf M x = Some \<infinity> \<longleftrightarrow> (\<exists>Mf. M = SPECT Mf \<and> (Mf x = None \<or> Qf x = Some \<infinity>))"
   by (auto simp: mii_def mm_inf split: nrest.split )
+
+
+lemma miiFailt: "mii Q FAILT x = None" unfolding mii_def by auto
+
+
+subsection "T"
 
 definition T :: "('a \<Rightarrow> enat option) \<Rightarrow> 'a nrest \<Rightarrow> enat option" 
   where "T Qf M =  Inf { mii Qf M x | x. True}"
 
 
-thm Inf_top_conv 
-lemma T_char1: "T Qf M = Some \<infinity> \<longleftrightarrow> (\<forall>x. mii Qf M x = Some \<infinity>)"
-  unfolding T_def top_enat_def[symmetric] top_option_def[symmetric]
-  apply(simp only: Inf_top_conv(1)) by auto
+lemma T_pw: "T Q M \<ge> t \<longleftrightarrow> (\<forall>x. mii Q M x \<ge> t)"
+  unfolding T_def mii_def apply(cases M) apply auto
+  unfolding Inf_option_def apply (auto split: if_splits)
+  using less_eq_option_None_is_None less_option_None not_less apply blast
+  apply (smt Inf_lower Inf_option_def dual_order.trans mem_Collect_eq)
+  apply metis
+  by (smt in_these_eq le_Inf_iff le_cases le_some_optE less_eq_option_Some mem_Collect_eq)  
+  
 
 
-lemma T_char: "T Qf M = Some \<infinity> \<longleftrightarrow> (\<exists>Mf. M = SPECT Mf \<and> (\<forall>x.(Mf x = None \<or> Qf x = Some \<infinity>)))"
-  unfolding T_char1 mii_inf
-  by (metis (mono_tags, hide_lams) nrest_more_simps(4))  
+lemma z: "(\<forall>t. T Q M \<ge> t \<longrightarrow> T Q' M' \<ge> t) \<Longrightarrow> T Q M \<le> T Q' M'"
+  by simp
 
-
-
+(*
 section "inres2"
 
-(* used for showing monad rules *)
+(* first attempt: inres2 used for showing hoare rules involving T, pointwise *)
 
 definition "inres2 S x \<equiv> (case S of FAILi \<Rightarrow> True | REST X \<Rightarrow> (\<exists>t'. X x = Some t'))"
 
 lemma inres2_FAILT[simp]: "inres2 FAILT r" unfolding inres2_def by simp
+
+lemma inres2_SPECT: "inres2 (SPECT Q) x = (\<exists>t'. Q x = Some t')" unfolding inres2_def by auto
+
 lemma pw_inres2_Sup: "inres2 (Sup X) r \<longleftrightarrow> (\<exists>M\<in>X. inres2 M r)"
   apply(rule)
   subgoal (* \<rightarrow> *)
     apply(cases "Sup X")
-    subgoal by (force simp: ll)
+    subgoal by (force simp: Nrest_Sup_FAILT)
     subgoal 
       apply(auto simp: inres2_def  Sup_nrest_def split: if_splits)
       by(auto simp: SUP_eq_Some_iff split: nrest.splits)   
     done
   subgoal (* <- *)
     apply(cases "Sup X")
-    subgoal by (auto simp: ll top_Sup)
+    subgoal by (auto simp: Nrest_Sup_FAILT top_Sup)
     subgoal 
       apply(auto simp: inres2_def  Sup_nrest_def split: if_splits)
       by(auto simp: SUP_eq_Some_iff split: nrest.splits)  
@@ -702,8 +703,6 @@ lemma pw_inres2_bindT_aux: "inres2 (bindT m f) r \<longleftrightarrow>
     done
   done
 
-lemma inres2_SPECT: "inres2 (SPECT Q) x = (\<exists>t'. Q x = Some t')" unfolding inres2_def by auto
-
 lemma pw_bindT_nofailT_2[refine_pw_simps]: "nofailT (bindT M f) \<longleftrightarrow> (nofailT M \<and> (\<forall>x. inres2 M x \<longrightarrow> nofailT (f x)))"
   unfolding bindT_def   
    apply (auto elim: no_FAILTE simp: pw_Sup_nofail inres2_SPECT  split: nrest.splits )  
@@ -724,9 +723,6 @@ lemma fall3: "M = REST Mf \<Longrightarrow> Mf x = Some t \<Longrightarrow> Q x 
   apply(rule None_in_Inf)
   apply (auto simp: mii_def mm_def)
   apply(rule exI[where x=x]) by auto 
-
-lemma "Inf ({}::enat option set) = Some \<infinity>" apply auto
-  by (simp add: top_enat_def top_option_def) 
 
 lemma k: "Inf S = None \<longleftrightarrow> (None \<in> S)"
   by (simp add: Inf_option_def) 
@@ -790,137 +786,37 @@ proof -
 qed
 
 
+*)
 
 
+subsection "pointwise reasoning about T via nres3"
 
-
-lemma T_pw: "T Q M \<ge> t \<longleftrightarrow> (\<forall>x. mii Q M x \<ge> t)"
-  unfolding T_def mii_def apply(cases M) apply auto
-  unfolding Inf_option_def apply (auto split: if_splits)
-  using less_eq_option_None_is_None less_option_None not_less apply blast
-  apply (smt Inf_lower Inf_option_def dual_order.trans mem_Collect_eq)
-  apply metis
-  by (smt in_these_eq le_Inf_iff le_cases le_some_optE less_eq_option_Some mem_Collect_eq)  
-  
-lemma z: "(\<forall>t. T Q M \<ge> t \<longrightarrow> T Q' M' \<ge> t) \<Longrightarrow> T Q M \<le> T Q' M'"
-  by simp
 
 definition nres3 where "nres3 Q M x t \<longleftrightarrow> mii Q M x \<ge> t"
- 
-lemma assumes "\<And>t. (\<forall>x. nres3 Q M x t) \<Longrightarrow> (\<forall>x. nres3 Q' M' x t)"
-  shows T_au: "T Q M \<le> T Q' M'" apply(rule z)
+
+
+lemma pw_T_le:
+  assumes "\<And>t. (\<forall>x. nres3 Q M x t) \<Longrightarrow> (\<forall>x. nres3 Q' M' x t)"
+  shows "T Q M \<le> T Q' M'"
+  apply(rule z)
   using assms unfolding T_pw nres3_def  by metis 
 
- 
+lemma assumes "\<And>t. (\<forall>x. nres3 Q M x t) = (\<forall>x. nres3 Q' M' x t)" 
+  shows pw_T_eq_iff: "T Q M = T Q' M'"
+  apply (rule antisym)
+  apply(rule pw_T_le) using assms apply metis
+  apply(rule pw_T_le) using assms apply metis done 
+
+lemma assumes "\<And>t. (\<forall>x. nres3 Q M x t) \<Longrightarrow> (\<forall>x. nres3 Q' M' x t)"
+      "\<And>t. (\<forall>x. nres3 Q' M' x t) \<Longrightarrow> (\<forall>x. nres3 Q M x t)"
+  shows pw_T_eqI: "T Q M = T Q' M'"
+  apply (rule antisym)
+  apply(rule pw_T_le) apply fact
+  apply(rule pw_T_le) apply fact done 
+
 
 lemma t: "(\<forall>y. (t::enat option) \<le> f y) \<longleftrightarrow> (t\<le>Inf {f y|y. True})"  
-  using le_Inf_iff by fastforce  
-
-
-lemma helper: "x2 \<le> x2a \<Longrightarrow> \<not> x2 < a \<Longrightarrow> \<not> x2a < a \<Longrightarrow>  x2 - (a::enat) \<le> x2a - a"
-  apply(cases x2; cases x2a) apply auto apply(cases a) by auto
-
-
-
-lemma mm_mono: "Q1 x \<le> Q2 x \<Longrightarrow> mm Q1 M x \<le> mm Q2 M x"
-  unfolding mm_def apply(cases "M x") apply (auto split: option.splits)
-  using le_some_optE apply blast apply(rule helper) by auto
-
-lemma helper2: "x2b \<le> x2 \<Longrightarrow> \<not> x2a < x2  \<Longrightarrow> \<not> x2a < x2b \<Longrightarrow> x2a - (x2::enat) \<le> x2a - x2b"
-    apply(cases x2; cases x2a) apply auto apply(cases x2b) by auto
-
-lemma mm_antimono: "M1 x \<ge> M2 x \<Longrightarrow> mm Q M1 x \<le> mm Q M2 x"
-  unfolding mm_def   apply (auto split: option.splits)  
-  apply(rule helper2) by auto
-
-lemma mm_continous: "mm (\<lambda>x. Inf {u. \<exists>y. u = f y x}) m x = Inf {u. \<exists>y. u = mm (f y) m x}" 
-  apply(rule antisym)
-  subgoal apply(rule Inf_greatest) apply clarsimp
-  proof (cases "Inf {u. \<exists>y. u = f y x}")
-    case None
-    have f: "m x \<noteq> None \<Longrightarrow> mm (\<lambda>x. Inf {u. \<exists>y. u = f y x}) m x = None" unfolding mm_def None apply(cases "m x") by (auto ) 
-    then show "\<And>y. mm (\<lambda>x. Inf {u. \<exists>y. u = f y x}) m x \<le> mm (f y) m x"
-      apply(cases "m x") apply(auto simp: f) unfolding mm_def by auto
-  next
-    case (Some l)
-    then show "\<And>y. mm (\<lambda>x. Inf {u. \<exists>y. u = f y x}) m x \<le> mm (f y) m x"
-      apply(cases "m x") subgoal unfolding mm_def by auto
-    proof -
-      fix y a assume I: "Inf {u. \<exists>y. u = f y x} = Some l" " m x = Some a"
-      from I have i: "\<And>y. f y x \<ge> Some l"
-        by (metis (mono_tags, lifting) Inf_lower mem_Collect_eq) 
-      show "mm (\<lambda>x. Inf {u. \<exists>y. u = f y x}) m x \<le> mm (f y) m x"
-        apply(rule mm_mono) unfolding I apply(rule i) .
-    qed 
-  qed
-  subgoal   apply(rule Inf_lower) apply clarsimp 
-  proof -
-    have "\<exists>y. Inf {u. \<exists>y. u = f y x} = f y x"
-      unfolding Inf_option_def apply auto unfolding Inf_enat_def apply auto
-      apply (metis (mono_tags) empty_iff in_these_eq mem_Collect_eq option.exhaust)
-      by (smt LeastI in_these_eq mem_Collect_eq)
-    then obtain y where z: "Inf {u. \<exists>y. u = f y x} = f y x" by blast
-    show "\<exists>y. mm (\<lambda>x. Inf {u. \<exists>y. u = f y x}) m x = mm (f y) m x"
-      apply(rule exI[where x=y]) unfolding mm_def z ..
-  qed
-  done
-  
-
-lemma mii_continuous: "mii (\<lambda>x. Inf {f y x|y. True}) m x = Inf {mii (%x. f y x) m x|y. True}"
-  unfolding mii_def apply(cases m) subgoal apply auto done
-  subgoal apply auto using mm_continous by metis 
-  done
-
-
-lemma miiFailt: "mii Q FAILT x = None" unfolding mii_def by auto
-
-lemma Sup_enat_less2: "X \<noteq> {} \<Longrightarrow>   Sup X = \<infinity> \<Longrightarrow> (\<exists>x\<in>X. enat t < x)"
-   
-  subgoal unfolding  Sup_enat_def using    finite_enat_bounded linear 
-    apply(auto split: if_splits)  
-    apply (smt Max_in empty_iff enat_ord_code(4))
-    by (smt not_less)   
-  done
-
-
-
-lemma less_eq_option_None_is_None': "x \<le> None \<longleftrightarrow> x = None" by(auto simp: less_eq_option_None_is_None)
-
- 
-lemma [simp]: "t \<le> Some (\<infinity>::enat)"
-  by (cases t, auto)
-
-lemma everywhereNone: "(\<forall>x\<in>X. x = None) \<longleftrightarrow> X = {} \<or> X = {None}"
-  by auto
-
-lemma Sup_finite_enat: "Sup X = Some (enat a) \<Longrightarrow> Some (enat a) \<in> X"
-  by (auto simp: Sup_option_def Sup_enat_def these_empty_eq Max_eq_iff in_these_eq split: if_splits)
-
-lemma mm2_contiuous2: "\<forall>x\<in>X. t \<le> mm2 q x \<Longrightarrow> t \<le> mm2 q (Sup X)"
-  unfolding mm2_def apply(auto simp: everywhereNone bot_option_def less_eq_option_None_is_None' split: option.splits if_splits)
-  subgoal by (metis (no_types, lifting) Sup_option_def in_these_eq less_Sup_iff option.distinct(1) option.sel) 
-  subgoal for tx tq by(cases tq; cases tx; fastforce dest!: Sup_finite_enat)
-  done
-  
-lemma Sup_SPECT_D: "Sup X = SPECT m \<Longrightarrow> m x = Sup {f x | f. REST f \<in> X}"
-  unfolding Sup_nrest_def apply(auto split: if_splits) unfolding Sup_fun_def  
-  apply(fo_rule arg_cong) by blast
-
-lemma mm2_antimono: "x \<le> y \<Longrightarrow> mm2 q x \<ge> mm2 q y"
-  unfolding mm2_def apply (auto split: option.splits)
-  using helper2 by blast 
- 
-lemma mii_continuous2: "(mii Q (Sup {F x t1 |x t1. P x t1}) x \<ge> t) = (\<forall>y t1. P y t1 \<longrightarrow> mii Q (F y t1) x \<ge> t)"
-  unfolding mii_alt apply auto apply (auto simp: ll less_eq_option_None_is_None' split: nrest.splits)
-  subgoal by (smt ll(2) mem_Collect_eq nres_order_simps(1) top_greatest) 
-  subgoal for y t1 x2 x2a
-    apply(drule Sup_SPECT_D[where x=x])
-    apply(rule order.trans[where b="mm2 (Q x) (x2 x)"]) apply simp
-    apply(rule mm2_antimono) by (metis (mono_tags, lifting) Sup_upper mem_Collect_eq)
-  subgoal 
-    apply(drule Sup_SPECT_D[where x=x])
-    by (auto intro: mm2_contiuous2) 
-  done 
+  using le_Inf_iff by fastforce   
 
 lemma lem: "\<forall>t1. M y = Some t1 \<longrightarrow> t \<le> mii Q (SPECT (map_option (op + t1) \<circ> x2)) x \<Longrightarrow> f y = SPECT x2 \<Longrightarrow> t \<le> mii (\<lambda>y. mii Q (f y) x) (SPECT M) y"
   unfolding mii_def apply (auto split: nrest.splits)
@@ -946,8 +842,6 @@ lemma lem2: "t \<le> mii (\<lambda>y. mii Q (f y) x) (SPECT M) y \<Longrightarro
   subgoal for a b  apply(cases a; cases b; cases t) apply auto
     by (smt add.commute add_diff_cancel_left enat_ile idiff_enat_enat le_add_diff_inverse le_less_linear plus_enat_simps(1))
   done
-
-
 
 lemma fixes m :: "'b nrest"
   shows mii_bindT: "(t \<le> mii Q (bindT m f) x) \<longleftrightarrow> (\<forall>y. t \<le> mii (\<lambda>y. mii Q (f y) x) m y)"
@@ -1005,26 +899,10 @@ proof -
 qed
 
 
-lemma assumes "\<And>t. (\<forall>x. nres3 Q M x t) = (\<forall>x. nres3 Q' M' x t)" 
-  shows T_eq_iff: "T Q M = T Q' M'"
-  apply (rule antisym)
-  apply(rule T_au) using assms apply metis
-  apply(rule T_au) using assms apply metis done 
-
-lemma assumes "\<And>t. (\<forall>x. nres3 Q M x t) \<Longrightarrow> (\<forall>x. nres3 Q' M' x t)"
-      "\<And>t. (\<forall>x. nres3 Q' M' x t) \<Longrightarrow> (\<forall>x. nres3 Q M x t)"
-  shows T_eqI: "T Q M = T Q' M'"
-  apply (rule antisym)
-  apply(rule T_au) apply fact
-  apply(rule T_au) apply fact done 
-  
+subsection "rules for T"
 
 lemma T_bindT: "T Q (bindT M f) = T (\<lambda>y. T Q (f y)) M"
-  by (rule T_eq_iff, rule nres3_bindT)
-
-
-lemma [simp]: "mm2 q None = Some \<infinity>" unfolding mm2_def by auto
-
+  by (rule pw_T_eq_iff, rule nres3_bindT)
 
 
 lemma T_REST: "T Q (REST [x\<mapsto>t]) = mm2 (Q x) (Some t)"
@@ -1038,77 +916,10 @@ proof-
     unfolding T_def mii_alt by auto
 qed
 
-lemma RETURNT_alt: "RETURNT x = REST [x\<mapsto>0]"
-  unfolding RETURNT_def by auto
-
-lemma mm2_0[simp]: "mm2 q (Some 0) = q" unfolding mm2_def by (auto split: option.splits)
 
 lemma T_RETURNT: "T Q (RETURNT x) = Q x"
   unfolding RETURNT_alt apply(rule trans) apply(rule T_REST) by simp
-
-
- 
-lemma pf_minus_enat: "t \<le> F - M \<Longrightarrow> \<forall>t'\<ge>F. t \<le> t' - (M::enat)" apply auto
-  apply(cases F) apply auto 
-  subgoal for t' apply (cases t') apply auto
-    apply(cases M) apply auto apply(cases t) by auto
-  done
-
-lemma pf_minus_enat_iff: "t \<le> F - M \<longleftrightarrow> (\<forall>t'\<ge>F. t \<le> t' - (M::enat))" apply auto 
-  apply(cases F) apply auto 
-  subgoal for t' apply (cases t') apply auto
-    apply(cases M) apply auto apply(cases t) by auto
-  done
-
-
-lemma pf_minus_enatoption : "t \<le> mm F M x \<Longrightarrow> (\<forall>t'\<ge>F x. t \<le> mm (\<lambda>_. t') M x)"
-  unfolding mm_def apply(cases "M x")
-   apply auto apply(cases "F x") apply auto
-  subgoal
-    using less_eq_option_None_is_None by fastforce  
-  subgoal apply(auto split: if_splits)
-    subgoal
-      using less_eq_option_None_is_None by fastforce  
-    subgoal
-      by (smt le_less_trans le_some_optE less_eq_option_Some less_eq_option_Some_None linear option.case_eq_if option.sel pf_minus_enat)
-    done
-  done
-
-lemma pf_minus_enatoption_iff: "t \<le> mm F M x \<longleftrightarrow> (\<forall>t'\<ge>F x. t \<le> mm (\<lambda>_. t') M x)"
-  unfolding mm_def apply(cases "M x")
-   apply auto apply(cases "F x") apply auto
-  subgoal
-    using less_eq_option_None_is_None by fastforce  
-  subgoal apply(auto split: if_splits)
-    subgoal
-      using less_eq_option_None_is_None by fastforce  
-    subgoal
-      by (smt le_less_trans le_some_optE less_eq_option_Some less_eq_option_Some_None linear option.case_eq_if option.sel pf_minus_enat)
-    done
-  done
-
-
-lemma pf_minus_nrest: "t \<le> mii F M x \<Longrightarrow> \<forall>t'\<ge>F x. t \<le> mii (\<lambda>_. t') M x"
-  unfolding mii_def apply(cases M) subgoal by auto
-  apply auto using pf_minus_enatoption by metis
-
-lemma mii_onx: "F x=F' x \<Longrightarrow> mii F M x = mii F' M x "
-  unfolding mii_def mm_def by metis
-
-lemma pf_minus_nrest': "\<forall>t'\<ge>F x. t \<le> mii (\<lambda>_. t') M x \<Longrightarrow> t \<le> mii F M x"
-  using mii_onx[of F x "(\<lambda>_. F x)"] by simp 
-
-
-lemma pf_minus_nrest_iff: "t \<le> mii F M x \<longleftrightarrow> (\<forall>t'\<ge>F x. t \<le> mii (\<lambda>_. t') M x)"
-  using pf_minus_nrest pf_minus_nrest' by metis
-
-                                                
-lemma G: "nres3 F M x t \<longleftrightarrow> (\<forall>t'. F x \<le> t' \<longrightarrow> nres3 (\<lambda>_. t') M x t)"
-  unfolding nres3_def using pf_minus_nrest_iff by metis   
-
-
-
-
+      
 section "Experimental Hoare reasoning"
 
 
