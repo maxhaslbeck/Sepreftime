@@ -1019,7 +1019,7 @@ lemma "T Q (SPECT P) \<ge> Some t \<longleftrightarrow> (\<forall>x t'. P x = So
   by fastforce
 
 lemma "T Q (SPECT P) = Some t \<longleftrightarrow> (\<forall>x t'. P x = Some t' \<longrightarrow> (\<exists>t''. Q x = Some t'' \<and> t'' = t + t'))"
-  apply (auto simp: T_def )
+  apply (auto simp: T_def ) oops
    
               
 section "Experimental Hoare reasoning"
@@ -1043,7 +1043,7 @@ lemma assumes
 
 
 
-lemma aux1: "Some t \<le> mm2 Q (Some t') \<longleftrightarrow> Some (t+t') \<le> Q"
+lemma aux1': "Some t \<le> mm2 Q (Some t') \<longleftrightarrow> Some (t+t') \<le> Q"
   apply (auto simp: mm2_def split: option.splits)
   subgoal for t''
     by (cases t; cases t'; cases t''; auto)
@@ -1051,7 +1051,7 @@ lemma aux1: "Some t \<le> mm2 Q (Some t') \<longleftrightarrow> Some (t+t') \<le
     by (cases t; cases t'; cases t''; auto)
   subgoal for t''
     by (cases t; cases t'; cases t''; auto)
-  done
+  done 
 
 lemma T_conseq4:
   assumes 
@@ -1157,7 +1157,7 @@ find_theorems "T _ (REST _)"
 lemma "TSPEC Q (bindT m f) \<longleftrightarrow> TSPEC (emb (%x. TSPEC Q (f x)) 0) m"
   unfolding TSPEC_def T_bindT
 *)
-
+(*
 
   subgoal for x a b c
     apply (drule spec[where x=x])
@@ -1183,31 +1183,111 @@ lemma "TSPEC Q (bindT m f) \<longleftrightarrow> TSPEC (emb (%x. TSPEC Q (f x)) 
   subgoal
     by (metis aux1a' less_eq_option_Some_None) sorry
 
+*)
 
+lemma enat_minus_mono: "a' \<ge> b \<Longrightarrow> a' \<ge> a \<Longrightarrow> a' - b \<ge> (a::enat) - b"
+  apply(cases a; cases b; cases a') by auto
+
+lemma waux1: "(\<forall>s t'. I s = Some t' \<longrightarrow> b s  \<longrightarrow> c s \<noteq> FAILi \<and>  T I (c s) \<ge> Some t')
+    = (T (\<lambda>s. T I (c s)) (SPECT (\<lambda>x. if b x then I x else None)) \<ge> Some 0)"
+  apply(subst (2)T_pw) unfolding mii_alt apply simp
+  apply (auto simp: mm2_def split: option.splits)
+  subgoal by force  
+  subgoal by force
+  subgoal by (simp add: T_def miiFailt)
+  subgoal by (metis (no_types, lifting) Inf_option_def T_def leI less_option_Some)
+  done
+
+lemma waux2: "(\<forall>s t'. I s = Some t' \<longrightarrow> T (\<lambda>x. if b x then None else I x) (whileT b c s) \<ge> Some t')
+      = (T (\<lambda>s. T (\<lambda>x. if b x then None else I x) (whileT b c s)) (SPECT I) \<ge> Some 0)"  
+  apply(subst (2) T_pw) unfolding mii_alt apply simp
+  by (force simp: mm2_def split: option.splits)  
 
 lemma
   assumes "whileT b c s = r"
-  assumes IS: "\<And>s t'. I s = Some t' \<Longrightarrow> b s  \<Longrightarrow> T I (c s) \<ge> Some (t_op t t')"
-  assumes IR: "\<And>t'. t'\<in>ran I \<Longrightarrow> t'\<ge>t"
-  assumes "I s \<noteq> None"
-  shows "T (\<lambda>x. if b x then None else I x) r \<ge> Some t"
-  using assms(1,4)
+  assumes IS: "\<And>s t'. I s = Some t' \<Longrightarrow> b s  \<Longrightarrow> c s \<noteq> FAILi \<and>  T I (c s) \<ge> Some t'"
+    (*  "T (\<lambda>x. T I (c x)) (SPECT (\<lambda>x. if b x then I x else None)) \<ge> Some 0" *) 
+  assumes "I s = Some t'"
+  assumes wf: "wf {(y, x)|x M y. c x = SPECT M \<and> M y \<noteq> None}"
+  shows whileT_rule: "T (\<lambda>x. if b x then None else I x) r \<ge> Some t'"
+  using assms(1,3)
   unfolding whileT_def
-proof (induction rule: RECT_wf_induct[where R=R])
+proof (induction arbitrary: t' rule: RECT_wf_induct[where R="{(y, x)|x M y. c x = SPECT M \<and> M y \<noteq> None}"])
   case 1
-  then show ?case sorry
+  then show ?case by fact
 next
   case 2
   then show ?case by refine_mono
 next
-  case step: (3 x D r)
+  case step: (3 x D r t')
+
+  { assume b:"b x"
+    with  IS step(3) have pff: "Some t' \<le> T I (c x)" and cnofail: "c x \<noteq> FAILi" by auto
+    from b step(2) have r: "r = bindT (c x) D" by auto
+    from cnofail obtain M where cM: "c x = SPECT M" by force
+
+    from step(3) pff have inf: "I x \<le> T I (c x)" by auto
+
+    have k: "\<And>y. M y \<noteq> None \<Longrightarrow> I y \<noteq> None"
+      using inf[unfolded T_pw cM mii_alt] by (auto simp: mm2_def step(3) split: option.splits) 
+
+    { fix y t''
+      have " None \<noteq> M y \<Longrightarrow> I y = Some t'' \<Longrightarrow> Some t'' \<le> T (\<lambda>x. if b x then None else I x) (D y)"
+        apply(rule step(1)[where y=y])
+        subgoal apply auto apply(rule exI[where x=M]) using cM  
+          using leI by fastforce          
+         apply simp   by metis
+    } note pf=this
+
+    { fix y
+      have " Some t' \<le> mii (\<lambda>y. T (\<lambda>x. if b x then None else I x) (D y)) (c x) y" 
+        unfolding mii_alt using cM apply(auto split: nrest.splits) 
+        unfolding mm2_def apply (auto split: option.splits)
+        subgoal using pf  
+          by (metis (no_types, lifting) Inf_option_def RETURNT_alt T_RETURNT T_def k less_eq_option_Some_None option.distinct(1))
+      proof - 
+        fix th tn  (* time that we have, time that we need *)
+        assume less: "th < tn" and My: "M y = Some tn" and T: "T (\<lambda>x. if b x then None else I x) (D y) = Some th"
+          (* from My k obtain tiy where "I y = Some tiy" sorry *)
+        from step(3) inf have "\<And>y. I x \<le> mm2 (I y) (M y)" unfolding T_pw mii_alt using cM by (auto split: nrest.splits)
+        then have ineq: "I x \<le> mm2 (I y) (M y)" by auto 
+        then obtain tiy where "I y = Some tiy" using My step(3) by(auto simp: mm2_def split: if_splits option.splits)
+        with ineq My step(3) have 2: "tiy \<ge> tn" by (auto simp: mm2_def split: if_splits) 
+        from cM My pf have "Some tiy \<le> T (\<lambda>x. if b x then None else I x) (D y)" by (simp add: \<open>I y = Some tiy\<close>)
+        with T have "tiy \<le> th" by simp
+        with 2 less show False by simp
+      next
+        fix th tn  (* time that we have, time that we need *)
+        assume notless: "~ th < tn" and My: "M y = Some tn" and T: "T (\<lambda>x. if b x then None else I x) (D y) = Some th"
+        from step(3) inf have "\<And>y. I x \<le> mm2 (I y) (M y)" unfolding T_pw mii_alt using cM by (auto split: nrest.splits)
+        then have ineq: "I x \<le> mm2 (I y) (M y)" by auto 
+        then obtain tiy where "I y = Some tiy" using My step(3) by(auto simp: mm2_def split: if_splits option.splits)
+        with ineq My step(3) have 2: "t' \<le> tiy - tn" by (auto simp: mm2_def split: if_splits) 
+        from cM My pf have "Some tiy \<le> T (\<lambda>x. if b x then None else I x) (D y)" by (simp add: \<open>I y = Some tiy\<close>)
+        with T have 3: "tiy \<le> th" by simp
+        from notless have "tn \<le> th" by auto
+        from enat_minus_mono[OF this 3]   have "tiy - tn \<le> th - tn" by auto
+        with 2 show "t' \<le> th - tn" by auto  
+      qed 
+    }
+    then have "Some t' \<le> T (\<lambda>x. if b x then None else I x) (bindT (c x) D)"
+      apply(simp add: T_bindT) unfolding T_pw by auto
+    then have ?case unfolding r by auto
+  }
+  moreover
+  {
+    assume nb: "\<not> b x"
+    with  step(2) have "r = RETURNT x" by auto
+    then have ?case using nb step(3) by (simp add: T_RETURNT)
+  }
+  ultimately have i: ?case by auto
 
   note IH = step.IH[OF _ refl]
 
   note step.hyps[symmetric, simp]
-
+(*
   from step.prems
-  show ?case 
+  have ?case 
     apply clarsimp apply safe
     subgoal 
       apply vcg
@@ -1228,13 +1308,16 @@ next
 
       sorry
     subgoal by vcg
-
+    done *)
+  from i show ?case .
 qed
-    defer
-    apply refine_mono
-  apply vcg
 
-
+print_statement waux1
+lemma 
+  assumes IS: "T (\<lambda>s. T I (c s)) (SPECT (\<lambda>x. if b x then I x else None)) \<ge> Some 0" 
+  assumes wf: "wf {(y, x)|x M y. c x = SPECT M \<and> M y \<noteq> None}"
+  shows whileT_rule': "T (\<lambda>s. T (\<lambda>x. if b x then None else I x) (whileT b c s)) (SPECT I) \<ge> Some 0"
+  using IS unfolding  waux1[symmetric] waux2[symmetric]  using whileT_rule[OF _ _ _ wf] by blast
 
 
 lemma assumes
