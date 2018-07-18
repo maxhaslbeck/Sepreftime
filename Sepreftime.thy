@@ -1208,13 +1208,47 @@ lemma
   assumes IS: "\<And>s t'. I s = Some t' \<Longrightarrow> b s  \<Longrightarrow> c s \<noteq> FAILi \<and>  T I (c s) \<ge> Some t'"
     (*  "T (\<lambda>x. T I (c x)) (SPECT (\<lambda>x. if b x then I x else None)) \<ge> Some 0" *) 
   assumes "I s = Some t'"
-  assumes wf: "wf {(y, x)|x M y. c x = SPECT M \<and> M y \<noteq> None}"
+  assumes wf: "wf {(y, x)|x M y. I x \<noteq> None \<and> b x \<and> c x = SPECT M \<and> M y \<noteq> None}"
   shows whileT_rule: "T (\<lambda>x. if b x then None else I x) r \<ge> Some t'"
   using assms(1,3)
   unfolding whileT_def
-proof (induction arbitrary: t' rule: RECT_wf_induct[where R="{(y, x)|x M y. c x = SPECT M \<and> M y \<noteq> None}"])
+proof (induction arbitrary: t' rule: RECT_wf_induct[where R="{(y, x)|x M y. I x \<noteq> None \<and> b x \<and> c x = SPECT M \<and> M y \<noteq> None}"])
   case 1
-  then show ?case by fact
+  { 
+    assume progress: "\<And>s. I s \<noteq> None \<Longrightarrow> b s \<Longrightarrow> (\<exists>M. c s = SPECT M \<and> (\<forall>y. M y > Some 0))"
+    assume finite: "\<And>s. I s \<noteq> None \<Longrightarrow> (\<exists>b. I s = Some (enat b))"
+    let ?b = "Sup {b|b x. I x = Some (enat b)}"
+    obtain d where d: "?b = enat d" and led: "\<And>x t. I x = Some t \<Longrightarrow> t \<le> enat d"  sorry
+  have ?case apply(rule wf_bounded_measure[where ub="\<lambda>_. d" and f="\<lambda>x. case I x of Some x \<Rightarrow> (case x of enat a \<Rightarrow> a)"])
+  proof (safe, goal_cases)
+    case (1 a ba s M y IM yb)
+    from 1(3,4) IS[OF 1(1,2)] have "\<And>x. Some IM \<le> mii I (c s) x" apply(subst (asm) T_pw)  by auto
+    from this[of y] 1(3,4) have "I y \<noteq> None" by (auto simp: mii_alt mm2_def split: nrest.splits option.splits) 
+    with finite obtain b where Iy: "I y = Some (enat b)" by auto
+
+ 
+    have "enat (case I y of Some (enat a) \<Rightarrow> a) \<le> enat d"
+     using led Iy by force
+    then show ?case unfolding Iy   by simp
+  next
+    case (2 a b s M y IM yb)
+    from 2(3,4) IS[OF 2(1,2)] have k: "\<And>x. Some IM \<le> mii I (c s) x" apply(subst (asm) T_pw)  by auto
+    from k[of y] 2(3,4) have "I y \<noteq> None" by (auto simp: mii_alt mm2_def split: nrest.splits option.splits) 
+    with finite obtain b where Iy: "I y = Some (enat b)" by auto
+    from finite 2(1)  obtain a where Is: "I s = Some (enat a)" by blast 
+    from 2(1) Is have IMa: "IM = enat a" by auto
+
+    from progress[of s] 2(1,2,3) have myg0: "M y > Some 0" by auto   
+    have bc: "a < b" using k[of y] IMa unfolding mii_alt Iy using 2(3) apply(auto)
+      unfolding mm2_def using myg0  apply (auto split: option.splits if_splits)
+      by (smt diff_less enat_0_iff(1) enat_iless enat_ord_simps(1) gr_zeroI idiff_enat_enat nat_less_le not_less_iff_gr_or_eq order_trans)
+    
+
+    show ?case   unfolding Iy Is using bc by simp
+  qed 
+}
+  
+  show ?case by fact
 next
   case 2
   then show ?case by refine_mono
@@ -1234,7 +1268,7 @@ next
     { fix y t''
       have " None \<noteq> M y \<Longrightarrow> I y = Some t'' \<Longrightarrow> Some t'' \<le> T (\<lambda>x. if b x then None else I x) (D y)"
         apply(rule step(1)[where y=y])
-        subgoal apply auto apply(rule exI[where x=M]) using cM  
+        subgoal apply auto subgoal using step(3) by auto subgoal using b by simp apply(rule exI[where x=M]) using cM  
           using leI by fastforce          
          apply simp   by metis
     } note pf=this
@@ -1315,9 +1349,24 @@ qed
 print_statement waux1
 lemma 
   assumes IS: "T (\<lambda>s. T I (c s)) (SPECT (\<lambda>x. if b x then I x else None)) \<ge> Some 0" 
-  assumes wf: "wf {(y, x)|x M y. c x = SPECT M \<and> M y \<noteq> None}"
+  assumes wf: "wf {(y, x)|x M y. I x \<noteq> None \<and> b x \<and> c x = SPECT M \<and> M y \<noteq> None}"
   shows whileT_rule': "T (\<lambda>s. T (\<lambda>x. if b x then None else I x) (whileT b c s)) (SPECT I) \<ge> Some 0"
   using IS unfolding  waux1[symmetric] waux2[symmetric]  using whileT_rule[OF _ _ _ wf] by blast
+
+
+term emb'
+lemma 
+  assumes c: "c = (\<lambda>s. SPECT [s-1\<mapsto>1])"
+  shows "T (\<lambda>s. if s = 0 then Some (enat n) else None) (whileT (\<lambda>s. s>0) c (0::nat)) \<ge> Some 0"
+  apply(rule T_conseq4)
+   apply(rule whileT_rule[where I="\<lambda>s. if s\<le>n then Some (enat (n - s)) else None"])
+      apply simp
+  subgoal unfolding c apply (simp add: T_REST mm2_def) apply (auto split: if_splits)
+     apply (simp add: one_eSuc zero_enat_def) 
+    by (simp add: one_enat_def)
+    apply simp 
+  subgoal using c apply auto sledgehammer  sorry
+  by (auto split: if_splits)
 
 
 lemma assumes
