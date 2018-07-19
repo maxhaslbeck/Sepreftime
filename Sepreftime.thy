@@ -1056,13 +1056,66 @@ lemma aux1': "Some t \<le> mm2 Q (Some t') \<longleftrightarrow> Some (t+t') \<l
 lemma T_conseq4:
   assumes 
     "T Q' f \<ge> Some t'"
-    "\<And>x t''. Q' x = Some t'' \<Longrightarrow> (Q x) \<ge> Some ((t - t') + t'')" 
+    "\<And>x t'' M. Q' x = Some t'' \<Longrightarrow> (Q x) \<ge> Some ((t - t') + t'')" 
   shows "T Q f \<ge> Some t"
 proof -
   {
     fix x
     from assms(1)[unfolded T_pw] have i: "Some t' \<le> mii Q' f x" by auto
     from assms(2) have ii: "\<And>t''. Q' x = Some t'' \<Longrightarrow> (Q x) \<ge> Some ((t - t') + t'')" by auto
+    from i ii have "Some t \<le> mii Q f x"
+      unfolding mii_alt apply(auto split: nrest.splits)
+      subgoal for x2 apply(cases "x2 x") apply simp
+        apply(simp add: aux1)  
+        apply(cases "Q' x") apply simp
+        apply auto 
+        apply(cases "Q x") apply auto 
+        subgoal for a b c apply(cases t; cases t'; cases a; cases b; cases c) apply auto
+          using le_add2 by force
+        done
+      done
+  } 
+  thus ?thesis
+    unfolding T_pw ..
+qed
+
+
+lemma T_conseq6:
+  assumes 
+    "T Q' f \<ge> Some t"
+    "\<And>x t'' M. f = SPECT M \<Longrightarrow> M x \<noteq> None \<Longrightarrow> Q' x = Some t'' \<Longrightarrow> (Q x) \<ge> Some ( t'')" 
+  shows "T Q f \<ge> Some t"
+proof -
+  {
+    fix x
+    from assms(1)[unfolded T_pw] have i: "Some t \<le> mii Q' f x" by auto
+    from assms(2) have ii: "\<And>t'' M.  f = SPECT M \<Longrightarrow> M x \<noteq> None \<Longrightarrow> Q' x = Some t'' \<Longrightarrow> (Q x) \<ge> Some ( t'')" by auto
+    from i ii have "Some t \<le> mii Q f x"
+      unfolding mii_alt apply(auto split: nrest.splits)
+      subgoal for x2 apply(cases "x2 x") apply simp
+        apply(simp add: aux1)  
+        apply(cases "Q' x") apply simp
+        apply auto 
+        apply(cases "Q x") apply auto 
+        subgoal for a b c apply(cases t;  cases a; cases b; cases c) apply auto
+          using le_add2 by force
+        done
+      done
+  } 
+  thus ?thesis
+    unfolding T_pw ..
+qed
+
+lemma T_conseq5:
+  assumes 
+    "T Q' f \<ge> Some t'"
+    "\<And>x t'' M. f = SPECT M \<Longrightarrow> M x \<noteq> None \<Longrightarrow> Q' x = Some t'' \<Longrightarrow> (Q x) \<ge> Some ((t - t') + t'')" 
+  shows "T Q f \<ge> Some t"
+proof -
+  {
+    fix x
+    from assms(1)[unfolded T_pw] have i: "Some t' \<le> mii Q' f x" by auto
+    from assms(2) have ii: "\<And>t'' M.  f = SPECT M \<Longrightarrow> M x \<noteq> None \<Longrightarrow> Q' x = Some t'' \<Longrightarrow> (Q x) \<ge> Some ((t - t') + t'')" by auto
     from i ii have "Some t \<le> mii Q f x"
       unfolding mii_alt apply(auto split: nrest.splits)
       subgoal for x2 apply(cases "x2 x") apply simp
@@ -1203,6 +1256,10 @@ lemma waux2: "(\<forall>s t'. I s = Some t' \<longrightarrow> T (\<lambda>x. if 
   apply(subst (2) T_pw) unfolding mii_alt apply simp
   by (force simp: mm2_def split: option.splits)  
 
+lemma T_ineq_D: "Some t' \<le> T I (c x) \<Longrightarrow> (\<exists>M. c x = SPECT M \<and> mm2 (I y) (M y)  \<ge> Some t')"
+  unfolding T_pw mii_alt apply (auto split: nrest.splits) using nrest_noREST_FAILT by blast 
+
+
 lemma
   assumes "whileT b c s = r"
   assumes IS: "\<And>s t'. I s = Some t' \<Longrightarrow> b s  \<Longrightarrow> c s \<noteq> FAILi \<and>  T I (c s) \<ge> Some t'"
@@ -1214,6 +1271,7 @@ lemma
   unfolding whileT_def
 proof (induction arbitrary: t' rule: RECT_wf_induct[where R="{(y, x)|x M y. I x \<noteq> None \<and> b x \<and> c x = SPECT M \<and> M y \<noteq> None}"])
   case 1
+(*
   { 
     assume progress: "\<And>s. I s \<noteq> None \<Longrightarrow> b s \<Longrightarrow> (\<exists>M. c s = SPECT M \<and> (\<forall>y. M y > Some 0))"
     assume finite: "\<And>s. I s \<noteq> None \<Longrightarrow> (\<exists>b. I s = Some (enat b))"
@@ -1246,7 +1304,7 @@ proof (induction arbitrary: t' rule: RECT_wf_induct[where R="{(y, x)|x M y. I x 
 
     show ?case   unfolding Iy Is using bc by simp
   qed 
-}
+}*)
   
   show ?case by fact
 next
@@ -1274,6 +1332,10 @@ next
     } note pf=this
 
     { fix y
+
+      from step(3) inf have pot_pays: "\<And>y. I x \<le> mm2 (I y) (M y)" unfolding T_pw mii_alt using cM by (auto split: nrest.splits)
+      from pot_pays have ineq: "I x \<le> mm2 (I y) (M y)" by auto 
+
       have " Some t' \<le> mii (\<lambda>y. T (\<lambda>x. if b x then None else I x) (D y)) (c x) y" 
         unfolding mii_alt using cM apply(auto split: nrest.splits) 
         unfolding mm2_def apply (auto split: option.splits)
@@ -1281,27 +1343,22 @@ next
           by (metis (no_types, lifting) Inf_option_def RETURNT_alt T_RETURNT T_def k less_eq_option_Some_None option.distinct(1))
       proof - 
         fix th tn  (* time that we have, time that we need *)
-        assume less: "th < tn" and My: "M y = Some tn" and T: "T (\<lambda>x. if b x then None else I x) (D y) = Some th"
-          (* from My k obtain tiy where "I y = Some tiy" sorry *)
-        from step(3) inf have "\<And>y. I x \<le> mm2 (I y) (M y)" unfolding T_pw mii_alt using cM by (auto split: nrest.splits)
-        then have ineq: "I x \<le> mm2 (I y) (M y)" by auto 
-        then obtain tiy where "I y = Some tiy" using My step(3) by(auto simp: mm2_def split: if_splits option.splits)
-        with ineq My step(3) have 2: "tiy \<ge> tn" by (auto simp: mm2_def split: if_splits) 
-        from cM My pf have "Some tiy \<le> T (\<lambda>x. if b x then None else I x) (D y)" by (simp add: \<open>I y = Some tiy\<close>)
-        with T have "tiy \<le> th" by simp
-        with 2 less show False by simp
-      next
-        fix th tn  (* time that we have, time that we need *)
-        assume notless: "~ th < tn" and My: "M y = Some tn" and T: "T (\<lambda>x. if b x then None else I x) (D y) = Some th"
-        from step(3) inf have "\<And>y. I x \<le> mm2 (I y) (M y)" unfolding T_pw mii_alt using cM by (auto split: nrest.splits)
-        then have ineq: "I x \<le> mm2 (I y) (M y)" by auto 
-        then obtain tiy where "I y = Some tiy" using My step(3) by(auto simp: mm2_def split: if_splits option.splits)
-        with ineq My step(3) have 2: "t' \<le> tiy - tn" by (auto simp: mm2_def split: if_splits) 
+        assume  My: "M y = Some tn" and T: "T (\<lambda>x. if b x then None else I x) (D y) = Some th" 
+
+        from ineq obtain tiy where Iy: "I y = Some tiy" using My step(3) by(auto simp: mm2_def split: if_splits option.splits)
+        with ineq My step(3) have 2: "tiy \<ge> tn" and a2: "t' \<le> tiy - tn" by (auto simp: mm2_def split: if_splits) 
         from cM My pf have "Some tiy \<le> T (\<lambda>x. if b x then None else I x) (D y)" by (simp add: \<open>I y = Some tiy\<close>)
         with T have 3: "tiy \<le> th" by simp
-        from notless have "tn \<le> th" by auto
-        from enat_minus_mono[OF this 3]   have "tiy - tn \<le> th - tn" by auto
-        with 2 show "t' \<le> th - tn" by auto  
+
+        { assume less: "th < tn"
+          from 3 2 less show False by simp
+        } 
+        {
+          assume notless: "~ th < tn"
+          from notless have "tn \<le> th" by auto
+          from enat_minus_mono[OF this 3]   have "tiy - tn \<le> th - tn" by auto
+          with a2 show "t' \<le> th - tn" by auto 
+        } 
       qed 
     }
     then have "Some t' \<le> T (\<lambda>x. if b x then None else I x) (bindT (c x) D)"
@@ -1316,35 +1373,90 @@ next
   }
   ultimately have i: ?case by auto
 
+  thm step.IH
   note IH = step.IH[OF _ refl]
+  note IS' = IS[THEN conjunct2]
+  note step.hyps[symmetric, simp]   
 
-  note step.hyps[symmetric, simp]
-(*
   from step.prems
   have ?case 
     apply clarsimp apply safe
     subgoal 
-      apply vcg
-      apply (rule T_conseq4)
-        apply (rule IS)
-      apply simp
-       apply simp
-
-      apply (rule T_conseq4)
+      apply vcg           
+      apply (rule T_conseq6)  
+        apply (rule IS')
+      apply simp_all
+      apply (rule T_conseq6)
         apply (rule IH)
-      subgoal sorry
-       apply (auto split: if_splits simp: )
-      
- 
+      subgoal for y  by simp 
       apply simp
-      apply simp
-
-
-      sorry
+      by (auto split: if_splits) 
     subgoal by vcg
-    done *)
+    done 
   from i show ?case .
 qed
+
+
+
+
+method vcg' uses rls = ((rule rls vcg_rules[THEN T_conseq6] | clarsimp split: if_splits simp: T_bindT T_RETURNT)+)
+
+lemma
+  assumes "whileT b c s = r"
+  assumes IS[vcg_rules]: "\<And>s t'. I s = Some t' \<Longrightarrow> b s  \<Longrightarrow>    T (\<lambda>s'. if (s',s)\<in>R then I s' else None) (c s) \<ge> Some t'"
+    (*  "T (\<lambda>x. T I (c x)) (SPECT (\<lambda>x. if b x then I x else None)) \<ge> Some 0" *) 
+  assumes "I s = Some t'"
+  assumes wf: "wf R"
+  shows whileT_rule'': "T (\<lambda>x. if b x then None else I x) r \<ge> Some t'"
+  using assms(1,3)
+  unfolding whileT_def
+proof (induction arbitrary: t' rule: RECT_wf_induct[where R="R"])
+  case 1  
+  show ?case by fact
+next
+  case 2
+  then show ?case by refine_mono
+next
+  case step: (3 x D r t') 
+  note IH[vcg_rules] = step.IH[OF _ refl] 
+  note step.hyps[symmetric, simp]   
+
+  from step.prems
+  show ?case 
+    apply clarsimp
+    apply safe 
+    by vcg'      
+qed
+
+lemma
+  assumes "whileT b c s = r"
+  assumes IS[vcg_rules]: "\<And>s t'. I s = Some t' \<Longrightarrow> b s  \<Longrightarrow> T I (c s) \<ge> Some t'"
+    (*  "T (\<lambda>x. T I (c x)) (SPECT (\<lambda>x. if b x then I x else None)) \<ge> Some 0" *) 
+  assumes "I s = Some t'"
+  assumes wf: "wf {(y, x)|x M y. I x \<noteq> None \<and> b x \<and> c x = SPECT M \<and> M y \<noteq> None}"
+  shows whileT_rule': "T (\<lambda>x. if b x then None else I x) r \<ge> Some t'"
+  using assms(1,3)
+  unfolding whileT_def
+proof (induction arbitrary: t' rule: RECT_wf_induct[where R="{(y, x)|x M y. I x \<noteq> None \<and> b x \<and> c x = SPECT M \<and> M y \<noteq> None}"])
+  case 1
+  show ?case by fact
+next
+  case 2
+  then show ?case by refine_mono
+next
+  case step: (3 x D r t')
+
+  note IH[vcg_rules] = step.IH[OF _ refl]
+  note step.hyps[symmetric, simp]   
+
+  from step.prems
+  show ?case 
+    apply clarsimp
+    apply safe
+     apply vcg'  
+    done 
+qed
+
 
 print_statement waux1
 lemma 
@@ -1354,19 +1466,57 @@ lemma
   using IS unfolding  waux1[symmetric] waux2[symmetric]  using whileT_rule[OF _ _ _ wf] by blast
 
 
+
+
+
 term emb'
 lemma 
-  assumes c: "c = (\<lambda>s. SPECT [s-1\<mapsto>1])"
-  shows "T (\<lambda>s. if s = 0 then Some (enat n) else None) (whileT (\<lambda>s. s>0) c (0::nat)) \<ge> Some 0"
+  assumes c: "c = (\<lambda>s. SPECT [s-1\<mapsto>1])" 
+      and n: "S\<le>n"
+  shows "T (\<lambda>s. if s = 0 then Some (enat n) else None) (whileT (\<lambda>s. s>0) c (S::nat)) \<ge> Some 0"
   apply(rule T_conseq4)
    apply(rule whileT_rule[where I="\<lambda>s. if s\<le>n then Some (enat (n - s)) else None"])
       apply simp
   subgoal unfolding c apply (simp add: T_REST mm2_def) apply (auto split: if_splits)
      apply (simp add: one_eSuc zero_enat_def) 
     by (simp add: one_enat_def)
-    apply simp 
-  subgoal using c apply auto sledgehammer  sorry
+    using n apply simp 
+  subgoal using c apply auto 
+    apply(rule wf_bounded_measure[where ub="\<lambda>_. n" and f="\<lambda>s. n - s"])
+    by auto 
   by (auto split: if_splits)
+
+lemma                                       (* hmmm *)
+  assumes c: "c = (\<lambda>s. SPECT (\<lambda>s'. if s'<s \<and> even s then Some C else None))"  
+  shows "T (\<lambda>s. if s = 0 then Some \<infinity> else None) (whileT (\<lambda>s. s>0) c (S::nat)) \<ge> Some 0"
+  apply(rule T_conseq4)
+   apply(rule whileT_rule[where I="\<lambda>s. Some \<infinity>"])
+      apply simp
+  subgoal for s unfolding c by (simp add: T_pw mii_alt mm2_def)
+    apply simp 
+  subgoal using c apply auto  
+    by (smt case_prodI le_less_linear mem_Collect_eq nz_le_conv_less prod.sel(2) wf wf_def)
+  by (auto split: if_splits)
+
+
+
+lemma dont_care_about_runtime_as_long_as_it_terminates: 
+    (* here:
+        * the cost C of of the loop body (decrementing s) may even be \<infinity>
+        * the starting state S is also arbitrary *)
+  assumes c: "c = (\<lambda>s. SPECT [s-1\<mapsto>C])"
+  shows "T (\<lambda>s. if s = 0 then Some \<infinity> else None) (whileT (\<lambda>s. s>0) c (S::nat)) \<ge> Some 0"
+  apply(rule T_conseq4)
+   apply(rule whileT_rule[where I="\<lambda>s. Some \<infinity>"])
+      apply simp
+  subgoal for s unfolding c by (simp add: T_REST mm2_def)  
+    apply simp 
+  subgoal using c apply auto  
+    by (smt case_prodI le_less_linear mem_Collect_eq nz_le_conv_less prod.sel(2) wf wf_def) 
+  by (auto split: if_splits)
+
+
+ 
 
 
 lemma assumes
