@@ -1241,15 +1241,16 @@ lemma "TSPEC Q (bindT m f) \<longleftrightarrow> TSPEC (emb (%x. TSPEC Q (f x)) 
 lemma enat_minus_mono: "a' \<ge> b \<Longrightarrow> a' \<ge> a \<Longrightarrow> a' - b \<ge> (a::enat) - b"
   apply(cases a; cases b; cases a') by auto
 
-lemma waux1: "(\<forall>s t'. I s = Some t' \<longrightarrow> b s  \<longrightarrow> c s \<noteq> FAILi \<and>  T I (c s) \<ge> Some t')
-    = (T (\<lambda>s. T I (c s)) (SPECT (\<lambda>x. if b x then I x else None)) \<ge> Some 0)"
+lemma waux1: "(\<forall>s t'. I s = Some t' \<longrightarrow> b s  \<longrightarrow> c s \<noteq> FAILi \<and>  T (Q s) (c s) \<ge> Some t')
+    = (T (\<lambda>s. T (Q s) (c s)) (SPECT (\<lambda>x. if b x then I x else None)) \<ge> Some 0)"
   apply(subst (2)T_pw) unfolding mii_alt apply simp
   apply (auto simp: mm2_def split: option.splits)
   subgoal by force  
   subgoal by force
   subgoal by (simp add: T_def miiFailt)
   subgoal by (metis (no_types, lifting) Inf_option_def T_def leI less_option_Some)
-  done
+  done  
+
 
 lemma waux2: "(\<forall>s t'. I s = Some t' \<longrightarrow> T (\<lambda>x. if b x then None else I x) (whileT b c s) \<ge> Some t')
       = (T (\<lambda>s. T (\<lambda>x. if b x then None else I x) (whileT b c s)) (SPECT I) \<ge> Some 0)"  
@@ -1428,6 +1429,14 @@ next
     by vcg'      
 qed
 
+lemma 
+  assumes IS: "T (\<lambda>s. T (\<lambda>s'. if (s',s)\<in>R then I s' else None) (c s)) (SPECT (\<lambda>x. if b x then I x else None)) \<ge> Some 0" 
+  assumes wf: "wf R"
+  shows whileT_rule''_: "T (\<lambda>s. T (\<lambda>x. if b x then None else I x) (whileT b c s)) (SPECT I) \<ge> Some 0"
+  using IS   unfolding  waux1[symmetric] unfolding  waux2[symmetric]  using whileT_rule''[OF _ _ _ wf]
+  by blast
+ 
+
 lemma
   assumes "whileT b c s = r"
   assumes IS[vcg_rules]: "\<And>s t'. I s = Some t' \<Longrightarrow> b s  \<Longrightarrow> T I (c s) \<ge> Some t'"
@@ -1462,7 +1471,7 @@ print_statement waux1
 lemma 
   assumes IS: "T (\<lambda>s. T I (c s)) (SPECT (\<lambda>x. if b x then I x else None)) \<ge> Some 0" 
   assumes wf: "wf {(y, x)|x M y. I x \<noteq> None \<and> b x \<and> c x = SPECT M \<and> M y \<noteq> None}"
-  shows whileT_rule': "T (\<lambda>s. T (\<lambda>x. if b x then None else I x) (whileT b c s)) (SPECT I) \<ge> Some 0"
+  shows whileT_rule_: "T (\<lambda>s. T (\<lambda>x. if b x then None else I x) (whileT b c s)) (SPECT I) \<ge> Some 0"
   using IS unfolding  waux1[symmetric] waux2[symmetric]  using whileT_rule[OF _ _ _ wf] by blast
 
 
