@@ -1024,7 +1024,7 @@ lemma "T Q (SPECT P) = Some t \<longleftrightarrow> (\<forall>x t'. P x = Some t
               
 section "Experimental Hoare reasoning"
 
-
+(*
 lemma assumes 
       "T Q' f \<ge> Some 0"
       "T Q (SPECT Q') \<ge> Some 0"
@@ -1041,7 +1041,7 @@ lemma assumes
     shows T_conseq2: "T Q f \<ge> Some 0"
   sorry
 
-
+*)
 
 lemma aux1': "Some t \<le> mm2 Q (Some t') \<longleftrightarrow> Some (t+t') \<le> Q"
   apply (auto simp: mm2_def split: option.splits)
@@ -1406,12 +1406,12 @@ lemma
   assumes "whileT b c s = r"
   assumes IS[vcg_rules]: "\<And>s t'. I s = Some t' \<Longrightarrow> b s  \<Longrightarrow>    T (\<lambda>s'. if (s',s)\<in>R then I s' else None) (c s) \<ge> Some t'"
     (*  "T (\<lambda>x. T I (c x)) (SPECT (\<lambda>x. if b x then I x else None)) \<ge> Some 0" *) 
-  assumes "I s = Some t'"
+  assumes "I s = Some t"
   assumes wf: "wf R"
-  shows whileT_rule'': "T (\<lambda>x. if b x then None else I x) r \<ge> Some t'"
+  shows whileT_rule'': "T (\<lambda>x. if b x then None else I x) r \<ge> Some t"
   using assms(1,3)
   unfolding whileT_def
-proof (induction arbitrary: t' rule: RECT_wf_induct[where R="R"])
+proof (induction arbitrary: t rule: RECT_wf_induct[where R="R"])
   case 1  
   show ?case by fact
 next
@@ -1507,6 +1507,106 @@ lemma                                       (* hmmm *)
     by (smt case_prodI le_less_linear mem_Collect_eq nz_le_conv_less prod.sel(2) wf wf_def)
   by (auto split: if_splits)
 
+
+lemma T_specifies_I: "T Q m \<ge> Some 0 \<Longrightarrow> (m \<le> SPECT Q)"
+  unfolding T_pw apply (cases m) apply (auto simp: miiFailt le_fun_def mii_alt mm2_def split: option.splits)
+  subgoal for M x apply(cases "Q x"; cases "M x") apply (auto split: if_splits)
+    apply force+ done
+  done
+
+lemma T_specifies_rev: "(m \<le> SPECT Q) \<Longrightarrow> T Q m \<ge> Some 0" 
+  unfolding T_pw apply (cases m)
+  subgoal by auto
+   apply (auto simp: miiFailt le_fun_def mii_alt mm2_def split: option.splits)
+  subgoal for M x t apply(cases "Q x"; cases "M x") apply (auto split: if_splits)
+    by (metis less_eq_option_Some_None)
+  subgoal by (metis leD less_option_Some) 
+  done
+
+lemma T_specifies: "T Q m \<ge> Some 0 = (m \<le> SPECT Q)"
+  using T_specifies_I T_specifies_rev by metis
+
+thm whileT_rule''
+lemma                                       (* hmmm *)
+  assumes c[vcg_rules]: "\<And>s. c s \<le> SPECT (\<lambda>s'. if s'<s \<and> even s then Some C else None)"  
+  shows "T (\<lambda>s. if s \<le> 0 then Some \<infinity> else None) (whileT (\<lambda>s. s>0) c (S::nat)) \<ge> Some 0"
+  apply(rule  whileT_rule''[where I="\<lambda>s. Some \<infinity>" and R="{(x, y). x < y}", THEN T_conseq4])
+      apply simp 
+     apply(rule T_conseq4)
+      apply(rule T_specifies_rev[OF c])  
+     apply (auto split: if_splits)[1]
+  apply simp apply(fact wf) by (auto split: if_splits)  
+
+
+definition whileTI :: "('a \<Rightarrow> enat option) \<Rightarrow> ( ('a\<times>'a) set) \<Rightarrow> ('a \<Rightarrow> bool) \<Rightarrow> ('a \<Rightarrow> 'a nrest) \<Rightarrow> 'a \<Rightarrow> 'a nrest" where
+  "whileTI I R b c s = whileT b c s"
+
+print_statement whileT_rule''
+
+lemma  whileTI_rule[vcg_rules]:
+  assumes 
+      "\<And>s t'. I s = Some t' \<Longrightarrow> b s \<Longrightarrow> Some t' \<le> T (\<lambda>s'. if (s', s) \<in> R then I s' else None) (c s)"
+    and "I s = Some t'"
+    and "wf R"
+  shows "Some t' \<le> T (\<lambda>x. if b x then None else I x) (whileTI I R b c s)"
+  unfolding   whileTI_def
+  apply(rule whileT_rule''[where I=I and R=R])
+  apply simp apply fact+ done
+ 
+thm vcg_rules
+lemma                                       (* hmmm *)
+  assumes c[vcg_rules]: "\<And>s. Some 0 \<le> T (\<lambda>s'. if s' < s \<and> even s then Some C else None) (c s)"  
+  shows "T (\<lambda>s. if s \<le> 0 then Some \<infinity> else None) (whileTI (\<lambda>s. Some \<infinity>) {(x, y). x < y} (\<lambda>s. s>0) c (S::nat)) \<ge> Some 0"
+  apply vcg  
+     apply (auto split: if_splits)   by(fact wf) 
+
+
+
+adhoc_overloading
+  Monad_Syntax.bind Sepreftime.bindT
+lemma   fixes n :: nat
+  assumes [vcg_rules]: "T (\<lambda>s. if s \<le> n then Some 1 else None) f \<ge> Some 0"
+   and  c[vcg_rules]: "\<And>s. Some 0 \<le> T (\<lambda>s'. if s' < s then Some (enat C) else None) (c s)"
+   and C: "C>0"
+  shows "T (\<lambda>s. if s \<le> 0 then Some (1+C*n) else None) (
+        do { n \<leftarrow> f;
+             whileT (\<lambda>s. s>0) c n }) \<ge> Some 0"
+    (* note that n is bound from the outside ! *)
+  apply(subst whileTI_def[symmetric, where I="(\<lambda>s. if s\<le>n then Some (1+C*(enat (n-s))) else None)"
+                                    and R="  {(x, y). x < y}"])
+  apply vcg 
+  apply(auto simp: wf one_enat_def split: if_splits) 
+  proof -
+    fix x s xa   
+    assume "x \<le> n " " s \<le> n " " xa < s"
+    then have i: "((n - s) + 1) \<le> (n - xa)" by linarith  
+    have "C * (n - s) + C = C * ((n - s) + 1)" by simp
+    also have "\<dots> \<le> C * (n - xa)"  apply(rule mult_left_mono) apply fact by simp
+    finally  
+    show "C * (n - s) + C \<le> C * (n - xa)" .
+  qed 
+
+
+lemma   fixes n :: nat
+  assumes [vcg_rules]: "T (\<lambda>s. if s \<le> n then Some 1 else None) f \<ge> Some 0"
+   and  c[vcg_rules]: "\<And>s. Some 0 \<le> T (\<lambda>s'. if s' < s then Some (enat C) else None) (c s)"
+   and C: "C>0"
+  shows "T (\<lambda>s. if s \<le> 0 then Some (1+C*n) else None) (
+        do { n \<leftarrow> f;
+             whileTI (\<lambda>s. if s\<le>n then Some (1+C*(enat (n-s))) else None)  {(x, y). x < y}  (\<lambda>s. s>0) c n }) \<ge> Some 0" 
+    (* note that n in the Invariant is bound from the inside, very much in contrast to the example above! ! *)
+  apply vcg 
+  apply(auto simp: wf one_enat_def split: if_splits) 
+  proof -
+    fix x s xa   
+    assume "x \<le> n " " s \<le> x " " xa < s"
+    then have i: "((x - s) + 1) \<le> (x - xa)" by linarith  
+    have "C * (x - s) + C = C * ((x - s) + 1)" by simp
+    also have "\<dots> \<le> C * (x - xa)"  apply(rule mult_left_mono) apply fact by simp
+    finally  
+    show "C * (x - s) + C \<le> C * (x - xa)" .
+  qed
+  
 
 
 lemma dont_care_about_runtime_as_long_as_it_terminates: 
