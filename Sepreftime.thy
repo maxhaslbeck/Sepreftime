@@ -1142,7 +1142,7 @@ lemma T_conseq3:
 
 
 
-definition "P f g = bindT f (\<lambda>x. bindT g (\<lambda>y. RETURNT (x+(y::nat))))"
+definition P where "P f g = bindT f (\<lambda>x. bindT g (\<lambda>y. RETURNT (x+(y::nat))))"
 
  
 definition emb' where "\<And>Q T. emb' Q (T::'a \<Rightarrow> enat) = (\<lambda>x. if Q x then Some (T x) else None)"
@@ -1158,6 +1158,38 @@ lemma emb_le_Some_conv: "\<And>T. Some t' \<le> emb' Q T x \<longleftrightarrow>
 named_theorems vcg_rules
 
 method vcg uses rls = ((rule rls vcg_rules[THEN T_conseq4] | clarsimp simp: emb_eq_Some_conv emb_le_Some_conv T_bindT T_RETURNT)+)
+
+
+
+
+lemma assumes
+  f_spec[vcg_rules]: "T ( emb' (\<lambda>x. x > 2) (enat o op * 2) ) f \<ge> Some 0"
+and 
+  g_spec[vcg_rules]: "T ( emb' (\<lambda>x. x > 2) (enat) ) g \<ge> Some 0"
+shows "T ( emb' (\<lambda>x. x > 5) (enat o op * 3) ) (P f g) \<ge> Some 0"
+proof -
+  have ?thesis
+    unfolding P_def
+    apply vcg
+    done  
+
+  have ?thesis
+    unfolding P_def
+    apply(simp add: T_bindT )
+    apply(simp add:  T_RETURNT)
+    apply(rule T_conseq4[OF f_spec])
+      apply(clarsimp simp: emb_eq_Some_conv)
+    apply(rule T_conseq4[OF g_spec])
+    apply (clarsimp simp: emb_eq_Some_conv emb_le_Some_conv)
+    done
+  thus ?thesis .
+qed
+
+
+hide_const P
+
+
+
 
 
 find_theorems "T _ _ \<ge> _"
@@ -1625,31 +1657,9 @@ lemma dont_care_about_runtime_as_long_as_it_terminates:
   by (auto split: if_splits)
 
 
+
+hide_const T
+
  
-
-
-lemma assumes
-  f_spec[vcg_rules]: "T ( emb' (\<lambda>x. x > 2) (enat o op * 2) ) f \<ge> Some 0"
-and 
-  g_spec[vcg_rules]: "T ( emb' (\<lambda>x. x > 2) (enat) ) g \<ge> Some 0"
-shows "T ( emb' (\<lambda>x. x > 5) (enat o op * 3) ) (P f g) \<ge> Some 0"
-proof -
-  have ?thesis
-    unfolding P_def
-    apply vcg
-    done  
-
-  have ?thesis
-    unfolding P_def
-    apply(simp add: T_bindT )
-    apply(simp add:  T_RETURNT)
-    apply(rule T_conseq4[OF f_spec])
-      apply(clarsimp simp: emb_eq_Some_conv)
-    apply(rule T_conseq4[OF g_spec])
-    apply (clarsimp simp: emb_eq_Some_conv emb_le_Some_conv)
-    done
-  thus ?thesis .
-qed
-
  
 end
