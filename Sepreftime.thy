@@ -25,7 +25,7 @@ lemma helper2: "x2b \<le> x2 \<Longrightarrow> \<not> x2a < x2  \<Longrightarrow
 lemma Sup_finite_enat: "Sup X = Some (enat a) \<Longrightarrow> Some (enat a) \<in> X"
   by (auto simp: Sup_option_def Sup_enat_def these_empty_eq Max_eq_iff in_these_eq split: if_splits)
 
-lemma Sup_enat_less2: "X \<noteq> {} \<Longrightarrow> Sup X = \<infinity> \<Longrightarrow> (\<exists>x\<in>X. enat t < x)"
+lemma Sup_enat_less2: " Sup X = \<infinity> \<Longrightarrow> (\<exists>x\<in>X. enat t < x)"
   unfolding  Sup_enat_def using    finite_enat_bounded linear 
   apply(auto split: if_splits)  
    apply (smt Max_in empty_iff enat_ord_code(4))

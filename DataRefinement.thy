@@ -157,9 +157,40 @@ lemma pw_conc_nofail[refine_pw_simps]:
 
 lemma "single_valued A \<Longrightarrow> single_valued B \<Longrightarrow> single_valued (A O B)"
   by (simp add: single_valued_relcomp)
-  
 
-lemma pw_conc_inres_sv[refine_pw_simps]:
+lemma Sup_enatoption_less2: " Sup X = Some \<infinity> \<Longrightarrow> (\<exists>x. Some x \<in> X \<and> enat t < x)"
+  using Sup_enat_less2
+  by (metis Sup_option_def in_these_eq option.distinct(1) option.sel)
+
+lemma pw_conc_inres[refine_pw_simps]:
+  "inresT (\<Down>R S') s t = (nofailT S' 
+  \<longrightarrow> ((\<exists>s'. (s,s')\<in>R \<and> inresT S' s' t) (* \<and> (\<forall>s' t'. (s,s')\<in>R \<longrightarrow> inresT S' s' t' \<longrightarrow> t' \<le> t ) *) ))"
+  apply (cases S')
+  subgoal by simp
+  subgoal  for m'
+    apply rule
+    subgoal 
+      apply (auto simp: conc_fun_RES  )
+      subgoal for t' 
+        apply(cases t')
+         apply auto
+        subgoal for n apply(auto dest!: Sup_finite_enat) 
+          subgoal for a apply(rule exI[where x=a]) apply auto
+            apply(rule exI[where x="enat n"]) by auto  
+          done
+        subgoal apply(drule Sup_enatoption_less2[where t=t])
+          apply auto subgoal for x a apply(rule exI[where x=a]) apply auto
+            apply(rule exI[where x=x]) by auto 
+          done
+        done
+      done
+    subgoal 
+      apply (auto simp: conc_fun_RES)
+      by (smt Sup_upper dual_order.trans le_some_optE mem_Collect_eq)
+    done
+  done 
+(*
+lemma pw_conc_inres_sv:
   "single_valued R \<Longrightarrow> inresT (\<Down>R S') s t = (nofailT S' 
   \<longrightarrow> (\<exists>s'. (s,s')\<in>R \<and> inresT S' s' t))"
   apply (cases S')
@@ -171,7 +202,7 @@ lemma pw_conc_inres_sv[refine_pw_simps]:
     subgoal 
       by (auto simp: conc_fun_RES Sup_sv )  
     done
-  done
+  done *)
 
 lemma 
   fixes m :: "'a \<Rightarrow> enat option"
@@ -179,6 +210,14 @@ lemma
   "single_valued R \<Longrightarrow> Sup {m a| a. (c,a) \<in> R} = None \<longleftrightarrow> c \<notin> Domain R"
   apply rule
   subgoal oops
+
+(*
+lemma pw_abs_inre: 
+  "inresT (\<Up>R M) a t \<longleftrightarrow> (nofailT (\<Up>R M) \<longrightarrow> (\<exists>c. inresT M c t \<and> (c,a)\<in>R))"
+  apply (cases M)
+  apply simp
+  apply (auto simp: abs_fun_def)
+  done*)
 
 
 lemma pw_conc_inres:
@@ -212,21 +251,56 @@ lemma
 
 
 lemma conc_fun_mono[simp, intro!]: 
-  assumes SV: "single_valued R"
   shows "mono (\<Down>R)"
   apply rule 
   apply (simp add: pw_le_iff)
-  using SV by (auto simp: refine_pw_simps pw_conc_inres_sv) 
+  by (auto simp: refine_pw_simps) 
 
 
 lemma conc_fun_R_mono:
-  assumes "R \<subseteq> R'" and SV: "single_valued R'"
+  assumes "R \<subseteq> R'" 
   shows "\<Down>R M \<le> \<Down>R' M"
   using assms
-  by (auto simp: pw_le_iff refine_pw_simps single_valued_subset)
+  by (auto simp: pw_le_iff refine_pw_simps)
+
+
+
+lemma SupSup_2: "Sup {m a |a. (c, a) \<in> R O S} =  Sup {m a |a b. (b,a)\<in>S \<and> (c,b)\<in>R }"
+proof -
+  have i: "\<And>a. (c,a) \<in> R O S \<longleftrightarrow> (\<exists>b. (b,a)\<in>S \<and> (c,b)\<in>R)" by auto
+  have "Sup {m a |a. (c, a) \<in> R O S} = Sup {m a |a. (\<exists>b. (b,a)\<in>S \<and> (c,b)\<in>R)}" 
+      unfolding i by auto
+    also have "...  = Sup {m a |a b. (b,a)\<in>S \<and> (c,b)\<in>R}" by auto
+    finally show ?thesis .
+  qed
+
+lemma 
+  fixes m :: "'a \<Rightarrow> enat option"
+  shows SupSup: "Sup {Sup {m aa |aa. P a aa c} |a. Q a c} = Sup {m aa |a aa. P a aa c \<and> Q a c}"
+  apply(rule antisym)
+   subgoal apply(rule Sup_least)
+     by (auto intro: Sup_subset_mono)
+   subgoal 
+     unfolding Sup_le_iff apply auto
+     by (smt Sup_upper Sup_upper2 mem_Collect_eq)
+   done 
+
+lemma 
+  fixes m :: "'a \<Rightarrow> enat option"
+  shows 
+    SupSup_1: "Sup {Sup {m aa |aa. (a, aa) \<in> S} |a. (c, a) \<in> R} = Sup {m aa |a aa. (a,aa)\<in>S \<and> (c,a)\<in>R}"
+  by(rule SupSup)
 
 
 lemma conc_fun_chain:
+  shows "\<Down>R (\<Down>S M) = \<Down>(R O S) M"
+  apply(cases M)
+  subgoal by simp
+  apply simp
+  apply(simp only: conc_fun_RES)
+  apply auto apply (rule ext)  unfolding SupSup_1 SupSup_2 by meson 
+
+lemma conc_fun_chain_sv:
   assumes SVR: "single_valued R" and SVS: "single_valued S"
   shows "\<Down>R (\<Down>S M) = \<Down>(R O S) M"
   apply(cases M)
@@ -250,8 +324,12 @@ lemma conc_fun_fail_iff[simp]:
   "FAILT = \<Down>R S \<longleftrightarrow> S=FAILT"
   by (auto simp add: pw_eq_iff refine_pw_simps)
 
-
 lemma conc_trans[trans]:
+  assumes A: "C \<le> \<Down>R B" and B: "B \<le> \<Down>R' A" 
+  shows "C \<le> \<Down>R (\<Down>R' A)"
+  using assms by (fastforce simp: pw_le_iff refine_pw_simps)
+
+lemma conc_trans_sv:
   assumes SV: "single_valued R" "single_valued R'"
     and A: "C \<le> \<Down>R B" and B: "B \<le> \<Down>R' A" 
   shows "C \<le> \<Down>R (\<Down>R' A)"
