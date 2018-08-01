@@ -231,7 +231,13 @@ lemma   no_FAILTE:
 
 section "pointwise reasoning"
 
-named_theorems refine_pw_simps
+named_theorems refine_pw_simps 
+ML \<open>
+  structure refine_pw_simps = Named_Thms
+    ( val name = @{binding refine_pw_simps}
+      val description = "Refinement Framework: " ^
+        "Simplifier rules for pointwise reasoning" )
+\<close>    
   
 definition nofailT :: "'a nrest \<Rightarrow> bool" where "nofailT S \<equiv> S\<noteq>FAILT"
 
@@ -451,7 +457,7 @@ lemma bindT_mono:
   "m \<le> m' \<Longrightarrow> (\<And>x. (\<exists>t. inresT m x t) \<Longrightarrow> nofailT m' \<Longrightarrow>  f x \<le> f' x)
  \<Longrightarrow> bindT m f \<le> bindT  m' f'"
   apply(auto simp: pw_le_iff refine_pw_simps) 
-   by fastforce+
+   by fastforce+                 
 
 
 lemma bindT_mono'[refine_mono]: 
@@ -493,7 +499,6 @@ lemma RECT_mono[refine_mono]:
 
 
 find_theorems RECT
-
 lemma wf_fp_induct:
   assumes fp: "\<And>x. f x = B (f) x"
   assumes wf: "wf R"
@@ -522,7 +527,8 @@ theorem RECT_wf_induct[consumes 1]:
     and "mono B"
     and "\<And>x D r. (\<And>y r. (y, x) \<in> R \<Longrightarrow> D y = r \<Longrightarrow> P y r) \<Longrightarrow> B D x = r \<Longrightarrow> P x r"
   shows "P x r"
-  using RECT_wf_induct_aux[where P = "\<lambda>x fx. \<forall>r. fx=r \<longrightarrow> P x r"] assms by metis
+ (* using RECT_wf_induct_aux[where P = "\<lambda>x fx. \<forall>r. fx=r \<longrightarrow> P x fx"] assms by metis *)
+  using RECT_wf_induct_aux[where P = "\<lambda>x fx.  P x fx"] assms by metis
 
 
 
@@ -1432,11 +1438,14 @@ qed
 
 
 
+
+
 method vcg' uses rls = ((rule rls vcg_rules[THEN T_conseq6] | clarsimp split: if_splits simp: T_bindT T_RETURNT)+)
 
 lemma
   assumes "whileT b c s = r"
-  assumes IS[vcg_rules]: "\<And>s t'. I s = Some t' \<Longrightarrow> b s  \<Longrightarrow>    T (\<lambda>s'. if (s',s)\<in>R then I s' else None) (c s) \<ge> Some t'"
+  assumes IS[vcg_rules]: "\<And>s t'. I s = Some t' \<Longrightarrow> b s 
+           \<Longrightarrow>    T (\<lambda>s'. if (s',s)\<in>R then I s' else None) (c s) \<ge> Some t'"
     (*  "T (\<lambda>x. T I (c x)) (SPECT (\<lambda>x. if b x then I x else None)) \<ge> Some 0" *) 
   assumes "I s = Some t"
   assumes wf: "wf R"
@@ -1460,6 +1469,62 @@ next
     apply safe 
     by vcg'      
 qed
+
+
+lemma mm2_refl: "A < \<infinity> \<Longrightarrow> mm2 (Some A) (Some A) = Some 0"
+  unfolding mm2_def by auto
+ 
+definition mm3 where
+  "mm3 t A = (case A of None \<Rightarrow> None | Some t' \<Rightarrow> if t'\<le>t then Some (enat (t-t')) else None)"
+
+lemma [simp]: "mm3 t0 (Some t0) = Some 0"  by (auto simp: mm3_def zero_enat_def)
+
+lemma mm3_Some_conv: "(mm3 t0 A = Some t) = (\<exists>t'. A = Some t' \<and> t0 \<ge> t' \<and> t=t0-t')"
+  unfolding mm3_def by(auto split: option.splits)
+
+lemma [simp]: "mm3 t0 None = None" unfolding mm3_def by auto
+
+lemma T_FAILT[simp]: "T Q FAILT = None"
+  unfolding T_def mii_alt by simp
+
+lemma
+  fixes I :: "'a \<Rightarrow> nat option"
+  assumes "whileT b c s0 = r"
+  assumes progress: "\<And>s s' M. c s = SPECT M \<Longrightarrow> M s' \<noteq> None \<Longrightarrow> M s' > Some 0" 
+  assumes IS[vcg_rules]: "\<And>s t t'. I s = Some t \<Longrightarrow>  b s  \<Longrightarrow> 
+           T (\<lambda>s'. mm3 t (I s') ) (c s) \<ge> Some 0"
+    (*  "T (\<lambda>x. T I (c x)) (SPECT (\<lambda>x. if b x then I x else None)) \<ge> Some 0" *) 
+  assumes [simp]: "I s0 = Some t0" 
+    (*  assumes wf: "wf R" *)
+  shows whileT_rule''': "T (\<lambda>x. if b x then None else mm3 t0 (I x)) r \<ge> Some 0"  
+  apply(rule T_conseq4)
+   apply(rule whileT_rule''[where I="\<lambda>s. mm3 t0 (I s)"
+        and R="measure (the_enat o the o I)", OF assms(1)])
+     apply auto
+  subgoal for s t'
+    apply(cases "I s"; simp)
+    subgoal for ti
+      using IS[of s ti]  
+      apply (cases "c s"; simp) 
+      subgoal for M
+        using progress[of s M] 
+        apply(auto simp: T_pw) 
+        apply(auto simp: mm3_Some_conv mii_alt mm2_def mm3_def split: option.splits if_splits)
+            apply fastforce 
+        subgoal 
+          by (metis enat_ord_simps(1) le_diff_iff le_less_trans option.distinct(1)) 
+        subgoal 
+          by (metis diff_is_0_eq' leI less_option_Some option.simps(3) zero_enat_def) 
+        subgoal 
+          by (smt Nat.add_diff_assoc enat_ile enat_ord_code(1) idiff_enat_enat leI le_add_diff_inverse2 nat_le_iff_add option.simps(3)) 
+        subgoal 
+          using dual_order.trans by blast 
+        done
+      done
+    done
+  done
+
+
 
 lemma 
   assumes IS: "T (\<lambda>s. T (\<lambda>s'. if (s',s)\<in>R then I s' else None) (c s)) (SPECT (\<lambda>x. if b x then I x else None)) \<ge> Some 0" 
@@ -1507,8 +1572,72 @@ lemma
   using IS unfolding  waux1[symmetric] waux2[symmetric]  using whileT_rule[OF _ _ _ wf] by blast
 
 
+print_statement RECT_wf_induct
+
+(*
+lemma
+  assumes 
+    "RECT B s = r"
+    "I s = Some t'"
+    and wf: "wf R"
+and IS: "\<And>t' f x. \<lbrakk> \<And>x'. \<lbrakk>I x' = Some t'; (x',x)\<in>R\<rbrakk> \<Longrightarrow> f x' \<le> M x';  
+                        RECT B = f
+    \<rbrakk> \<Longrightarrow> Some t' \<le> T I (B f x)"    
+  shows
+   "Some t' \<le> T I r"
+  using assms(1,2)                                
+proof (induction arbitrary: t' rule: RECT_wf_induct[where R="R"])
+  case 1
+  then show ?case sorry
+next
+  case 2
+  then show ?case sorry
+next
+  case step: (3 x D r)
+  note IH[vcg_rules] = step.IH[OF _ refl] 
+  note step.hyps[symmetric, simp]   
+  
+  from step.prems
+  show ?case 
+    apply clarsimp
+    apply(rule IS)
+
+    unfolding T_pw mii_alt 
+    apply safe
+    using IH
+    apply(rule IH)
+qed
+*)
 
 
+subsubsection "Examples"
+
+lemma 
+  assumes c: "c = (\<lambda>s. SPECT [s-1\<mapsto>1])" 
+      and n: "S\<le>n"
+  shows "T (\<lambda>s. if s = 0 then Some (enat n) else None) (whileT (\<lambda>s. s>0) c (S::nat)) \<ge> Some 0"
+  apply(rule T_conseq4)
+   apply(rule whileT_rule'''[where I="\<lambda>s. if s\<le>n then Some (s) else None" ])
+      apply simp
+  subgoal unfolding c by (auto split: if_splits simp add:  )
+  subgoal unfolding c apply(auto simp: T_REST split: if_splits) 
+    by(auto simp: mm2_def mm3_def one_enat_def)
+  using n by (auto simp: mm3_Some_conv split: if_splits) 
+
+lemma 
+  assumes c: "c = (\<lambda>s. SPECT [s-1\<mapsto>1])" 
+      and n: "S\<le>n"
+  shows "T (\<lambda>s. if s = 0 then Some (enat n) else None) (whileT (\<lambda>s. s>0) c (S::nat)) \<ge> Some 0"
+  apply(rule T_conseq4)
+   apply(rule whileT_rule''[where I="\<lambda>s. if s\<le>n then Some (enat (n - s)) else None"
+            and R="measure nat"])
+      apply simp
+  subgoal unfolding c apply (simp add: T_REST mm2_def) apply (auto split: if_splits)
+     apply (simp add: one_eSuc zero_enat_def) 
+    by (simp add: one_enat_def)
+    using n apply simp 
+  subgoal  by blast
+  by (auto split: if_splits)
 
 term emb'
 lemma 
@@ -1656,6 +1785,12 @@ lemma dont_care_about_runtime_as_long_as_it_terminates:
     by (smt case_prodI le_less_linear mem_Collect_eq nz_le_conv_less prod.sel(2) wf wf_def) 
   by (auto split: if_splits)
 
+
+lemma "RETURNT r \<le> SPECT [f\<mapsto>i] \<longleftrightarrow> (r \<longleftrightarrow> f)"
+  unfolding RETURNT_def apply simp unfolding le_fun_def by simp
+
+lemma "SPECT  [r\<mapsto>i] \<le> SPECT [f\<mapsto>j] \<longleftrightarrow> ((r \<longleftrightarrow> f) \<and> i\<le>j)"
+   apply simp unfolding le_fun_def by simp
 
 
 hide_const T
