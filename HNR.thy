@@ -6,7 +6,9 @@ begin
 definition "\<And>T. hn_refine \<Gamma> c \<Gamma>' R m \<equiv> nofailT m \<longrightarrow> 
     (\<forall>h as  n   M. pHeap h as n \<Turnstile> \<Gamma>  \<longrightarrow> m = REST M \<longrightarrow>
     (\<exists>h' t r. execute c h = Some (r, h', t) \<and>
-       (\<exists>ra Ca. M ra \<ge> Some Ca \<and> pHeap h' (new_addrs h as h') ((n+Ca)-t) \<Turnstile> \<Gamma>' * R ra r * true \<and> n+Ca\<ge>t)
+       (\<exists>ra Ca. M ra \<ge> Some Ca  \<and> n+Ca\<ge>t
+           \<and> pHeap h' (new_addrs h as h') ((n+Ca)-t) \<Turnstile> \<Gamma>' * R ra r * true
+          )
        \<and> relH {a . a < lim h \<and> a \<notin> as} h h' \<and> lim h \<le> lim h'))"    
 (*
 
@@ -69,7 +71,7 @@ proof (goal_cases)
        pHeap h as n \<Turnstile> \<Gamma>1 * Rh ra r \<Longrightarrow>
        f ra = SPECT M \<Longrightarrow>
        \<exists>h' t rb. execute (f' r) h = Some (rb, h', t) \<and>
-                 (\<exists>raa Ca. M raa \<ge> Some (enat Ca) \<and> pHeap h' (new_addrs h as h') (n + Ca - t) \<Turnstile> \<Gamma>2 ra r * R raa rb * true \<and> t \<le> n + Ca) \<and>
+                 (\<exists>raa Ca. M raa \<ge> Some (enat Ca) \<and> t \<le> n + Ca \<and> pHeap h' (new_addrs h as h') (n + Ca - t) \<Turnstile> \<Gamma>2 ra r * R raa rb * true) \<and>
                  relH {a. a < heap.lim h \<and> a \<notin> as} h h' \<and> heap.lim h \<le> heap.lim h'"   unfolding hn_refine_def hn_ctxt_def by auto
 
   from mod_star_convE[OF pH1]   obtain as1 as2 n1 n2 where  uni: "(new_addrs h as h') = as1 \<union> as2"
@@ -140,7 +142,7 @@ proof (goal_cases)
   proof (safe)
     show "execute (m' \<bind> f') h = Some (r', h'', t + t')"
       by (simp add: execute_bind(1)[OF execm] execf) 
-    show "\<exists>ra Ca. Mf ra \<ge> Some (enat Ca) \<and> pHeap h'' (new_addrs h as h'') (n + Ca - (t + t')) \<Turnstile> \<Gamma>' * R ra r' * true \<and> t + t' \<le> n + Ca"
+    show "\<exists>ra Ca. Mf ra \<ge> Some (enat Ca)\<and> t + t' \<le> n + Ca \<and> pHeap h'' (new_addrs h as h'') (n + Ca - (t + t')) \<Turnstile> \<Gamma>' * R ra r' * true "
       apply(rule exI[where x=ra'])
       apply(rule exI[where x="Ca+Ca'"])
     proof (safe)
@@ -192,7 +194,7 @@ proof (goal_cases)
   from 1(1) have 3: "\<And>h as n M.
        pHeap h as n \<Turnstile> \<Gamma> \<Longrightarrow> 
       SPECT [length xs \<mapsto> enat (Costs)] = SPECT M \<Longrightarrow> (\<exists>h' t r. execute c h = Some (r, h', t) \<and>      
-       (\<exists>ra Ca. M ra \<ge> Some (enat Ca) \<and> pHeap h' (new_addrs h as h') ((n + Ca) - t) \<Turnstile> \<Gamma>' * \<up> (ra = r) * true \<and> t \<le> n + Ca) \<and>
+       (\<exists>ra Ca. M ra \<ge> Some (enat Ca) \<and> t \<le> n + Ca \<and> pHeap h' (new_addrs h as h') ((n + Ca) - t) \<Turnstile> \<Gamma>' * \<up> (ra = r) * true) \<and>
       relH {a. a < heap.lim h \<and> a \<notin> as} h h' \<and> heap.lim h \<le> heap.lim h')" 
       by auto
 
