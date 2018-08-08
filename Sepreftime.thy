@@ -469,7 +469,9 @@ section \<open>RECT\<close>
 
 definition "RECT B x = 
   (if (mono B) then (gfp B x) else (top::'a::complete_lattice))"
- 
+
+
+
 lemma RECT_unfold: "\<lbrakk>mono B\<rbrakk> \<Longrightarrow> RECT B = B (RECT B)"
   unfolding RECT_def [abs_def]
   by (simp add: gfp_unfold[ symmetric])
@@ -496,6 +498,12 @@ lemma RECT_mono[refine_mono]:
   unfolding RECT_def
   apply clarsimp
   by (meson LE gfp_mono le_fun_def) 
+
+lemma whileT_mono: 
+  assumes "\<And>x. b x \<Longrightarrow> c x \<le> c' x"
+  shows " (whileT b c x) \<le> (whileT b c' x)"
+  unfolding whileT_def apply(rule RECT_mono) apply(refine_mono)
+  apply auto apply(rule bindT_mono) using assms by auto
 
 
 find_theorems RECT
@@ -1612,10 +1620,13 @@ qed
 
 subsubsection "Examples"
 
+
+
+
 lemma 
   assumes c: "c = (\<lambda>s. SPECT [s-1\<mapsto>1])" 
       and n: "S\<le>n"
-  shows "T (\<lambda>s. if s = 0 then Some (enat n) else None) (whileT (\<lambda>s. s>0) c (S::nat)) \<ge> Some 0"
+  shows ex4: "T (\<lambda>s. if s = 0 then Some (enat n) else None) (whileT (\<lambda>s. s>0) c (S::nat)) \<ge> Some 0"
   apply(rule T_conseq4)
    apply(rule whileT_rule'''[where I="\<lambda>s. if s\<le>n then Some (s) else None" ])
       apply simp
@@ -1623,6 +1634,23 @@ lemma
   subgoal unfolding c apply(auto simp: T_REST split: if_splits) 
     by(auto simp: mm2_def mm3_def one_enat_def)
   using n by (auto simp: mm3_Some_conv split: if_splits) 
+
+lemma Refinement_by_T: assumes "T Q m \<ge> Some 0"
+  shows "m \<le> SPECT Q"
+  apply(simp add:  pw_le_iff )
+  apply(cases m) 
+   subgoal using assms by (simp add: mii_alt)
+   subgoal for M apply auto
+     subgoal for x t t' using assms[unfolded T_pw, THEN spec, of x]
+       by(auto simp: mii_alt mm2_def split: option.splits if_splits)
+     done
+   done
+
+lemma assumes "c = (\<lambda>s. SPECT [s-1\<mapsto>1])" 
+      and n: "S\<le>n"
+      shows ex4': "(whileT (\<lambda>s. s>0) c (S::nat)) \<le> SPECT (\<lambda>s. if s = 0 then Some (enat n) else None)"
+  apply(rule Refinement_by_T) 
+  apply(rule ex4) using assms by auto
 
 lemma 
   assumes c: "c = (\<lambda>s. SPECT [s-1\<mapsto>1])" 
