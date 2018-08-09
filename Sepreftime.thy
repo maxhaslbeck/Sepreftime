@@ -1,6 +1,6 @@
 theory Sepreftime
   imports   Refine_Monadic.Refine_Misc  
-  "HOL-Library.Monad_Syntax"  "HOL-Library.Extended_Nat"
+  "HOL-Library.Monad_Syntax"  "HOL-Library.Extended_Nat" "Refine_Monadic.RefineG_Domain"
 begin
 
 
@@ -335,7 +335,6 @@ lemma pw_le_iff:
   apply (metis option.distinct(1) zero_enat_def zero_le)
   by (smt Suc_ile_eq enat.exhaust linorder_not_le option.simps(1) order_refl) 
 
-
 lemma pw_eq_iff:
   "S=S' \<longleftrightarrow> (nofailT S = nofailT S' \<and> (\<forall>x t. inresT S x t \<longleftrightarrow> inresT S' x t))"
   apply (rule iffI)
@@ -343,6 +342,13 @@ lemma pw_eq_iff:
   apply (rule antisym)
   apply (auto simp add: pw_le_iff)
   done
+
+lemma pw_flat_ge_iff: "flat_ge S S' \<longleftrightarrow> 
+  (nofailT S) \<longrightarrow> nofailT S' \<and> (\<forall>x t. inresT S x t \<longleftrightarrow> inresT S' x t)"
+  apply (simp add: flat_ord_def)
+  apply(simp add: pw_eq_iff) apply safe
+  by (auto simp add: nofailT_def)   
+
 
 
 lemma pw_eqI: 
@@ -452,34 +458,55 @@ lemma nres_bind_assoc[simp]: "bindT (bindT M (\<lambda>x. f x)) g = bindT M (%x.
 
 section \<open>Monotonicity lemmas\<close>
 
-
 lemma bindT_mono: 
   "m \<le> m' \<Longrightarrow> (\<And>x. (\<exists>t. inresT m x t) \<Longrightarrow> nofailT m' \<Longrightarrow>  f x \<le> f' x)
  \<Longrightarrow> bindT m f \<le> bindT  m' f'"
   apply(auto simp: pw_le_iff refine_pw_simps) 
    by fastforce+                 
 
-
 lemma bindT_mono'[refine_mono]: 
   "m \<le> m' \<Longrightarrow> (\<And>x.   f x \<le> f' x)
  \<Longrightarrow> bindT m f \<le> bindT  m' f'"
   apply(rule bindT_mono) by auto
+ 
+lemma bindT_flat_mono[refine_mono]:  
+  "\<lbrakk> flat_ge M M'; \<And>x. flat_ge (f x) (f' x) \<rbrakk> \<Longrightarrow> flat_ge (bindT M f) (bindT M' f')" 
+  apply (auto simp: refine_pw_simps pw_flat_ge_iff) []
+   by fastforce+         
 
 section \<open>RECT\<close>
 
+definition "mono2 B \<equiv> flatf_mono_ge B \<and>  mono B"
+
+
+lemma trimonoD_flatf_ge: "mono2 B \<Longrightarrow> flatf_mono_ge B"
+  unfolding mono2_def by auto
+
+lemma trimonoD_mono: "mono2 B \<Longrightarrow> mono B"
+  unfolding mono2_def by auto
+
 definition "RECT B x = 
-  (if (mono B) then (gfp B x) else (top::'a::complete_lattice))"
+  (if mono2 B then (gfp B x) else (top::'a::complete_lattice))"
 
 
+thm gfp_eq_flatf_gfp
 
-lemma RECT_unfold: "\<lbrakk>mono B\<rbrakk> \<Longrightarrow> RECT B = B (RECT B)"
-  unfolding RECT_def [abs_def]
-  by (simp add: gfp_unfold[ symmetric])
+lemma RECT_flat_gfp_def: "RECT B x = 
+  (if mono2 B then (flatf_gfp B x) else (top::'a::complete_lattice))"
+  unfolding RECT_def
+  by (auto simp: gfp_eq_flatf_gfp[OF trimonoD_flatf_ge trimonoD_mono])
+
+lemma RECT_unfold: "\<lbrakk>mono2 B\<rbrakk> \<Longrightarrow> RECT B = B (RECT B)"
+  unfolding RECT_def [abs_def]  
+  by (auto dest: trimonoD_mono simp: gfp_unfold[ symmetric])
 
 
 definition whileT :: "('a \<Rightarrow> bool) \<Rightarrow> ('a \<Rightarrow> 'a nrest) \<Rightarrow> 'a \<Rightarrow> 'a nrest" where
   "whileT b c = RECT (\<lambda>whileT s. (if b s then bindT (c s) whileT else RETURNT s))"
 
+lemma trimonoI[refine_mono]: 
+  "\<lbrakk>flatf_mono_ge B; mono B\<rbrakk> \<Longrightarrow> mono2 B"
+  unfolding mono2_def by auto
 
 lemma [refine_mono]: "(\<And>f g x. (\<And>x. f x \<le> g x) \<Longrightarrow> B f x \<le> B g x) \<Longrightarrow> mono B"
   apply(rule monoI) apply(rule le_funI)
@@ -489,20 +516,23 @@ thm refine_mono
 
 lemma whileT_unfold: "whileT b c = (\<lambda>s. (if b s then bindT (c s) (whileT b c) else RETURNT s))"
   unfolding whileT_def
-  by(rule RECT_unfold, refine_mono)
+  apply(rule RECT_unfold) 
+  by ( refine_mono)   
+
 
 lemma RECT_mono[refine_mono]:
-  assumes [simp]: "mono B'"
+  assumes [simp]: "mono2 B'"
   assumes LE: "\<And>F x. (B' F x) \<le> (B F x) "
   shows " (RECT B' x) \<le> (RECT B x)"
   unfolding RECT_def
-  apply clarsimp
-  by (meson LE gfp_mono le_fun_def) 
+  apply clarsimp  
+  by (meson LE gfp_mono le_fun_def)  
 
 lemma whileT_mono: 
   assumes "\<And>x. b x \<Longrightarrow> c x \<le> c' x"
   shows " (whileT b c x) \<le> (whileT b c' x)"
-  unfolding whileT_def apply(rule RECT_mono) apply(refine_mono)
+  unfolding whileT_def apply(rule RECT_mono)
+    subgoal by(refine_mono)  
   apply auto apply(rule bindT_mono) using assms by auto
 
 
@@ -523,16 +553,16 @@ thm wf_fp_induct[where f="RECT B" and B=B] RECT_unfold
 
 lemma RECT_wf_induct_aux:
   assumes wf: "wf R"
-  assumes mono: "mono B"
+  assumes mono: "mono2 B"
   assumes "(\<And>x D. (\<And>y. (y, x) \<in> R \<Longrightarrow> P y (D y)) \<Longrightarrow> P x (B D x))"
   shows "P x (RECT B x)"
   using wf_fp_induct[where f="RECT B" and B=B] RECT_unfold assms 
-  by metis
+     by metis 
 
 theorem RECT_wf_induct[consumes 1]:
   assumes "RECT B x = r"
   assumes "wf R"
-    and "mono B"
+    and "mono2 B"
     and "\<And>x D r. (\<And>y r. (y, x) \<in> R \<Longrightarrow> D y = r \<Longrightarrow> P y r) \<Longrightarrow> B D x = r \<Longrightarrow> P x r"
   shows "P x r"
  (* using RECT_wf_induct_aux[where P = "\<lambda>x fx. \<forall>r. fx=r \<longrightarrow> P x fx"] assms by metis *)
@@ -1356,7 +1386,7 @@ proof (induction arbitrary: t' rule: RECT_wf_induct[where R="{(y, x)|x M y. I x 
   show ?case by fact
 next
   case 2
-  then show ?case by refine_mono
+  then show ?case by refine_mono 
 next
   case step: (3 x D r t')
 
