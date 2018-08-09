@@ -1,34 +1,11 @@
 theory HNR                    
 imports Sepreftime "../Imperative_HOL_Time/SepLogicTime/SepAuto" (* Refine_Monadic.RefineG_Recursion *)
-
+  SepLogic_Misc
   Refine_Imperative_HOL.Structured_Apply
 begin
 
 
-lemma entailsI: 
-  assumes "\<And>h. h\<Turnstile>P \<Longrightarrow> h\<Turnstile>Q"
-  shows "P \<Longrightarrow>\<^sub>A Q" 
-  using assms unfolding entails_def by auto
-
-subsection "entailst"
-
-
-
-definition entailst :: "assn \<Rightarrow> assn \<Rightarrow> bool" (infix "\<Longrightarrow>\<^sub>t" 10)
-  where "entailst A B \<equiv> A \<Longrightarrow>\<^sub>A B * true"
-lemma enttI: "A\<Longrightarrow>\<^sub>AB*true \<Longrightarrow> A\<Longrightarrow>\<^sub>tB" unfolding entailst_def .
-lemma enttD: "A\<Longrightarrow>\<^sub>tB \<Longrightarrow> A\<Longrightarrow>\<^sub>AB*true" unfolding entailst_def .
-                                   
-lemma ent_trans[trans]: "\<lbrakk> P \<Longrightarrow>\<^sub>A Q; Q \<Longrightarrow>\<^sub>AR \<rbrakk> \<Longrightarrow> P \<Longrightarrow>\<^sub>A R"
-  by (auto intro: entailsI dest: entailsD)
-
-lemma ent_star_mono: "\<lbrakk> P \<Longrightarrow>\<^sub>A P'; Q \<Longrightarrow>\<^sub>A Q'\<rbrakk> \<Longrightarrow> P*Q \<Longrightarrow>\<^sub>A P'*Q'" 
-  using entail_trans2 entails_frame by blast
-
-lemma ent_true[simp]: "P \<Longrightarrow>\<^sub>A true" 
-  by (simp add: entails_true) 
-
-subsection "hn_refine"
+section "hn_refine"
 
 definition "\<And>T. hn_refine \<Gamma> c \<Gamma>' R m \<equiv> nofailT m \<longrightarrow> 
     (\<forall>h as  n   M. pHeap h as n \<Turnstile> \<Gamma>  \<longrightarrow> m = REST M \<longrightarrow>
@@ -38,25 +15,90 @@ definition "\<And>T. hn_refine \<Gamma> c \<Gamma>' R m \<equiv> nofailT m \<lon
           )
        \<and> relH {a . a < lim h \<and> a \<notin> as} h h' \<and> lim h \<le> lim h'))"    
 
+subsection "easy rules"
 
-text "Transitivity"
-lemma relH_trans[trans]: "\<lbrakk>relH as h1 h2; relH as h2 h3\<rbrakk> \<Longrightarrow> relH as h1 h3"
-  unfolding relH_def
-  by auto
+lemma hnr_FAILT[simp]: "hn_refine \<Gamma> c \<Gamma>' R FAILT"
+  by(simp add: hn_refine_def)
 
-lemma in_range_subset: 
-  "\<lbrakk>as \<subseteq> as'; in_range (h,as')\<rbrakk> \<Longrightarrow> in_range (h,as)"
-  by (auto simp: in_range.simps)
+subsection "Consequence rules"
 
 
-lemma relH_subset:
-  assumes "relH bs h h'"
-  assumes "as \<subseteq> bs"
-  shows "relH as h h'"
-  using assms unfolding relH_def by (auto intro: in_range_subset)
+lemma hn_refine_cons_pre':
+  assumes I: "P\<Longrightarrow>\<^sub>AP' * true"
+  assumes R: "hn_refine P' c Q R m"
+  shows "hn_refine P c Q R m"
+  sorry
 
 
-thm entailsD
+lemma hn_refine_cons':
+  assumes I: "P\<Longrightarrow>\<^sub>AP' * true"
+  assumes R: "hn_refine P' c Q R m"
+  assumes I': "Q\<Longrightarrow>\<^sub>A Q' * true"
+  assumes R': "\<And>x y. R x y \<Longrightarrow>\<^sub>A R' x y * true"
+  shows "hn_refine P c Q' R' m"
+  using R unfolding hn_refine_def (*
+  apply clarify
+  apply (rule cons_pre_rulet[OF I])
+  apply (rule cons_post_rulet)
+  apply assumption
+  apply (sep_auto simp: entailst_def)
+  apply (rule enttD)
+  apply (intro entt_star_mono I' R')
+  done *) sorry
+
+
+lemma hn_refine_preI: 
+  assumes "\<And>h. h\<Turnstile>\<Gamma> \<Longrightarrow> hn_refine \<Gamma> c \<Gamma>' R a"
+  shows "hn_refine \<Gamma> c \<Gamma>' R a"
+  using assms unfolding hn_refine_def (*
+  by (auto intro: hoare_triple_preI)
+   
+  *) sorry
+
+lemma hn_refine_cons:
+  assumes I: "P\<Longrightarrow>\<^sub>tP'"
+  assumes R: "hn_refine P' c Q R m"
+  assumes I': "Q\<Longrightarrow>\<^sub>t Q'"
+  assumes R': "\<And>x y. R x y \<Longrightarrow>\<^sub>t R' x y"
+  shows "hn_refine P c Q' R' m" sorry
+
+lemma hn_refine_cons_post':
+  assumes R: "hn_refine P c Q R m"
+  assumes I: "Q\<Longrightarrow>\<^sub>AQ'*true"
+  shows "hn_refine P c Q' R m"
+  using assms
+  by (rule hn_refine_cons'[OF entt_refl' _ _ entt_refl'])
+
+lemma hn_refine_cons_post:
+  assumes R: "hn_refine P c Q R m"
+  assumes I: "Q\<Longrightarrow>\<^sub>tQ'"
+  shows "hn_refine P c Q' R m"
+  using assms
+  by (rule hn_refine_cons[OF entt_refl _ _ entt_refl])
+
+lemma hn_refine_split_post:
+  assumes "hn_refine \<Gamma> c \<Gamma>' R a"
+  shows "hn_refine \<Gamma> c (\<Gamma>' \<or>\<^sub>A \<Gamma>'') R a"
+  apply (rule hn_refine_cons_post[OF assms])
+  by (rule entt_disjI1_direct)
+
+
+lemma hn_refine_post_other: 
+  assumes "hn_refine \<Gamma> c \<Gamma>'' R a"
+  shows "hn_refine \<Gamma> c (\<Gamma>' \<or>\<^sub>A \<Gamma>'') R a"
+  apply (rule hn_refine_cons_post[OF assms])
+  by (rule entt_disjI2_direct)
+
+
+lemma hn_refine_cons_pre:
+  assumes I: "P\<Longrightarrow>\<^sub>tP'"
+  assumes R: "hn_refine P' c Q R m"
+  shows "hn_refine P c Q R m"
+  sorry
+
+
+subsection "Frame rule"
+
 lemma hn_refine_frame:
   assumes "hn_refine P' c Q' R m"
   assumes "P \<Longrightarrow>\<^sub>t F * P'"
@@ -124,37 +166,6 @@ proof clarsimp
                          relH {a. a < heap.lim h \<and> a \<notin> as} h h' \<and> heap.lim h \<le> heap.lim h'"
     by auto
 qed
- 
-lemma hnr_FAILT[simp]: "hn_refine \<Gamma> c \<Gamma>' R FAILT"
-  by(simp add: hn_refine_def)
-
-lemma pure_assn_eq_conv[simp]: "\<up>P = \<up>Q \<longleftrightarrow> P=Q" 
-  by (metis (full_types) assn_times_comm empty_iff in_range.simps mod_false' mod_pure_star_dist top_assn_rule)
-
-
-lemma hn_refine_cons_pre':
-  assumes I: "P\<Longrightarrow>\<^sub>AP' * true"
-  assumes R: "hn_refine P' c Q R m"
-  shows "hn_refine P c Q R m"
-  sorry
-
-
-
-lemma hn_refine_cons':
-  assumes I: "P\<Longrightarrow>\<^sub>AP' * true"
-  assumes R: "hn_refine P' c Q R m"
-  assumes I': "Q\<Longrightarrow>\<^sub>A Q' * true"
-  assumes R': "\<And>x y. R x y \<Longrightarrow>\<^sub>A R' x y * true"
-  shows "hn_refine P c Q' R' m"
-  using R unfolding hn_refine_def (*
-  apply clarify
-  apply (rule cons_pre_rulet[OF I])
-  apply (rule cons_post_rulet)
-  apply assumption
-  apply (sep_auto simp: entailst_def)
-  apply (rule enttD)
-  apply (intro entt_star_mono I' R')
-  done *) sorry
 
 definition hn_ctxt :: "('a\<Rightarrow>'c\<Rightarrow>assn) \<Rightarrow> 'a \<Rightarrow> 'c \<Rightarrow> assn" 
   -- {* Tag for refinement assertion *}
@@ -162,9 +173,13 @@ definition hn_ctxt :: "('a\<Rightarrow>'c\<Rightarrow>assn) \<Rightarrow> 'a \<R
   "\<And>P. hn_ctxt P a c \<equiv> P a c"
 
 
+
 definition pure :: "('b \<times> 'a) set \<Rightarrow> 'a \<Rightarrow> 'b \<Rightarrow> assn"
   -- {* Pure binding, not involving the heap *}
   where "pure R \<equiv> (\<lambda>a c. \<up>((c,a)\<in>R))"
+
+
+abbreviation "hn_val R \<equiv> hn_ctxt (pure R)"
 
 lemma pure_app_eq: "pure R a c = \<up>((c,a)\<in>R)" by (auto simp: pure_def)
 
@@ -183,34 +198,26 @@ definition "invalid_assn R x y \<equiv> \<up>(\<exists>h. h\<Turnstile>R x y) * 
 
 abbreviation "hn_invalid R \<equiv> hn_ctxt (invalid_assn R)"
 
-subsubsection \<open>Return\<close>
+lemma move_back_pure: "\<And>B P. \<up>B * P = P * \<up>B"  
+    by (simp add: assn_times_comm)  
+lemma move_back_pure': "\<And>Q B P. Q * \<up>B * P = Q * P * \<up>B"   
+    using assn_times_assoc assn_times_comm by auto  
+lemma consume_true: "\<And>R. true * R   * true = R   * true"  
+    by (metis mult.assoc mult.left_commute top_assn_reduce)
+
+lemmas move = move_back_pure move_back_pure' consume_true
 
 
-
-lemma mod_star_trueI: "h\<Turnstile>P \<Longrightarrow> h\<Turnstile>P*true"  
-  by (metis assn_times_comm entailsD' entails_true mult.left_neutral) 
-
-
-lemma mod_false[simp]: "\<not> h\<Turnstile>false"  
-  by (simp add: pure_assn_rule)
-lemma mod_pure_star_dist[simp]: "h\<Turnstile>P*\<up>b \<longleftrightarrow> h\<Turnstile>P \<and> b"
-  by (simp add: mod_pure_star_dist)
-
-lemma f: "\<up>B * P = P * \<up>B"  
-  by (simp add: assn_times_comm)  
-lemma ff: "Q * \<up>B * P = Q * P * \<up>B"   
-  using assn_times_assoc assn_times_comm by auto  
-lemma r: "true * R   * true = R   * true"  
-  by (metis mult.assoc mult.left_commute top_assn_reduce)
-
-lemma invalidate_clone': "R x y \<Longrightarrow>\<^sub>A invalid_assn R x y * R x y * true"
-  apply (rule entailsI)
-  unfolding invalid_assn_def apply(simp add: ff f r)
-  apply (auto simp: mod_star_trueI)
-  done
-
-lemma new_addrs_id[simp]: "(new_addrs h as h) = as" unfolding new_addrs_def by auto
+lemma invalidate_clone': "R x y \<Longrightarrow>\<^sub>A invalid_assn R x y * R x y * true" 
+    apply (rule entailsI)
+    unfolding invalid_assn_def apply(simp add: move)
+    apply (auto simp: mod_star_trueI)
+    done
+ 
   
+
+subsection \<open>Return\<close>
+
 lemma hnr_RETURN_pass:
   "hn_refine (hn_ctxt R x p) (return p) (hn_invalid R x p) R (REST [x\<mapsto>1])"
   -- \<open>Pass on a value from the heap as return value\<close>
@@ -233,12 +240,12 @@ lemma hnr_RETURN_pure:
   subgoal for h as n
     using execute_return'[of c h] apply auto
     subgoal  apply(rule exI[where x=1]) apply (simp add: one_enat_def pure_def)  
-      apply(simp add: ff f r assms)  
+      apply(simp add: move assms)  
       using entailsD entails_true by blast   
     subgoal by(simp add:  relH_def)  done
   done
 
-subsection "assert"
+section "assert"
 
 
 definition "iASSERT ret \<Phi> \<equiv> if \<Phi> then ret () else top"
@@ -257,41 +264,7 @@ lemma hnr_ASSERT:
   apply (cases \<Phi>)
   by(auto simp add: bind_ASSERT_eq_if) 
 
-
-subsection \<open>New command ureturn\<close>
-
-definition ureturn :: "'a \<Rightarrow> 'a Heap" where
-  [code del]: "ureturn x = Heap_Monad.heap (\<lambda>h. (x,h,0))"
-
-lemma execute_ureturn [execute_simps]:
-  "execute (ureturn x) = Some \<circ> (\<lambda>h. (x,h,0))"
-  by (simp add: ureturn_def execute_simps)
-
-lemma success_ureturnI [success_intros]:
-  "success (ureturn x) h"
-  by (rule successI) (simp add: execute_simps)
-
-lemma effect_ureturnI [effect_intros]:
-  "h = h' \<Longrightarrow> effect (ureturn x) h h' x 0"
-  by (rule effectI) (simp add: execute_simps)
-
-lemma effect_ureturnE [effect_elims]:
-  assumes "effect (ureturn x) h h' r n"
-  obtains "r = x" "h' = h" "n=0"
-  using assms by (rule effectE) (simp add: execute_simps)
-thm execute_return'
-
-lemma execute_return' [rewrite]: "execute (ureturn x) h = Some (x, h, 0)" by (metis comp_eq_dest_lhs execute_ureturn)
-
-lemma run_ureturnD: "run (ureturn x) (Some h) \<sigma> r t \<Longrightarrow> \<sigma> = Some h \<and> r = x \<and> t = 0"
-  by (auto simp add: HNR.execute_return' run.simps)
-
-lemma return_rule:
-  "<$0> ureturn x <\<lambda>r. \<up>(r = x)>" 
-  unfolding hoare_triple_def apply (auto dest!: run_ureturnD simp: timeCredit_assn_rule)
-  subgoal by (metis (mono_tags, hide_lams) pheap.sel(2) pheap.sel(3) pure_assn_rule)
-  subgoal using relH_def by fastforce 
-  done
+section "ureturn"
 
 lemma hnr_uRETURN_pure:
   assumes "(c,a)\<in>R"
@@ -300,9 +273,9 @@ lemma hnr_uRETURN_pure:
   unfolding hn_refine_def 
   apply (auto simp: hn_ctxt_def)
   subgoal for h as n
-    using execute_return'[of c h] apply auto
+    using execute_ureturn'[of c h] apply auto
     subgoal  apply(rule exI[where x=0]) apply (simp add: zero_enat_def pure_def)  
-      apply(simp add: ff f r assms)  
+      apply(simp add: move assms)  
       using entailsD entails_true by blast   
     subgoal by(simp add:  relH_def)  done
   done
@@ -313,7 +286,7 @@ lemma hnr_uRETURN_pass:
   unfolding hn_refine_def 
   apply (auto simp: hn_ctxt_def)
   subgoal for h as n
-    using execute_return'[of p h] apply auto
+    using execute_ureturn'[of p h] apply auto
     subgoal  apply(rule exI[where x=0]) apply (simp add: zero_enat_def) 
       apply(rule entailsD)  by(auto  simp: invalidate_clone')   
     subgoal by(simp add:  relH_def)  done
@@ -496,95 +469,12 @@ proof (simp, intro conjI impI)
      (flatf_gfp aB ax)" by simp
 qed  
  
-definition hor :: "assn \<Rightarrow> assn \<Rightarrow> assn" (infixr "\<or>\<^sub>A" 61)  where "hor A B = Abs_assn (Assn (
-    \<lambda>h. h\<Turnstile>A \<or> h\<Turnstile>B ) )"
 
 
 
-lemma merge_true_star[simp]: "true*true = true"
-  using top_assn_reduce by auto
-
-lemma entt_trans:
-  "entailst A B \<Longrightarrow> entailst B C \<Longrightarrow> entailst A C"
-  unfolding entailst_def
-  apply (erule ent_trans)
-  by (metis assn_times_assoc ent_star_mono ent_true merge_true_star)  
-
-lemma ent_imp_entt: "P\<Longrightarrow>\<^sub>AQ \<Longrightarrow> P\<Longrightarrow>\<^sub>tQ" 
-  apply (rule enttI)
-  apply (erule ent_trans)
-  by (simp add: entailsI mod_star_trueI)  
 
 
-lemma ent_disjI1_direct[simp]: "A \<Longrightarrow>\<^sub>A A \<or>\<^sub>A B"
-  sorry
 
-lemma ent_disjI2_direct[simp]: "B \<Longrightarrow>\<^sub>A A \<or>\<^sub>A B"
-  sorry
-
-lemma entt_disjI1_direct[simp]: "A \<Longrightarrow>\<^sub>t A \<or>\<^sub>A B"
-  by (rule ent_imp_entt[OF ent_disjI1_direct])
-
-lemma entt_disjI2_direct[simp]: "B \<Longrightarrow>\<^sub>t A \<or>\<^sub>A B"
-  by (rule ent_imp_entt[OF ent_disjI2_direct])
-
-abbreviation "hn_val R \<equiv> hn_ctxt (pure R)"
-
-
-lemma hn_refine_preI: 
-  assumes "\<And>h. h\<Turnstile>\<Gamma> \<Longrightarrow> hn_refine \<Gamma> c \<Gamma>' R a"
-  shows "hn_refine \<Gamma> c \<Gamma>' R a"
-  using assms unfolding hn_refine_def (*
-  by (auto intro: hoare_triple_preI)
-   
-  *) sorry
-
-lemma entt_refl: "P\<Longrightarrow>\<^sub>t P " 
-  by (simp add: entailst_def entailsI mod_star_trueI) 
-lemma entt_refl': "P\<Longrightarrow>\<^sub>A P * true" 
-  by (simp add: entailsI mod_star_trueI) 
-
-
-lemma hn_refine_cons:
-  assumes I: "P\<Longrightarrow>\<^sub>tP'"
-  assumes R: "hn_refine P' c Q R m"
-  assumes I': "Q\<Longrightarrow>\<^sub>t Q'"
-  assumes R': "\<And>x y. R x y \<Longrightarrow>\<^sub>t R' x y"
-  shows "hn_refine P c Q' R' m" sorry
-
-lemma hn_refine_cons_post':
-  assumes R: "hn_refine P c Q R m"
-  assumes I: "Q\<Longrightarrow>\<^sub>AQ'*true"
-  shows "hn_refine P c Q' R m"
-  using assms
-  by (rule hn_refine_cons'[OF entt_refl' _ _ entt_refl'])
-
-lemma hn_refine_cons_post:
-  assumes R: "hn_refine P c Q R m"
-  assumes I: "Q\<Longrightarrow>\<^sub>tQ'"
-  shows "hn_refine P c Q' R m"
-  using assms
-  by (rule hn_refine_cons[OF entt_refl _ _ entt_refl])
-
-lemma hn_refine_split_post:
-  assumes "hn_refine \<Gamma> c \<Gamma>' R a"
-  shows "hn_refine \<Gamma> c (\<Gamma>' \<or>\<^sub>A \<Gamma>'') R a"
-  apply (rule hn_refine_cons_post[OF assms])
-  by (rule entt_disjI1_direct)
-
-
-lemma hn_refine_post_other: 
-  assumes "hn_refine \<Gamma> c \<Gamma>'' R a"
-  shows "hn_refine \<Gamma> c (\<Gamma>' \<or>\<^sub>A \<Gamma>'') R a"
-  apply (rule hn_refine_cons_post[OF assms])
-  by (rule entt_disjI2_direct)
-
-
-lemma hn_refine_cons_pre:
-  assumes I: "P\<Longrightarrow>\<^sub>tP'"
-  assumes R: "hn_refine P' c Q R m"
-  shows "hn_refine P c Q R m"
-  sorry
 
 
 lemma hnr_If':
@@ -637,6 +527,7 @@ lemma hnr_If:
   applyS (rule entt_refl)
   done
 
+subsection "how to extract a hoare triple from hn_refine"
 
 lemma extract_cost_ub:
   assumes "hn_refine \<Gamma> c \<Gamma>' R (REST M)" "(\<And>c. c\<in>ran M \<Longrightarrow> c \<le> Cost_ub)"

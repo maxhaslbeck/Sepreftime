@@ -1,21 +1,6 @@
 theory Example 
-imports HNR  
+imports HNR  Tools
 begin
-
-subsection "Mono Prover"
-
-  (* Wraps mono-prover of partial-function to erase premises. 
-    This is a workaround for mono_tac, which does not accept premises if the case-split rule is applied. *)
-
-
-ML \<open>
-  structure Pf_Mono_Prover = struct
-    fun mono_tac ctxt = (REPEAT o eresolve_tac ctxt @{thms thin_rl})
-      THEN' Partial_Function.mono_tac ctxt
-  end
-\<close>
-
-method_setup pf_mono = \<open>Scan.succeed (fn ctxt => SIMPLE_METHOD' (Pf_Mono_Prover.mono_tac ctxt))\<close> \<open>Monotonicity prover of the partial function package\<close>
 
 subsection "While rule for hnr"
 
@@ -68,131 +53,9 @@ lemma Ra: "A * \<Gamma> \<Longrightarrow>\<^sub>t \<Gamma> * A"
   by (simp add: assn_times_comm entt_refl)  
 
 
-
-lemma left_move_back: "(A \<Longrightarrow>\<^sub>A B * C) \<Longrightarrow> (A \<Longrightarrow>\<^sub>A C * B)"
-  by (simp add: assn_times_comm)
-lemma right_move_back: "(B * C \<Longrightarrow>\<^sub>A A) \<Longrightarrow> (C * B \<Longrightarrow>\<^sub>A A)"
-  by (simp add: assn_times_comm)
-
-lemma pull_forward: "(A \<Longrightarrow>\<^sub>A B * C * D) \<Longrightarrow> (A \<Longrightarrow>\<^sub>A B * (C * D))"
-  by (simp add: mult.assoc)
-
-lemma match_first: "A \<Longrightarrow>\<^sub>A B \<Longrightarrow> \<Gamma> * A \<Longrightarrow>\<^sub>A \<Gamma> * B"  
-  by (simp add: assn_times_comm entails_frame)  
-
-lemma match_rest: "emp \<Longrightarrow>\<^sub>A B \<Longrightarrow> \<Gamma> \<Longrightarrow>\<^sub>A \<Gamma> * B"  
-  using match_first by fastforce 
-
-thm mult.assoc
-method rotater = ( (simp add: mult.assoc)? , rule left_move_back , (simp add: mult.assoc)?  )
-method rotatel = ( (simp add: mult.assoc)? , rule right_move_back , (simp add: mult.assoc)?  )
-
-lemma "\<And>x y. A \<Longrightarrow>\<^sub>A B x y * C"
-  apply rotater
-  oops
- 
-schematic_goal "\<And>x y. A \<Longrightarrow>\<^sub>A B x y * ?C x " 
-  apply rotater
-  oops
-
-lemma "A \<Longrightarrow>\<^sub>A B * D * E * F"  
-  apply rotater
-  oops
-
- 
-
-
 lemma assumes "hn_refine P c Q R a"
     "Q\<Longrightarrow>\<^sub>AQ'*true" shows "hn_refine P c Q' R a"
   apply(rule hn_refine_cons'[OF _ assms]) by (auto simp add: entt_refl') 
-
-
-text \<open>Weakening the postcondition by converting @{const invalid_assn} to @{term "\<lambda>_ _. true"}\<close>
-definition "WEAKEN_HNR_POST \<Gamma> \<Gamma>' \<Gamma>'' \<equiv> (\<exists>h. h\<Turnstile>\<Gamma>) \<longrightarrow> (\<Gamma>'' \<Longrightarrow>\<^sub>t \<Gamma>')"
-
-lemma weaken_hnr_postI:
-  assumes "WEAKEN_HNR_POST \<Gamma> \<Gamma>'' \<Gamma>'"
-  assumes "hn_refine \<Gamma> c \<Gamma>' R a"
-  shows "hn_refine \<Gamma> c \<Gamma>'' R a"
-  apply (rule hn_refine_preI)
-  apply (rule hn_refine_cons_post)
-  apply (rule assms)
-  using assms(1) unfolding WEAKEN_HNR_POST_def by blast
-
-lemma weaken_hnr_post_triv: "WEAKEN_HNR_POST \<Gamma> P P"
-  unfolding WEAKEN_HNR_POST_def  
-  using entt_refl by blast  
-
-lemma weaken_hnr_post:
-  "\<lbrakk>WEAKEN_HNR_POST \<Gamma> P P'; WEAKEN_HNR_POST \<Gamma>' Q Q'\<rbrakk> \<Longrightarrow> WEAKEN_HNR_POST (\<Gamma>*\<Gamma>') (P*Q) (P'*Q')"
-  "WEAKEN_HNR_POST (hn_ctxt R x y) (hn_ctxt R x y) (hn_ctxt R x y)"
-  "WEAKEN_HNR_POST (hn_ctxt R x y) (hn_invalid R x y) (hn_ctxt (\<lambda>_ _. true) x y)"
-proof (goal_cases)
-  case 1 thus ?case
-    unfolding WEAKEN_HNR_POST_def
-    apply clarsimp  
-  proof -
-    fix h :: pheap
-    assume a1: "h \<Turnstile> \<Gamma> * \<Gamma>'"
-    assume a2: "(\<exists>h. h \<Turnstile> \<Gamma>) \<longrightarrow> (P' \<Longrightarrow>\<^sub>t P)"
-    assume a3: "(\<exists>h. h \<Turnstile> \<Gamma>') \<longrightarrow> (Q' \<Longrightarrow>\<^sub>t Q)"
-have f4: "\<forall>a. h \<Turnstile> a * (\<Gamma>' * \<up> (h \<Turnstile> \<Gamma> * \<Gamma>')) \<or> (P' \<Longrightarrow>\<^sub>t P)"
-  using a2 a1 by (metis (no_types) SepAuto.mod_pure_star_dist assn_times_assoc entailsD' entailsI)
-  have f5: "\<forall>b a aa p. p \<Turnstile> aa * a \<or> \<not> p \<Turnstile> aa * (a * \<up> b)"
-by (metis (no_types) SepAuto.mod_pure_star_dist assn_times_assoc)
-then have f6: "\<forall>b. (P' \<Longrightarrow>\<^sub>t P) \<or> b"
-  using f4 by (metis SepAuto.mod_pure_star_dist mult.left_commute)
-  then have "h \<Turnstile> \<Gamma> * (\<Gamma>' * \<up> (P' \<Longrightarrow>\<^sub>t P))"
-    using a1 by (metis (full_types) SepAuto.mod_pure_star_dist assn_times_assoc)
-  then have f7: "Q' \<Longrightarrow>\<^sub>A Q * true"
-    using f5 a3 by (metis SepAuto.mod_pure_star_dist entailsD' entailsI entailst_def mult.left_commute)
-  have "\<forall>a. true * (a * true) = a * true"
-    by (simp add: mult.left_commute)
-  then have "P' * Q' \<Longrightarrow>\<^sub>A P * (Q * true)"
-using f7 f6 by (metis (no_types) assn_times_assoc ent_star_mono entailst_def)
-then show "P' * Q' \<Longrightarrow>\<^sub>t P * Q"
-  by (simp add: assn_times_assoc entailst_def)
-qed  (* thank you sledgehammer :) *)
-next
-  case 2 thus ?case by (rule weaken_hnr_post_triv)
-next
-  case 3 thus ?case 
-    unfolding WEAKEN_HNR_POST_def  invalid_assn_def hn_ctxt_def
-     
-    using assn_times_comm ent_imp_entt entails_pure_post by fastforce   
-qed
-
-
-ML \<open>
-
-  fun weaken_post_tac ctxt = TRADE (fn ctxt =>
-    resolve_tac ctxt @{thms weaken_hnr_postI} 
-    THEN' SOLVED' (REPEAT_ALL_NEW (DETERM o resolve_tac ctxt @{thms weaken_hnr_post weaken_hnr_post_triv}))
-  ) ctxt
-
-\<close>
-
-
-method_setup weaken_hnr_post = \<open>Scan.succeed (fn ctxt => SIMPLE_METHOD'  (weaken_post_tac ctxt))\<close>
-  \<open>Convert "hn_invalid" to "hn_ctxt (\<lambda>_ _. true)" in postcondition of hn_refine goal\<close>
-
-
-lemma ent_disjE: "\<lbrakk> A\<Longrightarrow>\<^sub>AC; B\<Longrightarrow>\<^sub>AC \<rbrakk> \<Longrightarrow> A\<or>\<^sub>AB \<Longrightarrow>\<^sub>AC"
-  unfolding entails_def sorry
-
-
-lemma merge_true_star_ctx: "true * (true * P) = true * P"
-  by (metis assn_times_assoc top_assn_reduce)
-
-lemma pf: "(a::assn) * b = b * a" 
-  using assn_times_comm by auto 
-
-lemma ent_true_drop: 
-  "P\<Longrightarrow>\<^sub>AQ*true \<Longrightarrow> P*R\<Longrightarrow>\<^sub>AQ*true"
-  "P\<Longrightarrow>\<^sub>AQ \<Longrightarrow> P\<Longrightarrow>\<^sub>AQ*true"
-  apply (metis assn_times_comm ent_star_mono ent_true merge_true_star_ctx)
-  apply (metis assn_one_left ent_star_mono ent_true pf)
-  done
 
 lemma hn_monadic_WHILE_aux:
   assumes FR: "P \<Longrightarrow>\<^sub>t \<Gamma> * hn_ctxt Rs s' s"

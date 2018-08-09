@@ -464,6 +464,7 @@ lemma bindT_mono:
   apply(auto simp: pw_le_iff refine_pw_simps) 
    by fastforce+                 
 
+
 lemma bindT_mono'[refine_mono]: 
   "m \<le> m' \<Longrightarrow> (\<And>x.   f x \<le> f' x)
  \<Longrightarrow> bindT m f \<le> bindT  m' f'"
