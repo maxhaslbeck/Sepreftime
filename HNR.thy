@@ -471,10 +471,10 @@ lemma hnr_RECT:
   assumes M: "(\<And>x. mono_Heap (\<lambda>f. cB f x))"
   shows "hn_refine 
     (hn_ctxt Rx ax px * F) (heap.fixp_fun cB px) (F' ax px) Ry (Sepreftime.RECT aB ax)"
-  unfolding Sepreftime.RECT_def (*
+  unfolding RECT_flat_gfp_def
 proof (simp, intro conjI impI)
-  assume "trimono aB"
-  hence "flatf_mono_ge aB" by (simp add: trimonoD)
+  assume "mono2 aB"
+  hence "flatf_mono_ge aB" by(rule trimonoD_flatf_ge)
   have "\<forall>ax px. 
     hn_refine (hn_ctxt Rx ax px * F) (heap.fixp_fun cB px) (F' ax px) Ry 
       (flatf_gfp aB ax)"
@@ -494,7 +494,7 @@ proof (simp, intro conjI impI)
   thus "hn_refine (hn_ctxt Rx ax px * F)
      (ccpo.fixp (fun_lub Heap_lub) (fun_ord Heap_ord) cB px) (F' ax px) Ry
      (flatf_gfp aB ax)" by simp
-qed  *) sorry
+qed  
  
 definition hor :: "assn \<Rightarrow> assn \<Rightarrow> assn" (infixr "\<or>\<^sub>A" 61)  where "hor A B = Abs_assn (Assn (
     \<lambda>h. h\<Turnstile>A \<or> h\<Turnstile>B ) )"
