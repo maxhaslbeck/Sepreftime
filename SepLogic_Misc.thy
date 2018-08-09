@@ -147,7 +147,19 @@ lemma effect_ureturnE [effect_elims]:
   assumes "effect (ureturn x) h h' r n"
   obtains "r = x" "h' = h" "n=0"
   using assms by (rule effectE) (simp add: execute_simps)
-thm execute_return'
+thm execute_return' 
+
+lemma timeFrame0[simp]: "timeFrame 0 f = f" apply(cases f) by auto
+
+lemma ureturn_bind [simp]: "ureturn x \<bind> f =   f x"
+  apply (rule Heap_eqI)
+  by (auto simp add: execute_simps )
+
+
+lemma bind_ureturn [simp]: "f \<bind> ureturn =   f"
+  by (rule Heap_eqI) (simp add: bind_def execute_simps split: option.splits)
+
+
 
 lemma execute_ureturn' [rewrite]: "execute (ureturn x) h = Some (x, h, 0)" by (metis comp_eq_dest_lhs execute_ureturn)
 
@@ -160,6 +172,74 @@ lemma return_rule:
   subgoal by (metis (mono_tags, hide_lams) pheap.sel(2) pheap.sel(3) pure_assn_rule)
   subgoal using relH_def by fastforce 
   done
+
+
+subsection "Heap And"
+
+
+definition hand :: "assn \<Rightarrow> assn \<Rightarrow> assn" (infixr "\<and>\<^sub>A" 61)  where "hand A B = Abs_assn (Assn (
+    \<lambda>h. h\<Turnstile>A \<and> h\<Turnstile>B ) )"
+
+
+lemma mod_and_dist: "h\<Turnstile>P\<and>\<^sub>AQ \<longleftrightarrow> h\<Turnstile>P \<and> h\<Turnstile>Q"
+  sorry 
+
+subsection {* Precision *}
+text {*
+  Precision rules describe that parts of an assertion may depend only on the
+  underlying heap. For example, the data where a pointer points to is the same
+  for the same heap.
+*}
+text {* Precision rules should have the form: 
+  @{text [display] "\<forall>x y. (h\<Turnstile>(P x * F1) \<and>\<^sub>A (P y * F2)) \<longrightarrow> x=y"}*}
+definition "precise R \<equiv> \<forall>a a' h p F F'. 
+  h \<Turnstile> R a p * F \<and>\<^sub>A R a' p * F' \<longrightarrow> a = a'"
+
+lemma preciseI[intro?]: 
+  assumes "\<And>a a' h p F F'. h \<Turnstile> R a p * F \<and>\<^sub>A R a' p * F' \<Longrightarrow> a = a'"
+  shows "precise R"
+  using assms unfolding precise_def by blast
+
+lemma preciseD:
+  assumes "precise R"
+  assumes "h \<Turnstile> R a p * F \<and>\<^sub>A R a' p * F'"
+  shows "a=a'"
+  using assms unfolding precise_def by blast
+
+lemma preciseD':
+  assumes "precise R"
+  assumes "h \<Turnstile> R a p * F" 
+  assumes "h \<Turnstile> R a' p * F'"
+  shows "a=a'"
+  apply (rule preciseD)
+  apply (rule assms)
+  apply (simp only: mod_and_dist)
+  apply (blast intro: assms)
+  done
+
+lemma precise_extr_pure[simp]: 
+  "precise (\<lambda>x y. \<up>P * R x y) \<longleftrightarrow> (P \<longrightarrow> precise R)"
+  "precise (\<lambda>x y. R x y * \<up>P) \<longleftrightarrow> (P \<longrightarrow> precise R)"
+  (* apply (cases P, (auto intro!: preciseI) [2])+
+  done *) sorry
+
+lemma sngr_prec: "precise (\<lambda>x p. p\<mapsto>\<^sub>rx)" (*
+  apply rule
+  apply (clarsimp simp: mod_and_dist)
+  unfolding sngr_assn_def times_assn_def
+  apply (simp add: Abs_assn_inverse)
+  apply auto
+  done *) sorry
+
+lemma snga_prec: "precise (\<lambda>x p. p\<mapsto>\<^sub>ax)" (*
+  apply rule
+  apply (clarsimp simp: mod_and_dist)
+  unfolding snga_assn_def times_assn_def
+  apply (simp add: Abs_assn_inverse)
+  apply auto
+  done *) sorry
+
+
 
 
 

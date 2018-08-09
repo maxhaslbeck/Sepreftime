@@ -50,6 +50,11 @@ lemma WHILEIT_to_monadic: "WHILEIT I b f s = monadic_WHILEIT I (\<lambda>s. RETU
   unfolding whileT_def bind_ASSERT_eq_if
   by (simp cong: if_cong) 
 
+lemma whileT_I': "whileT b c s = WHILEIT (\<lambda>_. True) b c s"
+  unfolding WHILEIT_def whileT_def by simp
+
+lemma whileT_I: "whileT = WHILEIT (\<lambda>_. True) " using whileT_I' by fast
+  
 lemma Ra: "A * \<Gamma> \<Longrightarrow>\<^sub>t \<Gamma> * A"  
   by (simp add: assn_times_comm entt_refl)  
 
@@ -102,7 +107,7 @@ lemma hn_monadic_WHILE_aux:
             apply assumption
           solved
       
-          focus (rule hn_refine_frame)
+          focus (rule hnr_frame)
             applyS rprems
             apply  (rule enttI)
             apply(simp add: mult_ac ) 
@@ -116,7 +121,7 @@ lemma hn_monadic_WHILE_aux:
               apply(rule match_first)  apply rotater
               apply(rule match_rest) apply simp
             solved   
-        applyF (auto,rule hn_refine_frame)
+        applyF (auto,rule hnr_frame)
           applyS (rule hnr_uRETURN_pass)
           (*apply (tactic {* Sepref_Frame.frame_tac @{context} 1*})*)
           apply (rule enttI)

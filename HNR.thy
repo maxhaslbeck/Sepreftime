@@ -1,7 +1,7 @@
 theory HNR                    
 imports Sepreftime "../Imperative_HOL_Time/SepLogicTime/SepAuto" (* Refine_Monadic.RefineG_Recursion *)
   SepLogic_Misc  
-  Refine_Imperative_HOL.Structured_Apply
+  "Refine_Imperative_HOL/Lib/Structured_Apply"
 begin
 
 
@@ -19,6 +19,50 @@ subsection "easy rules"
 
 lemma hnr_FAILT[simp]: "hn_refine \<Gamma> c \<Gamma>' R FAILT"
   by(simp add: hn_refine_def)
+
+subsection "Refine hnr"
+
+
+lemma assumes "m \<le> m'" 
+    "hn_refine \<Gamma> c \<Gamma>' R m"  
+shows hnr_refine: "hn_refine \<Gamma> c \<Gamma>' R m'"
+proof (cases m)
+  case FAILi
+  then show ?thesis using assms(1) by (auto simp:  hn_refine_def)
+next
+  case (REST x2)
+  with assms(2)[unfolded hn_refine_def] have
+      E: "(\<And>h as n M. pHeap h as n \<Turnstile> \<Gamma> \<Longrightarrow>
+                m = SPECT M \<Longrightarrow>
+                (\<exists>h' t r. execute c h = Some (r, h', t) \<and>
+                          (\<exists>ra Ca. Some (enat Ca) \<le> M ra \<and> t \<le> n + Ca \<and> pHeap h' (new_addrs h as h') (n + Ca - t) \<Turnstile> \<Gamma>' * R ra r * true) \<and>
+                          relH {a. a < heap.lim h \<and> a \<notin> as} h h' \<and> heap.lim h \<le> heap.lim h'))"
+    by auto
+  show ?thesis unfolding hn_refine_def 
+  proof (clarsimp)
+    fix h as n M'
+    assume M': "m' = SPECT M'"
+    with assms(1) obtain M where M: "m = SPECT M"
+      by fastforce
+  
+    assume 2:  "pHeap h as n \<Turnstile> \<Gamma>"
+    from E[OF 2 M] obtain h' t r ra Ca where 
+          ineq:  "Some (enat Ca) \<le> M ra"  and 
+          r: "execute c h = Some (r, h', t)" "t \<le> n + Ca"
+             "pHeap h' (new_addrs h as h') (n + Ca - t) \<Turnstile> \<Gamma>' * R ra r * true " 
+             "relH {a. a < heap.lim h \<and> a \<notin> as} h h'" "heap.lim h \<le> heap.lim h'"
+      by blast
+
+    from assms(1) M' M have  "M \<le> M'" by simp
+    with ineq have ineq': "Some (enat Ca) \<le> M' ra" 
+      using dual_order.trans by(auto simp: le_fun_def) 
+
+    from r ineq'
+    show "\<exists>h' t r. execute c h = Some (r, h', t) \<and>
+                         (\<exists>ra Ca. Some (enat Ca) \<le> M' ra \<and> t \<le> n + Ca \<and> pHeap h' (new_addrs h as h') (n + Ca - t) \<Turnstile> \<Gamma>' * R ra r * true) \<and> relH {a. a < heap.lim h \<and> a \<notin> as} h h' \<and> heap.lim h \<le> heap.lim h'"
+      by blast
+  qed
+qed 
 
 subsection "Consequence rules"
 
@@ -99,7 +143,7 @@ lemma hn_refine_cons_pre:
 
 subsection "Frame rule"
 
-lemma hn_refine_frame:
+lemma hnr_frame:
   assumes "hn_refine P' c Q' R m"
   assumes "P \<Longrightarrow>\<^sub>t F * P'"
   shows "hn_refine P c (F * Q') R m"
@@ -251,6 +295,11 @@ section "assert"
 definition "iASSERT ret \<Phi> \<equiv> if \<Phi> then ret () else top"
 
 definition ASSERT where "ASSERT \<equiv> iASSERT RETURNT"
+
+lemma ASSERT_True[simp]: "ASSERT True = RETURNT ()" 
+  by (auto simp: ASSERT_def iASSERT_def)
+lemma ASSERT_False[simp]: "ASSERT False = FAILT" 
+  by (auto simp: ASSERT_def iASSERT_def) 
 
 
 lemma bind_ASSERT_eq_if: "do { ASSERT \<Phi>; m } = (if \<Phi> then m else FAILT)"

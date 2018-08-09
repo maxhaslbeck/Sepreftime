@@ -1854,6 +1854,13 @@ lemma "SPECT  [r\<mapsto>i] \<le> SPECT [f\<mapsto>j] \<longleftrightarrow> ((r 
 
 hide_const T
 
- 
+
+
+
+
+  definition le_or_fail :: "'a nrest \<Rightarrow> 'a nrest \<Rightarrow> bool" (infix "\<le>\<^sub>n" 50) where
+    "m \<le>\<^sub>n m' \<equiv> nofailT m \<longrightarrow> m \<le> m'"
+
+
  
 end
