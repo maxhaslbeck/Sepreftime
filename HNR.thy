@@ -64,83 +64,6 @@ next
   qed
 qed 
 
-subsection "Consequence rules"
-
-
-lemma hn_refine_cons_pre':
-  assumes I: "P\<Longrightarrow>\<^sub>AP' * true"
-  assumes R: "hn_refine P' c Q R m"
-  shows "hn_refine P c Q R m"
-  sorry
-
-
-lemma hn_refine_cons':
-  assumes I: "P\<Longrightarrow>\<^sub>AP' * true"
-  assumes R: "hn_refine P' c Q R m"
-  assumes I': "Q\<Longrightarrow>\<^sub>A Q' * true"
-  assumes R': "\<And>x y. R x y \<Longrightarrow>\<^sub>A R' x y * true"
-  shows "hn_refine P c Q' R' m"
-  using R unfolding hn_refine_def (*
-  apply clarify
-  apply (rule cons_pre_rulet[OF I])
-  apply (rule cons_post_rulet)
-  apply assumption
-  apply (sep_auto simp: entailst_def)
-  apply (rule enttD)
-  apply (intro entt_star_mono I' R')
-  done *) sorry
-
-
-lemma hn_refine_preI: 
-  assumes "\<And>h. h\<Turnstile>\<Gamma> \<Longrightarrow> hn_refine \<Gamma> c \<Gamma>' R a"
-  shows "hn_refine \<Gamma> c \<Gamma>' R a"
-  using assms unfolding hn_refine_def (*
-  by (auto intro: hoare_triple_preI)
-   
-  *) sorry
-
-lemma hn_refine_cons:
-  assumes I: "P\<Longrightarrow>\<^sub>tP'"
-  assumes R: "hn_refine P' c Q R m"
-  assumes I': "Q\<Longrightarrow>\<^sub>t Q'"
-  assumes R': "\<And>x y. R x y \<Longrightarrow>\<^sub>t R' x y"
-  shows "hn_refine P c Q' R' m" sorry
-
-lemma hn_refine_cons_post':
-  assumes R: "hn_refine P c Q R m"
-  assumes I: "Q\<Longrightarrow>\<^sub>AQ'*true"
-  shows "hn_refine P c Q' R m"
-  using assms
-  by (rule hn_refine_cons'[OF entt_refl' _ _ entt_refl'])
-
-lemma hn_refine_cons_post:
-  assumes R: "hn_refine P c Q R m"
-  assumes I: "Q\<Longrightarrow>\<^sub>tQ'"
-  shows "hn_refine P c Q' R m"
-  using assms
-  by (rule hn_refine_cons[OF entt_refl _ _ entt_refl])
-
-lemma hn_refine_split_post:
-  assumes "hn_refine \<Gamma> c \<Gamma>' R a"
-  shows "hn_refine \<Gamma> c (\<Gamma>' \<or>\<^sub>A \<Gamma>'') R a"
-  apply (rule hn_refine_cons_post[OF assms])
-  by (rule entt_disjI1_direct)
-
-
-lemma hn_refine_post_other: 
-  assumes "hn_refine \<Gamma> c \<Gamma>'' R a"
-  shows "hn_refine \<Gamma> c (\<Gamma>' \<or>\<^sub>A \<Gamma>'') R a"
-  apply (rule hn_refine_cons_post[OF assms])
-  by (rule entt_disjI2_direct)
-
-
-lemma hn_refine_cons_pre:
-  assumes I: "P\<Longrightarrow>\<^sub>tP'"
-  assumes R: "hn_refine P' c Q R m"
-  shows "hn_refine P c Q R m"
-  sorry
-
-
 subsection "Frame rule"
 
 lemma hnr_frame:
@@ -210,6 +133,101 @@ proof clarsimp
                          relH {a. a < heap.lim h \<and> a \<notin> as} h h' \<and> heap.lim h \<le> heap.lim h'"
     by auto
 qed
+
+subsection "Consequence rules"
+
+
+
+lemma hn_refine_cons':
+  assumes I: "P\<Longrightarrow>\<^sub>AP' * true"
+  assumes R: "hn_refine P' c Q R m"
+  assumes I': "Q\<Longrightarrow>\<^sub>A Q' * true"
+  assumes R': "\<And>x y. R x y \<Longrightarrow>\<^sub>A R' x y * true"
+  shows "hn_refine P c Q' R' m"
+proof -
+  have "hn_refine P c Q R m" 
+    apply(rule hnr_frame[OF R, where F=emp,simplified])
+    unfolding entailst_def by fact
+
+  then have R2: "(\<And>h as n M. nofailT (SPECT M) \<Longrightarrow>
+   pHeap h as n \<Turnstile> P \<Longrightarrow>
+              m = SPECT M \<Longrightarrow>
+              (\<exists>h' t r. execute c h = Some (r, h', t) \<and>
+                        (\<exists>ra Ca. Some (enat Ca) \<le> M ra \<and> t \<le> n + Ca \<and> pHeap h' (new_addrs h as h') (n + Ca - t) \<Turnstile> Q * R ra r * true) \<and>
+                        relH {a. a < heap.lim h \<and> a \<notin> as} h h' \<and> heap.lim h \<le> heap.lim h'))" unfolding hn_refine_def by auto
+
+  show ?thesis unfolding hn_refine_def
+  proof (safe,goal_cases)
+    case (1 h as n M) 
+    from R2[OF 1] obtain h' t r ra Ca where a: "execute c h = Some (r, h', t)"
+          "Some (enat Ca) \<le> M ra" "t \<le> n + Ca" 
+          "relH {a. a < heap.lim h \<and> a \<notin> as} h h'" "heap.lim h \<le> heap.lim h'"
+       and b: "pHeap h' (new_addrs h as h') (n + Ca - t) \<Turnstile> Q * R ra r * true" by blast
+    have b': "pHeap h' (new_addrs h as h') (n + Ca - t) \<Turnstile> Q' * R' ra r * true"
+      apply(rule entailsD[OF _b])
+      using I' R' 
+      by (smt assn_times_assoc ent_star_mono ent_true_drop(1) merge_true_star mult.left_commute)
+
+    from a b' show ?case by blast
+  qed
+qed 
+
+
+lemma hn_refine_cons_pre':
+  assumes I: "P\<Longrightarrow>\<^sub>AP' * true"
+  assumes R: "hn_refine P' c Q R m"
+  shows "hn_refine P c Q R m"
+  apply(rule hn_refine_cons'[OF I R])  
+    by (auto simp add: entt_refl')   
+
+lemma hn_refine_preI: 
+  assumes "\<And>h. h\<Turnstile>\<Gamma> \<Longrightarrow> hn_refine \<Gamma> c \<Gamma>' R a"
+  shows "hn_refine \<Gamma> c \<Gamma>' R a"
+  using assms unfolding hn_refine_def   
+  by blast 
+
+lemma hn_refine_cons:
+  assumes I: "P\<Longrightarrow>\<^sub>tP'"
+  assumes R: "hn_refine P' c Q R m"
+  assumes I': "Q\<Longrightarrow>\<^sub>t Q'"
+  assumes R': "\<And>x y. R x y \<Longrightarrow>\<^sub>t R' x y"
+  shows "hn_refine P c Q' R' m"
+  by(rule hn_refine_cons'[OF assms[unfolded entailst_def]])
+
+lemma hn_refine_cons_post':
+  assumes R: "hn_refine P c Q R m"
+  assumes I: "Q\<Longrightarrow>\<^sub>AQ'*true"
+  shows "hn_refine P c Q' R m"
+  using assms
+  by (rule hn_refine_cons'[OF entt_refl' _ _ entt_refl'])
+
+lemma hn_refine_cons_post:
+  assumes R: "hn_refine P c Q R m"
+  assumes I: "Q\<Longrightarrow>\<^sub>tQ'"
+  shows "hn_refine P c Q' R m"
+  using assms
+  by (rule hn_refine_cons[OF entt_refl _ _ entt_refl])
+
+lemma hn_refine_split_post:
+  assumes "hn_refine \<Gamma> c \<Gamma>' R a"
+  shows "hn_refine \<Gamma> c (\<Gamma>' \<or>\<^sub>A \<Gamma>'') R a"
+  apply (rule hn_refine_cons_post[OF assms])
+  by (rule entt_disjI1_direct)
+
+
+lemma hn_refine_post_other: 
+  assumes "hn_refine \<Gamma> c \<Gamma>'' R a"
+  shows "hn_refine \<Gamma> c (\<Gamma>' \<or>\<^sub>A \<Gamma>'') R a"
+  apply (rule hn_refine_cons_post[OF assms])
+  by (rule entt_disjI2_direct)
+
+
+lemma hn_refine_cons_pre:
+  assumes I: "P\<Longrightarrow>\<^sub>tP'"
+  assumes R: "hn_refine P' c Q R m"
+  shows "hn_refine P c Q R m"
+  by(rule hn_refine_cons_pre'[OF assms[unfolded entailst_def]])
+   
 
 definition hn_ctxt :: "('a\<Rightarrow>'c\<Rightarrow>assn) \<Rightarrow> 'a \<Rightarrow> 'c \<Rightarrow> assn" 
   -- {* Tag for refinement assertion *}

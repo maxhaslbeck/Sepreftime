@@ -102,18 +102,15 @@ lemma entt_refl: "P\<Longrightarrow>\<^sub>t P "
   by (simp add: entailst_def entailsI mod_star_trueI) 
 
 subsection "Heap Or"
-
-
-definition hor :: "assn \<Rightarrow> assn \<Rightarrow> assn" (infixr "\<or>\<^sub>A" 61)  where "hor A B = Abs_assn (Assn (
-    \<lambda>h. h\<Turnstile>A \<or> h\<Turnstile>B ) )"
-
-
+ 
+ 
+ 
 
 lemma ent_disjI1_direct[simp]: "A \<Longrightarrow>\<^sub>A A \<or>\<^sub>A B"
-  sorry
+  by (simp add: entailsI or_assn_conv)  
 
-lemma ent_disjI2_direct[simp]: "B \<Longrightarrow>\<^sub>A A \<or>\<^sub>A B"
-  sorry
+lemma ent_disjI2_direct[simp]: "B \<Longrightarrow>\<^sub>A A \<or>\<^sub>A B"     
+  by (simp add: entailsI or_assn_conv)  
 
 lemma entt_disjI1_direct[simp]: "A \<Longrightarrow>\<^sub>t A \<or>\<^sub>A B"
   by (rule ent_imp_entt[OF ent_disjI1_direct])
@@ -122,7 +119,7 @@ lemma entt_disjI2_direct[simp]: "B \<Longrightarrow>\<^sub>t A \<or>\<^sub>A B"
   by (rule ent_imp_entt[OF ent_disjI2_direct])
 
 lemma ent_disjE: "\<lbrakk> A\<Longrightarrow>\<^sub>AC; B\<Longrightarrow>\<^sub>AC \<rbrakk> \<Longrightarrow> A\<or>\<^sub>AB \<Longrightarrow>\<^sub>AC"
-  unfolding entails_def sorry
+  by (simp add: entails_def or_assn_conv)  
 
 
 
@@ -175,14 +172,11 @@ lemma return_rule:
 
 
 subsection "Heap And"
-
-
-definition hand :: "assn \<Rightarrow> assn \<Rightarrow> assn" (infixr "\<and>\<^sub>A" 61)  where "hand A B = Abs_assn (Assn (
-    \<lambda>h. h\<Turnstile>A \<and> h\<Turnstile>B ) )"
+ 
 
 
 lemma mod_and_dist: "h\<Turnstile>P\<and>\<^sub>AQ \<longleftrightarrow> h\<Turnstile>P \<and> h\<Turnstile>Q"
-  sorry 
+  by (rule and_assn_conv) 
 
 subsection {* Precision *}
 text {*
