@@ -30,8 +30,8 @@ lemma left_move_back: "(B * C \<Longrightarrow>\<^sub>A A) \<Longrightarrow> (C 
   by (simp add: assn_times_comm)
 
 thm mult.assoc
-method rotater = ( (simp add: mult.assoc)? , rule right_move_back , (simp add: mult.assoc)?  )
-method rotatel = ( (simp add: mult.assoc)? , rule left_move_back , (simp add: mult.assoc)?  )
+method rotater = ( (simp only: mult.assoc)? , rule right_move_back , (simp only: mult.assoc)?  )
+method rotatel = ( (simp only: mult.assoc)? , rule left_move_back , (simp only: mult.assoc)?  )
 
 lemma "\<And>x y. A \<Longrightarrow>\<^sub>A B x y * C"
   apply rotater
