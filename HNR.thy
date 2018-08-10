@@ -1,5 +1,5 @@
 theory HNR                    
-imports Sepreftime "../Imperative_HOL_Time/SepLogicTime/SepAuto" (* Refine_Monadic.RefineG_Recursion *)
+imports Sepreftime "SepLogicTime_RBTreeBasic.SepAuto" (* Refine_Monadic.RefineG_Recursion *)
   SepLogic_Misc  
   "Refine_Imperative_HOL/Lib/Structured_Apply"
 begin

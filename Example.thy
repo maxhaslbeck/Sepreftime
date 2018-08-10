@@ -72,8 +72,8 @@ schematic_goal first:
   
      apply (simp del: nres_bind_left_identity)
      apply(rule hnr_bind)  
-     apply(rule hnr_frame)   
-        apply(rule hnr_uRETURN_pure[where R=nat_rel]) apply simp
+       apply(rule hnr_frame[OF hnr_uRETURN_pure[where R=nat_rel]])
+        apply simp
        apply (simp add: ) apply(rule entt_refl)
       apply (simp  )  
       apply(rule hn_refine_less)
@@ -86,8 +86,8 @@ schematic_goal first:
 
    apply (simp del: nres_bind_left_identity)
      apply(rule hnr_bind)  
-     apply(rule hnr_frame)   
-        apply(rule hnr_uRETURN_pure[where R=nat_rel]) apply simp
+     apply(rule hnr_frame[OF hnr_uRETURN_pure[where R=nat_rel]])    
+        apply simp
        apply (simp add: ) apply(rule entt_refl)
       apply (simp  )  
      apply(rule hn_refine_cons_pre[OF _ hn_refine_minus])
@@ -105,7 +105,7 @@ lemma entails_ex': "((\<exists>\<^sub>Ax. P x) \<Longrightarrow>\<^sub>A Q) \<lo
   using entails_ex by blast
 
 thm ex4_ref ex4'
-schematic_goal "S \<le> n \<Longrightarrow> <$ n> (heap_WHILET (\<lambda>s. ureturn 0 \<bind> (\<lambda>x'. ureturn (x' < s))) (\<lambda>s. ureturn (Suc 0) \<bind> (\<lambda>x'. ureturn (s - x'))) S) <\<lambda>r. \<up> (r = 0)>\<^sub>t"
+lemma "S \<le> n \<Longrightarrow> <$ n> (heap_WHILET (\<lambda>s. ureturn 0 \<bind> (\<lambda>x'. ureturn (x' < s))) (\<lambda>s. ureturn (Suc 0) \<bind> (\<lambda>x'. ureturn (s - x'))) S) <\<lambda>r. \<up> (r = 0)>\<^sub>t"
 proof -
   assume as: "S \<le> n"
   from ex4_ref have "whileT (op < 0) (\<lambda>s. RETURNT (s - 1)) S \<le> whileT (op < 0) (\<lambda>s. SPECT [s - 1 \<mapsto> 1]) S" by auto
