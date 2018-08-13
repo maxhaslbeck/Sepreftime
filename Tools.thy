@@ -22,7 +22,16 @@ method_setup pf_mono = \<open>Scan.succeed (fn ctxt => SIMPLE_METHOD' (Pf_Mono_P
 
 subsection "Rotate method"
 
+definition gr where "gr A B = A * B"
 
+lemma right_swap: "(A \<Longrightarrow>\<^sub>A B * (C * D)) \<Longrightarrow> (A \<Longrightarrow>\<^sub>A B * (D * C))"
+  by (simp add: assn_times_comm)
+lemma right_take: "(A \<Longrightarrow>\<^sub>A gr B C * D) \<Longrightarrow> (A \<Longrightarrow>\<^sub>A B * (C * D))"
+  by (simp add: gr_def assn_times_assoc) 
+lemma left_swap: "(B * (C * D) \<Longrightarrow>\<^sub>A A) \<Longrightarrow> (B * (D * C) \<Longrightarrow>\<^sub>A A)"
+  by (simp add: assn_times_comm)
+lemma left_take: "(gr B C * D \<Longrightarrow>\<^sub>A A) \<Longrightarrow> (B * (C * D) \<Longrightarrow>\<^sub>A A)"
+  by (simp add: gr_def assn_times_assoc) 
 
 lemma right_move_back: "(A \<Longrightarrow>\<^sub>A B * C) \<Longrightarrow> (A \<Longrightarrow>\<^sub>A C * B)"
   by (simp add: assn_times_comm)
@@ -33,6 +42,13 @@ thm mult.assoc
 method rotater = ( (simp only: mult.assoc)? , rule right_move_back , (simp only: mult.assoc)?  )
 method rotatel = ( (simp only: mult.assoc)? , rule left_move_back , (simp only: mult.assoc)?  )
 
+method swapl = ( (simp only: mult.assoc)? ,rule left_swap, (simp only: mult.assoc)?   )
+method takel = ( (simp only: mult.assoc)? , rule left_take, (simp only: mult.assoc)?  )
+
+method swapr = ( (simp only: mult.assoc)? , rule right_swap , (simp only: mult.assoc)?  )
+method taker = ( (simp only: mult.assoc)? , rule right_take, (simp only: mult.assoc)?  )
+
+
 lemma "\<And>x y. A \<Longrightarrow>\<^sub>A B x y * C"
   apply rotater
   oops
@@ -41,6 +57,9 @@ schematic_goal "\<And>x y. A \<Longrightarrow>\<^sub>A B x y * ?C x "
   apply rotater
   oops
 
+lemma "A \<Longrightarrow>\<^sub>A B * D * E * F"  
+  apply swapr
+  oops
 lemma "A \<Longrightarrow>\<^sub>A B * D * E * F"  
   apply rotater
   oops
@@ -120,6 +139,27 @@ ML \<open>
   ) ctxt
 
 \<close>
+
+lemma ent_iffI:
+  assumes "A\<Longrightarrow>\<^sub>AB"
+  assumes "B\<Longrightarrow>\<^sub>AA"
+  shows "A=B" 
+  using assms  assn_ext entails_def by blast
+
+lemma hn_invalidI: "h\<Turnstile>hn_ctxt P x y \<Longrightarrow> hn_invalid P x y = true"
+  apply (cases h)
+  apply (rule ent_iffI)
+  apply (auto simp: invalid_assn_def hn_ctxt_def) 
+  using assn_times_comm entails_pure_post by fastforce 
+
+lemma mod_starD: "h\<Turnstile>A*B \<Longrightarrow> \<exists>h1 h2. h1\<Turnstile>A \<and> h2\<Turnstile>B"
+  by (metis assn_times_comm entailsD' entails_def mod_false')
+
+method extract_hnr_invalids = (
+  rule hn_refine_preI,
+  ((drule mod_starD hn_invalidI | elim conjE exE)+)?
+) -- \<open>Extract \<open>hn_invalid _ _ _ = true\<close> preconditions from \<open>hn_refine\<close> goal.\<close>
+  
 
 
 method_setup weaken_hnr_post = \<open>Scan.succeed (fn ctxt => SIMPLE_METHOD'  (weaken_post_tac ctxt))\<close>
