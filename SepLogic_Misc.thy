@@ -44,6 +44,10 @@ lemma ent_true_drop:
   done
 
 
+lemma ent_true_drop_fst: 
+  "R\<Longrightarrow>\<^sub>AQ*true \<Longrightarrow> P*R\<Longrightarrow>\<^sub>AQ*true" 
+  apply (metis assn_times_comm ent_star_mono ent_true merge_true_star_ctx) 
+  done
 
 
 lemma entailsI: 
