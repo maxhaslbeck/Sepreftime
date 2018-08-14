@@ -28,10 +28,69 @@ lemma set_init_hnr:
 definition rbt_map_assn' where "rbt_map_assn' a c =
         (\<exists>\<^sub>AM. rbt_map_assn M c * \<up>((M,a)\<in>Z))"
 
+lemma run_and_execute: "(\<forall>\<sigma> t r. run tree_empty (Some h) \<sigma> r t \<longrightarrow> \<sigma> \<noteq> None \<and> P (the \<sigma>) r t)
+        \<longleftrightarrow> (\<exists>h' t r. execute tree_empty h = Some (r, h', t) \<and> P h' r t)" 
+  by (metis (mono_tags, lifting) Pair_inject execute_return' option.sel option.simps(3) run.intros(3) run_to_execute tree_empty_def)
+
+
+lemma run_and_execute': "(\<And>\<sigma> t r. run tree_empty (Some h) \<sigma> r t \<Longrightarrow> \<sigma> \<noteq> None \<and> P (the \<sigma>) r t)
+        \<Longrightarrow> (\<exists>h' t r. execute tree_empty h = Some (r, h', t) \<and> P h' r t)" 
+  by (metis (mono_tags, lifting) Pair_inject execute_return' option.sel option.simps(3) run.intros(3) run_to_execute tree_empty_def)
+ (* amazing  :) *)
+
+lemma keys_of_empty_Map_empty: "{} = keys_of M \<longleftrightarrow> M=Map Map.empty"
+  by(auto simp: keys_of_def meval_ext )   
+
+lemma inst_ex_assn: "A \<Longrightarrow>\<^sub>A B x \<Longrightarrow> A \<Longrightarrow>\<^sub>A (\<exists>\<^sub>Ax. B x)"
+  using entails_ex_post by blast 
+
+lemma norm_ex_assn: "A \<Longrightarrow>\<^sub>A (\<exists>\<^sub>Ax. B x * C)  \<Longrightarrow> A \<Longrightarrow>\<^sub>A (\<exists>\<^sub>Ax. B x) * C"
+  by (simp add: ex_distrib_star)
+
+
 lemma set_init_hnr':
   "hn_refine (emp) tree_empty emp rbt_map_assn' (set_init_SPEC)"
-  sorry
+proof -
+  from rbt_empty_rule[unfolded hoare_triple_def]
+  have A: "\<And>h as \<sigma> r n t.
+     pHeap h as n \<Turnstile> $ 1 \<Longrightarrow>
+     run tree_empty (Some h) \<sigma> r t \<Longrightarrow>
+     \<sigma> \<noteq> None \<and>
+     pHeap (the \<sigma>) (new_addrs h as (the \<sigma>)) (n - t) \<Turnstile> rbt_map_assn empty_map r \<and>
+     t \<le> n \<and> relH {a. a < heap.lim h \<and> a \<notin> as} h (the \<sigma>) \<and> heap.lim h \<le> heap.lim (the \<sigma>)" by blast
 
+  thm entailsD
+    
+  show ?thesis unfolding hn_refine_def  set_init_SPEC_def set_init_t_def rbt_map_assn'_def
+    apply auto
+  proof (goal_cases)
+    case (1 h as n)
+    then have "pHeap h as (n + 1) \<Turnstile> emp * $ 1"
+      using diff_add_inverse2 le_add2 mod_timeCredit_dest by presburger 
+    then have ph: "pHeap h as (n + 1) \<Turnstile> $ 1" by simp
+
+    note A[OF ph] run_and_execute
+    have
+      "(\<exists>h' t r. execute tree_empty h = Some (r, h', t) \<and> (pHeap h' (new_addrs h as h') (n + 1 - t) \<Turnstile> rbt_map_assn empty_map r \<and>
+    t \<le> n + 1 \<and> relH {a. a < heap.lim h \<and> a \<notin> as} h h' \<and> heap.lim h \<le> heap.lim h'))" apply(rule run_and_execute')
+      apply(rule A[OF ph]) .
+    then obtain h' t and r:: "(nat, unit) rbt_node ref option" where
+        heap: "pHeap h' (new_addrs h as h') (n + 1 - t) \<Turnstile> rbt_map_assn empty_map r"
+     and   "execute tree_empty h = Some (r, h', t)" 
+                "t \<le> n + 1" " relH {a. a < heap.lim h \<and> a \<notin> as} h h'" "heap.lim h \<le> heap.lim h'" by blast
+    from heap have heap': "pHeap h' (new_addrs h as h') (Suc n - t) \<Turnstile> rbt_map_assn empty_map r" by simp
+    show ?case apply(rule exI[where x=h'])  apply(rule exI[where x=t])   apply(rule exI[where x=r]) 
+      apply safe
+      apply fact
+        apply (rule exI[where x=1]) apply safe apply simp apply fact
+      subgoal apply(auto simp: keys_of_empty_Map_empty empty_map_def Z_def) apply(rule entailsD[OF _ heap'])  
+        unfolding empty_map_def 
+        by (smt entails_def entails_ex_post entails_frame'' entails_true match_rest one_assn_rule pure_assn_rule)    
+      apply fact
+      apply fact
+      done
+  qed
+qed
 
 subsubsection "set insertion via rbtree"
 
