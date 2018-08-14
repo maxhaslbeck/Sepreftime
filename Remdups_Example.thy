@@ -74,7 +74,7 @@ lemma set_mem_hnr':
 
 subsection "remdups"
 
-fun rd_t :: "nat\<Rightarrow>nat" where "rd_t n = n * (set_ins_t n + set_mem_t n + 0 + 0 + 0 + 10)"
+definition rd_t :: "nat\<Rightarrow>nat" where "rd_t n = n * (set_ins_t n + set_mem_t n + 0 + 0 + 0 + 10)"
 
 definition "rd_SPEC as \<equiv> SPECT [remdups as \<mapsto> rd_t (length as)]"
 
@@ -422,8 +422,8 @@ schematic_goal rd_hnr:
       solved
       apply(rule hn_refine_cons_post')
       apply(rule hn_case_prod')
-      focus (* 2nd prod frame *)
-      unfolding entailst_def  apply rotatel apply(rule match_first)
+      focus (* 2nd prod frame *) 
+      unfolding entailst_def  apply rotatel  apply(rule match_first)
            apply(rule match_rest) apply simp
       solved 
       (* While: guard: code *)
@@ -782,8 +782,37 @@ schematic_goal rd_hnr:
       apply(rule addemp_triv)
       apply rotatel apply(rule match_first)
       apply rotater apply(rule match_rest) apply simp
-      solved 
+        
 
       done
+
+notepad begin
+  fix as :: "nat list"
+  let ?P = "\<lambda>as.  ureturn [] \<bind>
+                     (\<lambda>x'. tree_empty \<bind>
+                           (\<lambda>x'a. ureturn as \<bind>
+                                  (\<lambda>x'b. heap_WHILET (\<lambda>s. case s of (a1, a1a, a2a) \<Rightarrow> ureturn 0 \<bind> (\<lambda>x'c. ureturn (length a1) \<bind> (\<lambda>x'd. ureturn (x'c < x'd))))
+                                          (\<lambda>s. case s of
+                                               (a1, a1a, a2a) \<Rightarrow>
+                                                 ureturn (hd a1) \<bind>
+                                                 (\<lambda>x'c. ureturn (tl a1) \<bind>
+                                                        (\<lambda>x'd. RBTree_Impl.rbt_search x'c a2a \<bind>
+                                                               (\<lambda>x'e. if x'e = Some () then ureturn (x'd, a1a, a2a)
+                                                                      else RBTree_Impl.rbt_insert x'c () a2a \<bind> (\<lambda>x'f. ureturn (x'c # a1a) \<bind> (\<lambda>x'g. ureturn (x'd, x'g, x'f)))))))
+                                          (x'b, x', x'a) \<bind>
+                                         (\<lambda>x'c. case x'c of
+                                                (a1, a1a, a2a) \<Rightarrow> ureturn a1a))))"
+
+  from   extract_cost_ub[OF hnr_refine[OF rd_impl1_refines rd_hnr, unfolded rd_SPEC_def], where Cost_ub="rd_t (length as)", of as]
+  have 1: " <$(rd_t (length as))> ?P as <\<lambda>r. emp * (\<exists>\<^sub>Ara. pure Id ra r * \<up> (ra = remdups as))>\<^sub>t" by simp
+
+  have " <$(rd_t (length as))> ?P as <\<lambda>r. \<up> (r = remdups as)>\<^sub>t" apply(rule post_rule) 
+    apply(rule 1) 
+    apply (auto simp add: pure_def)  
+    by (metis (mono_tags, lifting) entail_equiv_backward entails_ex entails_frame entails_pure)
+
+
+
+end
 
 end
