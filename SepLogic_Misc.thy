@@ -49,6 +49,11 @@ lemma ent_true_drop_fst:
   apply (metis assn_times_comm ent_star_mono ent_true merge_true_star_ctx) 
   done
 
+lemma ent_true_drop_fstf: 
+  "R\<Longrightarrow>\<^sub>Atrue*Q \<Longrightarrow> P*R\<Longrightarrow>\<^sub>Atrue*Q" 
+  apply (metis assn_times_comm ent_star_mono ent_true merge_true_star_ctx) 
+  done
+
 
 lemma entailsI: 
   assumes "\<And>h. h\<Turnstile>P \<Longrightarrow> h\<Turnstile>Q"

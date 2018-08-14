@@ -1,8 +1,23 @@
 theory Remdups_Example
-imports HNR_While "SepLogicTime_RBTreeBasic.RBTree_Impl" DataRefinement 
+  imports HNR_While "SepLogicTime_RBTreeBasic.RBTree_Impl" DataRefinement  
+
 begin
 
+
 hide_const R B
+
+
+lemma extract_cost_otherway:
+  assumes 
+    "G \<Longrightarrow>\<^sub>A \<Gamma> * $Cost_lb"
+    "<G> c <\<lambda>r. Q r >"
+    "\<And>r. Q r \<Longrightarrow>\<^sub>A \<Gamma>' * (\<exists>\<^sub>Ara. R ra r * \<up>(ra \<in> dom M))"
+    "(\<And>c. c\<in>ran M \<Longrightarrow> Cost_ub \<le> c)"
+  shows "hn_refine \<Gamma> c \<Gamma>' R (REST M)" 
+  sorry
+
+
+thm extract_cost_otherway[OF _ rbt_empty_rule] 
 
 subsection "library for some set implementation"
 
@@ -160,6 +175,34 @@ definition rd_impl1 :: "nat list \<Rightarrow> (nat list) nrest" where
   } ) }) (zs,ys,S);
           RETURNT ys
       }"
+
+(*
+
+definition rd_impl1 :: "nat list \<Rightarrow> (nat list) nrest" where
+  "rd_impl1 as = do {
+          ys \<leftarrow> RETURNT [];
+          S \<leftarrow> set_init_SPEC;
+          zs \<leftarrow> RETURNT as;
+          St' \<leftarrow> RETURNT (ys,S);
+          St \<leftarrow> RETURNT (zs,St');
+          End \<leftarrow> whileT (\<lambda>(xs,ys,S). length xs > 0)
+            (\<lambda>(xs,ys,S). do {                          
+                          ASSERT (length xs > 0);
+                          ASSERT (length xs + length ys \<le> length as);
+                          ASSERT (card S \<le> length ys);
+                          x \<leftarrow> RETURNT (hd xs);
+                          xs \<leftarrow> RETURNT (tl xs);
+                          b \<leftarrow> set_mem_SPEC x S;
+                          (if b
+  then  RETURNT (xs,ys,S)
+  else do { S \<leftarrow> set_ins_SPEC x S;
+            ys \<leftarrow> RETURNT (x#ys); (* SPECT [x#ys\<mapsto> 10]; *)
+            RETURNT (xs,ys,S)
+  } ) }) St;
+            End' \<leftarrow> RETURNT (snd End);
+            RETURNT (fst End)
+      }"
+*)
 
 
 
@@ -844,6 +887,7 @@ schematic_goal rd_hnr:
         
 
       done
+ 
 
 notepad begin
   fix as :: "nat list"
