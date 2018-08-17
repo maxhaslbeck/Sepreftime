@@ -6,6 +6,13 @@ begin
 
 hide_const R B
 
+fun remdups' where
+  "remdups' ac [] = ac"
+| "remdups' ac (x#xs) = (if x\<in>set ac then remdups' ac xs 
+                                       else remdups' (x#ac) xs)"
+ 
+
+
 
 lemma run_and_execute: "(\<forall>\<sigma> t r. run c (Some h) \<sigma> r t \<longrightarrow> \<sigma> \<noteq> None \<and> P (the \<sigma>) r t)
         \<longleftrightarrow> (\<exists>h' t r. execute c h = Some (r, h', t) \<and> P h' r t)"  
@@ -183,7 +190,7 @@ lemma set_init_hnr'_short:
     apply(rule ent_true_drop(2))
     by (auto intro!: inst_ex_assn fl entails_triv simp:   rbt_map_assn'_def )  
    by (auto intro: entails_triv simp: set_init_t_def)
-
+ term remdups
 lemma set_init_hnr':
   "hn_refine (emp) tree_empty emp rbt_map_assn' (set_init_SPEC)"
 proof -
@@ -313,7 +320,7 @@ subsection "remdups"
 
 definition rd_t :: "nat\<Rightarrow>nat" where "rd_t n = n * (set_ins_t n + set_mem_t n + 0 + 0 + 0 + 10)"
 
-definition "rd_SPEC as \<equiv> SPECT [remdups as \<mapsto> rd_t (length as)]"
+definition "rd_SPEC as \<equiv> SPECT [remdups' [] as \<mapsto> rd_t (length as)]"
 
 
 
@@ -1067,9 +1074,9 @@ notepad begin
                                                 (a1, a1a, a2a) \<Rightarrow> ureturn a1a))))"
 
   from   extract_cost_ub[OF hnr_refine[OF rd_impl1_refines rd_hnr, unfolded rd_SPEC_def], where Cost_ub="rd_t (length as)", of as]
-  have 1: " <$(rd_t (length as))> ?P as <\<lambda>r. emp * (\<exists>\<^sub>Ara. pure Id ra r * \<up> (ra = remdups as))>\<^sub>t" by simp
+  have 1: " <$(rd_t (length as))> ?P as <\<lambda>r. emp * (\<exists>\<^sub>Ara. pure Id ra r * \<up> (ra = remdups' [] as))>\<^sub>t" by simp
 
-  have " <$(rd_t (length as))> ?P as <\<lambda>r. \<up> (r = remdups as)>\<^sub>t" apply(rule post_rule) 
+  have " <$(rd_t (length as))> ?P as <\<lambda>r. \<up> (r = remdups' [] as)>\<^sub>t" apply(rule post_rule) 
     apply(rule 1) 
     apply (auto simp add: pure_def)  
     by (metis (mono_tags, lifting) entail_equiv_backward entails_ex entails_frame entails_pure)
