@@ -244,6 +244,18 @@ lemma snga_prec: "precise (\<lambda>x p. p\<mapsto>\<^sub>ax)" (*
 
 
 
+ 
+
+lemma ex_distrib_star': "Q * (\<exists>\<^sub>Ax. P x ) = (\<exists>\<^sub>Ax. Q * P x)"
+proof -
+  have "Q * (\<exists>\<^sub>Ax. P x ) = (\<exists>\<^sub>Ax. P x ) * Q"  
+    by (simp add: assn_times_comm)  
+  also have "\<dots> = (\<exists>\<^sub>Ax. P x * Q )"
+    unfolding ex_distrib_star by simp
+  also have "\<dots> = (\<exists>\<^sub>Ax. Q * P x )" 
+    by (simp add: assn_times_comm)  
+  finally show ?thesis .
+qed
 
 
 
