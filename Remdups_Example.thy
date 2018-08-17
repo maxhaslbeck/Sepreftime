@@ -1,5 +1,5 @@
 theory Remdups_Example
-  imports HNR_While "SepLogicTime_RBTreeBasic.RBTree_Impl" DataRefinement  
+  imports HNR_While "SepLogicTime_RBTreeBasic.RBTree_Impl"  SepLogicTime_RBTreeBasic.SepAuto DataRefinement  
 
 begin
 
@@ -7,14 +7,93 @@ begin
 hide_const R B
 
 
+lemma run_and_execute: "(\<forall>\<sigma> t r. run c (Some h) \<sigma> r t \<longrightarrow> \<sigma> \<noteq> None \<and> P (the \<sigma>) r t)
+        \<longleftrightarrow> (\<exists>h' t r. execute c h = Some (r, h', t) \<and> P h' r t)"  
+  apply rule
+  subgoal by (metis option.sel run.intros(2) run.intros(3) timeFrame.elims) 
+  subgoal by (metis (mono_tags) not_None_eq option.sel prod.sel(1) prod.sel(2) run_to_execute) 
+  done
+
+
+lemma hoare_alt: 
+  "<P> c <\<lambda>r. Q r > = (\<forall>h as n.
+        pHeap h as n \<Turnstile> P \<longrightarrow> (\<exists>h' t r. execute c h = Some (r, h', t) \<and>
+        (pHeap h' (new_addrs h as h') (n - t) \<Turnstile> Q r \<and>
+        t \<le> n \<and> relH {a. a < heap.lim h \<and> a \<notin> as} h h' \<and> heap.lim h \<le> heap.lim h')))" (is "?L = (\<forall>h as n. ?H h as n \<longrightarrow> (\<exists>h' t r. _ \<and> ?P h as h' n t r))")
+proof -
+  have "?L = (\<forall>h as n. pHeap h as n \<Turnstile> P \<longrightarrow> 
+                  (\<forall> \<sigma> t r. run c (Some h) \<sigma> r t \<longrightarrow> \<sigma> \<noteq> None \<and> (?P h as (the \<sigma>) n t r)))"
+    unfolding hoare_triple_def by auto  
+  also have "\<dots> =  (\<forall>h as n. pHeap h as n \<Turnstile> P \<longrightarrow>
+              (\<exists>h' t r. execute c h = Some (r, h', t) \<and>
+                         ?P h as h' n t r))" apply(subst run_and_execute) by simp
+  finally show ?thesis .
+qed
+
+ 
+
+lemma ex_distrib_star': "Q * (\<exists>\<^sub>Ax. P x ) = (\<exists>\<^sub>Ax. Q * P x)"
+proof -
+  have "Q * (\<exists>\<^sub>Ax. P x ) = (\<exists>\<^sub>Ax. P x ) * Q"  
+    by (simp add: assn_times_comm)  
+  also have "\<dots> = (\<exists>\<^sub>Ax. P x * Q )"
+    unfolding ex_distrib_star by simp
+  also have "\<dots> = (\<exists>\<^sub>Ax. Q * P x )" 
+    by (simp add: assn_times_comm)  
+  finally show ?thesis .
+qed
+
 lemma extract_cost_otherway:
   assumes 
-    "G \<Longrightarrow>\<^sub>A \<Gamma> * $Cost_lb"
+    "\<Gamma> * $Cost_lb \<Longrightarrow>\<^sub>A G * F"
     "<G> c <\<lambda>r. Q r >"
-    "\<And>r. Q r \<Longrightarrow>\<^sub>A \<Gamma>' * (\<exists>\<^sub>Ara. R ra r * \<up>(ra \<in> dom M))"
-    "(\<And>c. c\<in>ran M \<Longrightarrow> Cost_ub \<le> c)"
+    "\<And>r. Q r * F \<Longrightarrow>\<^sub>A \<Gamma>' * (\<exists>\<^sub>Ara. R ra r * \<up>(ra \<in> dom M)) * true"
+    "(\<And>c. c\<in>ran M \<Longrightarrow> Cost_lb \<le> c)"
   shows "hn_refine \<Gamma> c \<Gamma>' R (REST M)" 
-  sorry
+proof - 
+  note pre_rule[OF assms(1) frame_rule[OF assms(2)]]
+  then have TR: "\<And>h as n. pHeap h as n \<Turnstile> \<Gamma> * $ Cost_lb \<Longrightarrow>
+           (\<exists>h' t r. execute c h = Some (r, h', t) \<and>
+                     pHeap h' (new_addrs h as h') (n - t) \<Turnstile> Q r * F \<and> t \<le> n \<and> relH {a. a < heap.lim h \<and> a \<notin> as} h h' \<and> heap.lim h \<le> heap.lim h')" 
+    unfolding hoare_alt by simp
+
+  show ?thesis
+    unfolding hn_refine_def apply auto
+  proof -
+    fix h as n
+    assume "pHeap h as n \<Turnstile> \<Gamma>"
+    then have "pHeap h as (n+Cost_lb) \<Turnstile> \<Gamma> * $ Cost_lb"  
+      by (simp add: mod_timeCredit_dest)
+    from TR[OF this] obtain h' t r where "execute c h = Some (r, h', t)"
+           and h: "pHeap h' (new_addrs h as h') (n + Cost_lb - t) \<Turnstile> Q r * F" 
+           and 3: "t \<le> n + Cost_lb" "relH {a. a < heap.lim h \<and> a \<notin> as} h h'" "heap.lim h \<le> heap.lim h'"
+      by blast
+
+    from h assms(3) have h': "pHeap h' (new_addrs h as h') (n + Cost_lb - t) \<Turnstile>   \<Gamma>' * (\<exists>\<^sub>Ara. R ra r * \<up> (ra \<in> dom M)) * true"
+      by (simp add: entails_def)
+    then have "\<exists>ra. pHeap h' (new_addrs h as h') (n + Cost_lb - t) \<Turnstile>   \<Gamma>' *  R ra r * \<up> (ra \<in> dom M) * true"
+      by(simp add: ex_distrib_star' ex_distrib_star[symmetric] mod_ex_dist assn_times_assoc)
+    then obtain ra where h'': "pHeap h' (new_addrs h as h') (n + Cost_lb - t) \<Turnstile>   \<Gamma>' *  R ra r * \<up> (ra \<in> dom M) * true"
+        by blast
+    have "pHeap h' (new_addrs h as h') (n + Cost_lb - t) \<Turnstile>   (\<Gamma>' *  R ra r * true) * \<up> (ra \<in> dom M)"
+      apply(rule entailsD[OF _ h''])  by (simp add: entails_triv move_back_pure') 
+    then have h'': "pHeap h' (new_addrs h as h') (n + Cost_lb - t) \<Turnstile>   \<Gamma>' *  R ra r * true" and radom: "ra \<in> dom M"
+      using mod_pure_star_dist  by auto   
+
+    show "\<exists>h' t r. execute c h = Some (r, h', t) \<and>
+                       (\<exists>ra Ca. Some (enat Ca) \<le> M ra \<and> t \<le> n + Ca \<and> pHeap h' (new_addrs h as h') (n + Ca - t) \<Turnstile> \<Gamma>' * R ra r * true) \<and>
+                       relH {a. a < heap.lim h \<and> a \<notin> as} h h' \<and> heap.lim h \<le> heap.lim h'"
+      apply(rule exI[where x=h']) apply(rule exI[where x=t]) apply(rule exI[where x=r])
+      apply safe apply fact
+          apply(rule exI[where x=ra])
+        apply(rule exI[where x=Cost_lb])
+        apply safe 
+      subgoal using assms(4) radom using ranI by force
+      subgoal by fact
+      subgoal using h'' mod_star_trueI by blast 
+       apply fact apply fact done
+  qed
+qed
 
 
 thm extract_cost_otherway[OF _ rbt_empty_rule] 
@@ -43,10 +122,34 @@ lemma set_init_hnr:
 definition rbt_map_assn' where "rbt_map_assn' a c =
         (\<exists>\<^sub>AM. rbt_map_assn M c * \<up>((M,a)\<in>Z))"
 
-lemma run_and_execute: "(\<forall>\<sigma> t r. run tree_empty (Some h) \<sigma> r t \<longrightarrow> \<sigma> \<noteq> None \<and> P (the \<sigma>) r t)
-        \<longleftrightarrow> (\<exists>h' t r. execute tree_empty h = Some (r, h', t) \<and> P h' r t)" 
-  by (metis (mono_tags, lifting) Pair_inject execute_return' option.sel option.simps(3) run.intros(3) run_to_execute tree_empty_def)
+definition rbt_set_assn where [rewrite_ent]: "rbt_set_assn S p =
+        (\<exists>\<^sub>AM. rbt_map_assn M p * \<up>(S = keys_of M))"
 
+definition [rewrite]: "rbt_set_insert k b = rbt_insert k () b"
+
+lemma g[rewrite]: "card (keys_of M) + 1 = sizeM1 M"
+     by (auto simp: sizeM1_def)
+
+setup {* fold del_prfstep_thm @{thms rbt_map_assn_def} *}  
+
+declare [[print_trace]]
+thm rbt_insert_rule rbt_insert_rule'
+theorem rbt_insert_rule_abs [hoare_triple]:
+  "<rbt_set_assn S p * $(rbt_insert_logN (card S + 1))> rbt_set_insert x p <rbt_set_assn (insert x S)>\<^sub>t"
+  by auto2 
+
+lemma a[rewrite]: "S = keys_of M \<Longrightarrow> M\<langle>x\<rangle> = Some () \<longleftrightarrow> x \<in> S"  
+  by (simp add: keys_of_iff)  
+                        
+theorem rbt_search_abs [hoare_triple]:
+  "<rbt_set_assn S b * $(rbt_search_time_logN (card S + 1))> rbt_search x b <\<lambda>r. rbt_set_assn S b * \<up>(r = Some () \<longleftrightarrow> x \<in> S)>\<^sub>t"
+  by auto2
+
+
+definition "set_empty = tree_empty"
+
+theorem set_empty_rule [hoare_triple]:
+  "<$1> set_empty <rbt_set_assn {}>" by auto2
 
 lemma run_and_execute': "(\<And>\<sigma> t r. run tree_empty (Some h) \<sigma> r t \<Longrightarrow> \<sigma> \<noteq> None \<and> P (the \<sigma>) r t)
         \<Longrightarrow> (\<exists>h' t r. execute tree_empty h = Some (r, h', t) \<and> P h' r t)" 
@@ -56,12 +159,30 @@ lemma run_and_execute': "(\<And>\<sigma> t r. run tree_empty (Some h) \<sigma> r
 lemma keys_of_empty_Map_empty: "{} = keys_of M \<longleftrightarrow> M=Map Map.empty"
   by(auto simp: keys_of_def meval_ext )   
 
+
 lemma inst_ex_assn: "A \<Longrightarrow>\<^sub>A B x \<Longrightarrow> A \<Longrightarrow>\<^sub>A (\<exists>\<^sub>Ax. B x)"
   using entails_ex_post by blast 
 
 lemma norm_ex_assn: "A \<Longrightarrow>\<^sub>A (\<exists>\<^sub>Ax. B x * C)  \<Longrightarrow> A \<Longrightarrow>\<^sub>A (\<exists>\<^sub>Ax. B x) * C"
   by (simp add: ex_distrib_star)
 
+lemma fl': "(b \<Longrightarrow> A \<Longrightarrow>\<^sub>A B) \<Longrightarrow>  \<up>b *  A  \<Longrightarrow>\<^sub>A B"  
+  by (simp add: assn_times_comm entails_def)
+
+lemma fl: "A \<Longrightarrow>\<^sub>A B \<Longrightarrow> b \<Longrightarrow> A \<Longrightarrow>\<^sub>A B * \<up>b"  
+  using entails_pure_post by blast  
+lemma fl_: "A \<Longrightarrow>\<^sub>A B \<Longrightarrow> b \<Longrightarrow> A \<Longrightarrow>\<^sub>A \<up>b * B "  
+  using fl assn_times_comm  by simp
+
+lemma set_init_hnr'_short:
+  "hn_refine (emp) set_empty emp rbt_set_assn (set_init_SPEC)"
+  unfolding set_init_SPEC_def
+  apply (rule extract_cost_otherway[OF _ set_empty_rule, where Cost_lb=1 and F=emp])
+  apply simp apply(rule entails_triv) 
+  subgoal 
+    apply(rule ent_true_drop(2))
+    by (auto intro!: inst_ex_assn fl entails_triv simp:   rbt_map_assn'_def )  
+   by (auto intro: entails_triv simp: set_init_t_def)
 
 lemma set_init_hnr':
   "hn_refine (emp) tree_empty emp rbt_map_assn' (set_init_SPEC)"
@@ -109,7 +230,7 @@ qed
 
 subsubsection "set insertion via rbtree"
 
-fun set_ins_t :: "nat\<Rightarrow>nat" where "set_ins_t n = 4*n"
+definition set_ins_t :: "nat\<Rightarrow>nat" where "set_ins_t n = rbt_insert_logN (n+1)"
 
 definition set_ins_SPEC where
   "set_ins_SPEC x S \<equiv> SPECT [insert x S \<mapsto> set_ins_t (card S)]"
@@ -119,14 +240,40 @@ lemma set_ins_hnr:
   "hn_refine (rbt_map_assn M p) (rbt_insert x () p) emp rbt_map_assn (\<Down>Z (set_ins_SPEC x S))"
   sorry
 
+lemma ent_ex: "(\<And>x. P x \<Longrightarrow>\<^sub>A Q) \<Longrightarrow> (\<exists>\<^sub>Ax. P x) \<Longrightarrow>\<^sub>A Q"
+  by (meson entails_ex) 
+
+
+lemma isolate_first: "\<And>A B C. \<Gamma> \<Longrightarrow>\<^sub>A \<Gamma>' \<Longrightarrow> A \<Longrightarrow>\<^sub>A B \<Longrightarrow> \<Gamma> * A \<Longrightarrow>\<^sub>A \<Gamma>' * B"  
+  by (simp add: ent_star_mono)  
+
+lemma inZ_conv: "(M, S) \<in> Z \<longleftrightarrow> (S = keys_of M)" unfolding Z_def by auto
+
 lemma set_ins_hnr':
   "hn_refine (rbt_map_assn' S p * hn_val Id x x') (rbt_insert x' () p) (hn_val Id x x') rbt_map_assn' (set_ins_SPEC x S)"
   sorry
 
+lemma set_ins_hnr_abs:
+  "hn_refine (rbt_set_assn S p * hn_val Id x x') (rbt_set_insert x' p) (hn_val Id x x') rbt_set_assn (set_ins_SPEC x S)"
+
+  unfolding set_ins_SPEC_def
+  apply (rule extract_cost_otherway[OF _  rbt_insert_rule_abs ]) unfolding mult.assoc
+    apply(rule match_first)
+    apply rotatel apply(rule match_first) apply (rule entails_triv)
+
+   apply rotatel apply rotatel apply takel apply taker apply(rule isolate_first)
+  unfolding gr_def apply(simp only: ex_distrib_star')
+    apply(rule inst_ex_assn)
+    apply rotater unfolding hn_ctxt_def pure_def 
+  apply(rule fl') apply (simp add: pure_conj[symmetric])
+      apply(intro fl ) apply(rule entails_triv)
+  apply simp
+   apply(rule entails_triv) 
+  by (auto simp: set_ins_t_def) 
 
 subsubsection "set membership via rbtree"
 
-fun set_mem_t :: "nat\<Rightarrow>nat" where "set_mem_t n = 4*n"
+fun set_mem_t :: "nat\<Rightarrow>nat" where "set_mem_t n = rbt_search_time_logN (n + 1)"
 
 definition set_mem_SPEC where
   "set_mem_SPEC x S \<equiv> SPECT [ (x \<in> S) \<mapsto> set_mem_t (card S)]"
@@ -144,6 +291,22 @@ definition Y' :: "bool \<Rightarrow> unit option \<Rightarrow> assn" where
 lemma set_mem_hnr':
   "hn_refine (rbt_map_assn' S p * hn_val Id x x') (rbt_search (x'::nat) p) (rbt_map_assn' S p * hn_val Id x x') Y' ( (set_mem_SPEC x S))"
   sorry 
+
+lemma set_mem_hnr_abs:
+  "hn_refine (rbt_set_assn S p * hn_val Id x x') (rbt_search (x'::nat) p) (rbt_set_assn S p * hn_val Id x x') Y' ( (set_mem_SPEC x S))"
+  unfolding set_mem_SPEC_def
+  apply (rule extract_cost_otherway[OF _  rbt_search_abs ]) unfolding mult.assoc
+    apply(rule match_first)
+    apply rotatel apply(rule match_first) apply (rule entails_triv)
+
+   apply(rule match_first) 
+  apply(rule fl') unfolding hn_ctxt_def pure_def apply rotatel
+  apply(rule fl')  apply(rule fl_) apply(simp only: ex_distrib_star[symmetric])
+    apply(rule inst_ex_assn) unfolding Y'_def unfolding mult.assoc
+    apply(rule fl_)   apply(rule fl_) apply(rule entails_triv)
+  apply simp apply simp apply simp by simp 
+
+
 
 
 subsection "remdups"
@@ -227,9 +390,6 @@ lemma hn_ctxt_triple': "hn_val Id as as * (hn_val Id x x' * hn_ctxt rbt_map_assn
   by (simp add: entails_triv) 
 
 
-lemma isolate_first: "\<And>A B C. \<Gamma> \<Longrightarrow>\<^sub>A \<Gamma>' \<Longrightarrow> A \<Longrightarrow>\<^sub>A B \<Longrightarrow> \<Gamma> * A \<Longrightarrow>\<^sub>A \<Gamma>' * B"  
- 
-  by (simp add: ent_star_mono)  
 
 lemma add_triv: "\<And>B C x. hn_ctxt (pure Id) x x * B \<Longrightarrow>\<^sub>A C \<Longrightarrow> B \<Longrightarrow>\<^sub>A C"
   unfolding hn_ctxt_def pure_def  
