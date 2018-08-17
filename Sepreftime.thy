@@ -1852,10 +1852,11 @@ lemma "SPECT  [r\<mapsto>i] \<le> SPECT [f\<mapsto>j] \<longleftrightarrow> ((r 
    apply simp unfolding le_fun_def by simp
 
 
-hide_const T
+abbreviation "TTT == T"
+ 
 
 
-
+lemma "T Q (SPECT [x\<mapsto>t]) = 
 
 
   definition le_or_fail :: "'a nrest \<Rightarrow> 'a nrest \<Rightarrow> bool" (infix "\<le>\<^sub>n" 50) where
