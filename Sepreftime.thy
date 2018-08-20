@@ -361,12 +361,11 @@ lemma pw_eqI:
 
 section \<open> Monad Operators \<close>
 
-
 definition bindT :: "'b nrest \<Rightarrow> ('b \<Rightarrow> 'a nrest) \<Rightarrow> 'a nrest" where
   "bindT M f \<equiv> case M of 
   FAILi \<Rightarrow> FAILT |
   REST X \<Rightarrow> Sup { (case f x of FAILi \<Rightarrow> FAILT 
-                | REST m2 \<Rightarrow> REST (map_option ((op +) t1) o (m2) ))
+                | REST m2 \<Rightarrow> REST (map_option ((+) t1) o (m2) ))
                     |x t1. X x = Some t1}"
 
 
@@ -416,7 +415,7 @@ lemma pw_inresT_bindT_aux: "inresT (bindT m f) r t \<longleftrightarrow>
         apply(cases "f r'")
         subgoal apply auto apply(force) done
         subgoal for x2a
-          apply(rule exI[where x="REST (map_option (op + t'a) \<circ> x2a)"]) 
+          apply(rule exI[where x="REST (map_option ((+) t'a) \<circ> x2a)"]) 
           apply auto
            apply(rule exI[where x=r'])
            apply auto
@@ -438,7 +437,7 @@ lemma pw_bindT_nofailT[refine_pw_simps]: "nofailT (bindT M f) \<longleftrightarr
   apply force+ 
   by (metis enat_ile le_cases nofailT_def)
 
-lemma [simp]: "(op + (0::enat)) = id" by auto
+lemma [simp]: "((+) (0::enat)) = id" by auto
 
 declare map_option.id[simp] 
 
@@ -914,7 +913,7 @@ lemma assumes "\<And>t. (\<forall>x. nres3 Q M x t) \<Longrightarrow> (\<forall>
 lemma t: "(\<forall>y. (t::enat option) \<le> f y) \<longleftrightarrow> (t\<le>Inf {f y|y. True})"  
   using le_Inf_iff by fastforce   
 
-lemma lem: "\<forall>t1. M y = Some t1 \<longrightarrow> t \<le> mii Q (SPECT (map_option (op + t1) \<circ> x2)) x \<Longrightarrow> f y = SPECT x2 \<Longrightarrow> t \<le> mii (\<lambda>y. mii Q (f y) x) (SPECT M) y"
+lemma lem: "\<forall>t1. M y = Some t1 \<longrightarrow> t \<le> mii Q (SPECT (map_option ((+) t1) \<circ> x2)) x \<Longrightarrow> f y = SPECT x2 \<Longrightarrow> t \<le> mii (\<lambda>y. mii Q (f y) x) (SPECT M) y"
   unfolding mii_def apply (auto split: nrest.splits)
   unfolding mm_def apply (auto split: nrest.splits)
   apply(cases "M y")
@@ -928,7 +927,7 @@ lemma lem: "\<forall>t1. M y = Some t1 \<longrightarrow> t \<le> mii Q (SPECT (m
   subgoal for a b c apply(cases a; cases b; cases c) by (auto simp add: add.commute) 
   done
 
-lemma lem2: "t \<le> mii (\<lambda>y. mii Q (f y) x) (SPECT M) y \<Longrightarrow> M y = Some t1 \<Longrightarrow> f y = SPECT fF \<Longrightarrow> t \<le> mii Q (SPECT (map_option (op + t1) \<circ> fF)) x"
+lemma lem2: "t \<le> mii (\<lambda>y. mii Q (f y) x) (SPECT M) y \<Longrightarrow> M y = Some t1 \<Longrightarrow> f y = SPECT fF \<Longrightarrow> t \<le> mii Q (SPECT (map_option ((+) t1) \<circ> fF)) x"
   apply (simp add: mii_def mm_def) apply(cases "fF x") apply auto
   apply(cases "Q x") apply (auto split: if_splits)
   subgoal using less_eq_option_None_is_None less_option_None not_less by blast
@@ -945,7 +944,7 @@ proof -
   { fix M
     assume mM: "m = SPECT M"
     let ?P = "%x t1. M x = Some t1"
-    let ?F = "%x t1. case f x of FAILi \<Rightarrow> FAILT | REST m2 \<Rightarrow> SPECT (map_option (op + t1) \<circ> m2)"
+    let ?F = "%x t1. case f x of FAILi \<Rightarrow> FAILT | REST m2 \<Rightarrow> SPECT (map_option ((+) t1) \<circ> m2)"
     let ?Sup = "(Sup {?F x t1 |x t1. ?P x t1})" 
 
     { fix y 
@@ -1208,10 +1207,10 @@ method vcg uses rls = ((rule rls vcg_rules[THEN T_conseq4] | clarsimp simp: emb_
 
 
 lemma assumes
-  f_spec[vcg_rules]: "T ( emb' (\<lambda>x. x > 2) (enat o op * 2) ) f \<ge> Some 0"
+  f_spec[vcg_rules]: "T ( emb' (\<lambda>x. x > 2) (enat o (( *) 2)) ) f \<ge> Some 0"
 and 
   g_spec[vcg_rules]: "T ( emb' (\<lambda>x. x > 2) (enat) ) g \<ge> Some 0"
-shows "T ( emb' (\<lambda>x. x > 5) (enat o op * 3) ) (P f g) \<ge> Some 0"
+shows "T ( emb' (\<lambda>x. x > 5) (enat o ( *) 3) ) (P f g) \<ge> Some 0"
 proof -
   have ?thesis
     unfolding P_def
@@ -1855,9 +1854,7 @@ lemma "SPECT  [r\<mapsto>i] \<le> SPECT [f\<mapsto>j] \<longleftrightarrow> ((r 
 abbreviation "TTT == T"
  
 
-
-lemma "T Q (SPECT [x\<mapsto>t]) = 
-
+ 
 
   definition le_or_fail :: "'a nrest \<Rightarrow> 'a nrest \<Rightarrow> bool" (infix "\<le>\<^sub>n" 50) where
     "m \<le>\<^sub>n m' \<equiv> nofailT m \<longrightarrow> m \<le> m'"
