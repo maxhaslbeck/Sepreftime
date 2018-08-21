@@ -2,14 +2,18 @@ section \<open>Basic Definitions\<close>
 theory Sepref_Basic
 imports 
   "HOL-Eisbach.Eisbach"
-  Separation_Logic_Imperative_HOL.Sep_Main
-  Refine_Monadic.Refine_Monadic
-  "Lib/Sepref_Misc"
+(*  Separation_Logic_Imperative_HOL.Sep_Main  \<rightarrow> *) "SepLogicTime_RBTreeBasic.SepAuto" 
+(*  Refine_Monadic.Refine_Monadic  \<rightarrow> *)  "../Sepreftime" 
+  "../SepLogic_Misc"
   "Lib/Structured_Apply"
-  Sepref_Id_Op
+  "Lib/Sepref_Misc"
+  
+  Sepref_Id_Op 
 begin
 no_notation i_ANNOT (infixr ":::\<^sub>i" 10)
 no_notation CONST_INTF (infixr "::\<^sub>i" 10)
+
+no_notation timeCredit_assn  ("$") 
 
 text \<open>
   In this theory, we define the basic concept of refinement 
@@ -109,37 +113,37 @@ abbreviation "hn_invalid R \<equiv> hn_ctxt (invalid_assn R)"
 lemma invalidate_clone: "R x y \<Longrightarrow>\<^sub>A invalid_assn R x y * R x y"
   apply (rule entailsI)
   unfolding invalid_assn_def
-  apply (auto simp: models_in_range mod_star_trueI)
-  done
+ (* apply (auto simp: models_in_range mod_star_trueI)  
+  done*) sorry
 
 lemma invalidate_clone': "R x y \<Longrightarrow>\<^sub>A invalid_assn R x y * R x y * true"
   apply (rule entailsI)
   unfolding invalid_assn_def
-  apply (auto simp: models_in_range mod_star_trueI)
-  done
+ (* apply (auto simp: models_in_range mod_star_trueI)
+  done *) sorry
 
 lemma invalidate: "R x y \<Longrightarrow>\<^sub>A invalid_assn R x y"
   apply (rule entailsI)
-  unfolding invalid_assn_def
+  unfolding invalid_assn_def (*
   apply (auto simp: models_in_range mod_star_trueI)
-  done
+  done *) sorry
 
 lemma invalid_pure_recover: "invalid_assn (pure R) x y = pure R x y * true"
   apply (rule ent_iffI) 
   subgoal
     apply (rule entailsI)
     unfolding invalid_assn_def
-    by (auto simp: pure_def)
+    (*by (auto simp: pure_def) *) sorry
   subgoal
     unfolding invalid_assn_def
-    by (auto simp: pure_def)
+    (* by (auto simp: pure_def) *) sorry
   done    
 
 lemma hn_invalidI: "h\<Turnstile>hn_ctxt P x y \<Longrightarrow> hn_invalid P x y = true"
-  apply (cases h)
+ (* apply (cases h)
   apply (rule ent_iffI)
   apply (auto simp: invalid_assn_def hn_ctxt_def)
-  done
+  done *) sorry
 
 lemma invalid_assn_cong[cong]:
   assumes "x\<equiv>x'"
@@ -151,8 +155,8 @@ lemma invalid_assn_cong[cong]:
 
 subsection \<open>Constraints in Refinement Relations\<close>
 
-lemma mod_pure_conv[simp]: "(h,as)\<Turnstile>pure R a b \<longleftrightarrow> (as={} \<and> (b,a)\<in>R)"
-  by (auto simp: pure_def)
+lemma mod_pure_conv[simp]: "pHeap h as n \<Turnstile>pure R a b \<longleftrightarrow> (as={} \<and> n=0 \<and> (b,a)\<in>R)"
+  apply (auto simp: pure_def) sorry
 
 definition rdomp :: "('a \<Rightarrow> 'c \<Rightarrow> assn) \<Rightarrow> 'a \<Rightarrow> bool" where
   "rdomp R a \<equiv> \<exists>h c. h \<Turnstile> R a c"
@@ -163,105 +167,221 @@ lemma rdomp_ctxt[simp]: "rdomp (hn_ctxt R) = rdomp R"
   by (simp add: hn_ctxt_def[abs_def])  
 
 lemma rdomp_pure[simp]: "rdomp (pure R) a \<longleftrightarrow> a\<in>Range R"
-  unfolding rdomp_def pure_def by auto
+  unfolding rdomp_def pure_def apply auto sorry
 
 lemma rdom_pure[simp]: "rdom (pure R) = Range R"
-  unfolding rdomp_def[abs_def] pure_def by auto
+  unfolding rdomp_def[abs_def] pure_def apply auto sorry
 
 lemma Range_of_constraint_conv[simp]: "Range (A\<inter>UNIV\<times>C) = Range A \<inter> C"
   by auto
 
 
-subsection \<open>Heap-Nres Refinement Calculus\<close>
+subsection \<open>Heap-NresT Refinement Calculus\<close>
 
 text {* Predicate that expresses refinement. Given a heap
   @{text "\<Gamma>"}, program @{text "c"} produces a heap @{text "\<Gamma>'"} and
   a concrete result that is related with predicate @{text "R"} to some
   abstract result from @{text "m"}*}
-definition "hn_refine \<Gamma> c \<Gamma>' R m \<equiv> nofail m \<longrightarrow>
-  <\<Gamma>> c <\<lambda>r. \<Gamma>' * (\<exists>\<^sub>Ax. R x r * \<up>(RETURN x \<le> m)) >\<^sub>t"
+definition "\<And>T. hn_refine \<Gamma> c \<Gamma>' R m \<equiv> nofailT m \<longrightarrow> 
+    (\<forall>h as  n   M. pHeap h as n \<Turnstile> \<Gamma>  \<longrightarrow> m = REST M \<longrightarrow>
+    (\<exists>h' t r. execute c h = Some (r, h', t) \<and>
+       (\<exists>ra Ca. M ra \<ge> Some Ca  \<and> n+Ca\<ge>t
+           \<and> pHeap h' (new_addrs h as h') ((n+Ca)-t) \<Turnstile> \<Gamma>' * R ra r * true
+          )
+       \<and> relH {a . a < lim h \<and> a \<notin> as} h h' \<and> lim h \<le> lim h'))" 
 
+(*
 (* TODO: Can we change the patterns of assn_simproc to add this pattern? *)
 simproc_setup assn_simproc_hnr ("hn_refine \<Gamma> c \<Gamma>'")
-  = {*K Seplogic_Auto.assn_simproc_fun*}
+  = {*K Seplogic_Auto.assn_simproc_fun*} *)
+  
 
-lemma hn_refineI[intro?]:
-  assumes "nofail m 
-    \<Longrightarrow> <\<Gamma>> c <\<lambda>r. \<Gamma>' * (\<exists>\<^sub>Ax. R x r * \<up>(RETURN x \<le> m)) >\<^sub>t"
-  shows "hn_refine \<Gamma> c \<Gamma>' R m"
-  using assms unfolding hn_refine_def by blast
 
-lemma hn_refineD:
-  assumes "hn_refine \<Gamma> c \<Gamma>' R m"
-  assumes "nofail m"
-  shows "<\<Gamma>> c <\<lambda>r. \<Gamma>' * (\<exists>\<^sub>Ax. R x r * \<up>(RETURN x \<le> m)) >\<^sub>t"
-  using assms unfolding hn_refine_def by blast
+subsection "easy rules"
+
+lemma hnr_FAILT[simp]: "hn_refine \<Gamma> c \<Gamma>' R FAILT"
+  by(simp add: hn_refine_def)
+
+subsection "Refine hnr"
+
+
+lemma assumes "m \<le> m'" 
+    "hn_refine \<Gamma> c \<Gamma>' R m"  
+shows hnr_refine: "hn_refine \<Gamma> c \<Gamma>' R m'"
+proof (cases m)
+  case FAILi
+  then show ?thesis using assms(1) by (auto simp:  hn_refine_def)
+next
+  case (REST x2)
+  with assms(2)[unfolded hn_refine_def] have
+      E: "(\<And>h as n M. pHeap h as n \<Turnstile> \<Gamma> \<Longrightarrow>
+                m = SPECT M \<Longrightarrow>
+                (\<exists>h' t r. execute c h = Some (r, h', t) \<and>
+                          (\<exists>ra Ca. Some (enat Ca) \<le> M ra \<and> t \<le> n + Ca \<and> pHeap h' (new_addrs h as h') (n + Ca - t) \<Turnstile> \<Gamma>' * R ra r * true) \<and>
+                          relH {a. a < heap.lim h \<and> a \<notin> as} h h' \<and> heap.lim h \<le> heap.lim h'))"
+    by auto
+  show ?thesis unfolding hn_refine_def 
+  proof (clarsimp)
+    fix h as n M'
+    assume M': "m' = SPECT M'"
+    with assms(1) obtain M where M: "m = SPECT M"
+      by fastforce
+  
+    assume 2:  "pHeap h as n \<Turnstile> \<Gamma>"
+    from E[OF 2 M] obtain h' t r ra Ca where 
+          ineq:  "Some (enat Ca) \<le> M ra"  and 
+          r: "execute c h = Some (r, h', t)" "t \<le> n + Ca"
+             "pHeap h' (new_addrs h as h') (n + Ca - t) \<Turnstile> \<Gamma>' * R ra r * true " 
+             "relH {a. a < heap.lim h \<and> a \<notin> as} h h'" "heap.lim h \<le> heap.lim h'"
+      by blast
+
+    from assms(1) M' M have  "M \<le> M'" by simp
+    with ineq have ineq': "Some (enat Ca) \<le> M' ra" 
+      using dual_order.trans by(auto simp: le_fun_def) 
+
+    from r ineq'
+    show "\<exists>h' t r. execute c h = Some (r, h', t) \<and>
+                         (\<exists>ra Ca. Some (enat Ca) \<le> M' ra \<and> t \<le> n + Ca \<and> pHeap h' (new_addrs h as h') (n + Ca - t) \<Turnstile> \<Gamma>' * R ra r * true) \<and> relH {a. a < heap.lim h \<and> a \<notin> as} h h' \<and> heap.lim h \<le> heap.lim h'"
+      by blast
+  qed
+qed 
+
+subsection "Frame rule"
+
+lemma hnr_frame:
+  assumes "hn_refine P' c Q' R m"
+  assumes "P \<Longrightarrow>\<^sub>t F * P'"
+  shows "hn_refine P c (F * Q') R m"
+  using assms(2)
+  unfolding hn_refine_def entailst_def
+proof clarsimp
+  fix h as n M
+  assume "P \<Longrightarrow>\<^sub>A F * P' * true" "pHeap h as n \<Turnstile> P"
+  then have "pHeap h as n \<Turnstile> F * P' * true" by(rule entailsD)
+  then have H: "pHeap h as n \<Turnstile> P' * (F * true)" 
+    by (simp add: mult.assoc mult.left_commute)
+
+
+  with assms(1)[unfolded hn_refine_def] have D1: "(\<And>h as n M. pHeap h as n \<Turnstile> P' \<Longrightarrow>
+                m = SPECT M \<Longrightarrow>
+                (\<exists>h' t r. execute c h = Some (r, h', t) \<and>
+                          (\<exists>ra Ca. Some (enat Ca) \<le> M ra \<and> t \<le> n + Ca \<and> pHeap h' (new_addrs h as h') (n + Ca - t) \<Turnstile> Q' * R ra r * true) \<and>
+                          relH {a. a < heap.lim h \<and> a \<notin> as} h h' \<and> heap.lim h \<le> heap.lim h'))"
+    by auto 
+
+  from mod_star_convE[OF H]   obtain as1 as2 n1 n2 where  uni: "as = as1 \<union> as2"
+    and a: "as1 \<inter> as2 = {}" and  n: "n = n1 + n2"
+    and pH1: "pHeap h as1 n1 \<Turnstile> P'"
+    and Fr': "pHeap h as2 n2 \<Turnstile> F * true"  by blast 
+
+  assume m: "m = SPECT M"
+
+  from D1[OF pH1 m]  obtain h' t r ra Ca where
+         1: "execute c h = Some (r, h', t)" "Some (enat Ca) \<le> M ra" and 2: "t \<le> n1 + Ca"
+       and 3:                   "pHeap h' (new_addrs h as1 h') (n1 + Ca - t) \<Turnstile> Q' * R ra r * true"
+       and 4:                   "relH {a. a < heap.lim h \<and> a \<notin> as1} h h'" and 5: "heap.lim h \<le> heap.lim h'"
+    by blast
+
+  have Fr: "pHeap h' as2 n2 \<Turnstile> F * true"
+    apply(rule mod_relH[OF _ Fr'])
+    apply(rule relH_subset) apply fact  
+    using Fr' a models_in_range by fastforce 
+
+  have na: "new_addrs h as1 h' \<inter> as2 = {}" 
+    using a models_in_range[OF Fr'] 4
+    by (auto simp: new_addrs_def)
+
+  have n': "n1 + Ca - t + n2 = n + Ca - t" using n 2 by auto
+  have ne: "new_addrs h as1 h' \<union> as2 = new_addrs h as h'"
+    using uni new_addrs_def by auto 
+
+  thm mod_star_convI
+  have "pHeap h' (new_addrs h as1 h' \<union> as2) (n1 + Ca - t + n2) \<Turnstile> (Q' * R ra r * true) * (F * true)" 
+    by(rule mod_star_convI[OF na 3 Fr])  
+  then have "pHeap h' (new_addrs h as h') (n + Ca - t) \<Turnstile> (Q' * R ra r * true) * (F * true)"
+    by(simp only: n' ne)
+  then have 31: "pHeap h' (new_addrs h as h') (n + Ca - t) \<Turnstile> F * Q' * R ra r * true"
+    apply(rule entailsD[rotated]) 
+    by (simp add: assn_times_assoc entails_def mult.left_commute top_assn_reduce)   
+    
+  have 41: "relH {a. a < heap.lim h \<and> a \<notin> as} h h'"
+    apply(rule relH_subset) apply fact
+    using uni by blast
+  
+  have 21: "t \<le> n + Ca" using 2 n by auto 
+
+  from 1 21 31 41 5 show " \<exists>h' t r. execute c h = Some (r, h', t) \<and>
+                         (\<exists>ra Ca. Some (enat Ca) \<le> M ra \<and> t \<le> n + Ca \<and> pHeap h' (new_addrs h as h') (n + Ca - t) \<Turnstile> F * Q' * R ra r * true) \<and>
+                         relH {a. a < heap.lim h \<and> a \<notin> as} h h' \<and> heap.lim h \<le> heap.lim h'"
+    by auto
+qed
+
+subsection "Consequence rules"
+
+
+
+lemma hn_refine_cons':
+  assumes I: "P\<Longrightarrow>\<^sub>AP' * true"
+  assumes R: "hn_refine P' c Q R m"
+  assumes I': "Q\<Longrightarrow>\<^sub>A Q' * true"
+  assumes R': "\<And>x y. R x y \<Longrightarrow>\<^sub>A R' x y * true"
+  shows "hn_refine P c Q' R' m"
+proof -
+  have "hn_refine P c Q R m" 
+    apply(rule hnr_frame[OF R, where F=emp,simplified])
+    unfolding entailst_def by fact
+
+  then have R2: "(\<And>h as n M. nofailT (SPECT M) \<Longrightarrow>
+   pHeap h as n \<Turnstile> P \<Longrightarrow>
+              m = SPECT M \<Longrightarrow>
+              (\<exists>h' t r. execute c h = Some (r, h', t) \<and>
+                        (\<exists>ra Ca. Some (enat Ca) \<le> M ra \<and> t \<le> n + Ca \<and> pHeap h' (new_addrs h as h') (n + Ca - t) \<Turnstile> Q * R ra r * true) \<and>
+                        relH {a. a < heap.lim h \<and> a \<notin> as} h h' \<and> heap.lim h \<le> heap.lim h'))" unfolding hn_refine_def by auto
+
+  show ?thesis unfolding hn_refine_def
+  proof (safe,goal_cases)
+    case (1 h as n M) 
+    from R2[OF 1] obtain h' t r ra Ca where a: "execute c h = Some (r, h', t)"
+          "Some (enat Ca) \<le> M ra" "t \<le> n + Ca" 
+          "relH {a. a < heap.lim h \<and> a \<notin> as} h h'" "heap.lim h \<le> heap.lim h'"
+       and b: "pHeap h' (new_addrs h as h') (n + Ca - t) \<Turnstile> Q * R ra r * true" by blast
+    have b': "pHeap h' (new_addrs h as h') (n + Ca - t) \<Turnstile> Q' * R' ra r * true"
+      apply(rule entailsD[OF _b])
+      using I' R' 
+      by (smt assn_times_assoc ent_star_mono ent_true_drop(1) merge_true_star mult.left_commute)
+
+    from a b' show ?case by blast
+  qed
+qed 
+
+
+lemma hn_refine_cons_pre':
+  assumes I: "P\<Longrightarrow>\<^sub>AP' * true"
+  assumes R: "hn_refine P' c Q R m"
+  shows "hn_refine P c Q R m"
+  apply(rule hn_refine_cons'[OF I R])  
+    by (auto simp add: entt_refl')   
 
 lemma hn_refine_preI: 
   assumes "\<And>h. h\<Turnstile>\<Gamma> \<Longrightarrow> hn_refine \<Gamma> c \<Gamma>' R a"
   shows "hn_refine \<Gamma> c \<Gamma>' R a"
-  using assms unfolding hn_refine_def
-  by (auto intro: hoare_triple_preI)
-
-lemma hn_refine_nofailI: 
-  assumes "nofail a \<Longrightarrow> hn_refine \<Gamma> c \<Gamma>' R a"  
-  shows "hn_refine \<Gamma> c \<Gamma>' R a"
-  using assms by (auto simp: hn_refine_def)
-
-lemma hn_refine_false[simp]: "hn_refine false c \<Gamma>' R m"
-  by rule auto
-
-lemma hn_refine_fail[simp]: "hn_refine \<Gamma> c \<Gamma>' R FAIL"
-  by rule auto
-
-lemma hn_refine_frame:
-  assumes "hn_refine P' c Q' R m"
-  assumes "P \<Longrightarrow>\<^sub>t F * P'"
-  shows "hn_refine P c (F * Q') R m"
-  using assms
-  unfolding hn_refine_def entailst_def
-  apply clarsimp
-  apply (erule cons_pre_rule)
-  apply (rule cons_post_rule)
-  apply (erule fi_rule, frame_inference)
-  apply (simp only: star_aci)
-  apply simp
-  done
+  using assms unfolding hn_refine_def   
+  by blast 
 
 lemma hn_refine_cons:
   assumes I: "P\<Longrightarrow>\<^sub>tP'"
   assumes R: "hn_refine P' c Q R m"
-  assumes I': "Q\<Longrightarrow>\<^sub>tQ'"
+  assumes I': "Q\<Longrightarrow>\<^sub>t Q'"
   assumes R': "\<And>x y. R x y \<Longrightarrow>\<^sub>t R' x y"
   shows "hn_refine P c Q' R' m"
-  using R unfolding hn_refine_def
-  apply clarify
-  apply (rule cons_pre_rulet[OF I])
-  apply (rule cons_post_rulet)
-  apply assumption
-  apply (sep_auto simp: entailst_def)
-  apply (rule enttD)
-  apply (intro entt_star_mono I' R')
-  done
+  by(rule hn_refine_cons'[OF assms[unfolded entailst_def]])
 
-(*lemma hn_refine_cons:
-  assumes I: "P\<Longrightarrow>\<^sub>AP'"
-  assumes R: "hn_refine P' c Q R m"
-  assumes I': "Q\<Longrightarrow>\<^sub>AQ'"
-  assumes R': "\<And>x y. R x y \<Longrightarrow>\<^sub>A R' x y"
-  shows "hn_refine P c Q' R' m"
-  using R unfolding hn_refine_def
-  apply clarsimp
-  apply (rule cons_pre_rule[OF I])
-  apply (erule cons_post_rule)
-  apply (rule ent_star_mono ent_refl I' R' ent_ex_preI ent_ex_postI)+
-  done
-*)
-lemma hn_refine_cons_pre:
-  assumes I: "P\<Longrightarrow>\<^sub>tP'"
-  assumes R: "hn_refine P' c Q R m"
-  shows "hn_refine P c Q R m"
-  by (rule hn_refine_cons[OF I R]) sep_auto+
+lemma hn_refine_cons_post':
+  assumes R: "hn_refine P c Q R m"
+  assumes I: "Q\<Longrightarrow>\<^sub>AQ'*true"
+  shows "hn_refine P c Q' R m"
+  using assms
+  by (rule hn_refine_cons'[OF entt_refl' _ _ entt_refl'])
 
 lemma hn_refine_cons_post:
   assumes R: "hn_refine P c Q R m"
@@ -270,20 +390,52 @@ lemma hn_refine_cons_post:
   using assms
   by (rule hn_refine_cons[OF entt_refl _ _ entt_refl])
 
+lemma hn_refine_split_post:
+  assumes "hn_refine \<Gamma> c \<Gamma>' R a"
+  shows "hn_refine \<Gamma> c (\<Gamma>' \<or>\<^sub>A \<Gamma>'') R a"
+  apply (rule hn_refine_cons_post[OF assms])
+  by (rule entt_disjI1_direct)
+
+
+lemma hn_refine_post_other: 
+  assumes "hn_refine \<Gamma> c \<Gamma>'' R a"
+  shows "hn_refine \<Gamma> c (\<Gamma>' \<or>\<^sub>A \<Gamma>'') R a"
+  apply (rule hn_refine_cons_post[OF assms])
+  by (rule entt_disjI2_direct)
+
+
+lemma hn_refine_cons_pre:
+  assumes I: "P\<Longrightarrow>\<^sub>tP'"
+  assumes R: "hn_refine P' c Q R m"
+  shows "hn_refine P c Q R m"
+  by(rule hn_refine_cons_pre'[OF assms[unfolded entailst_def]])
+ 
+
+lemma hn_refine_nofailI: 
+  assumes "nofailT a \<Longrightarrow> hn_refine \<Gamma> c \<Gamma>' R a"  
+  shows "hn_refine \<Gamma> c \<Gamma>' R a" sorry
+
+lemma hn_refine_false[simp]: "hn_refine false c \<Gamma>' R m"
+  by (simp add: hn_refine_def)  
+ 
+
+lemma hn_refine_frame:
+  assumes "hn_refine P' c Q' R m"
+  assumes "P \<Longrightarrow>\<^sub>t F * P'"
+  shows "hn_refine P c (F * Q') R m"
+  using assms hnr_frame by metis  
+    
+
 lemma hn_refine_cons_res: 
   "\<lbrakk> hn_refine \<Gamma> f \<Gamma>' R g; \<And>a c. R a c \<Longrightarrow>\<^sub>t R' a c \<rbrakk> \<Longrightarrow> hn_refine \<Gamma> f \<Gamma>' R' g"
-  by (erule hn_refine_cons[OF entt_refl]) sep_auto+
+  apply (erule hn_refine_cons[OF entt_refl])   
+  by (auto simp add: entt_refl)
 
 lemma hn_refine_ref:
   assumes LE: "m\<le>m'"
   assumes R: "hn_refine P c Q R m"
   shows "hn_refine P c Q R m'"
-  apply rule
-  apply (rule cons_post_rule)
-  apply (rule hn_refineD[OF R])
-  using LE apply (simp add: pw_le_iff)
-  apply (sep_auto intro: order_trans[OF _ LE])
-  done
+  using assms hnr_refine by metis
 
 lemma hn_refine_cons_complete:
   assumes I: "P\<Longrightarrow>\<^sub>tP'"
@@ -296,16 +448,16 @@ lemma hn_refine_cons_complete:
   apply (rule hn_refine_cons[OF I R I' R'])
   done
  
-lemma hn_refine_augment_res:
+(*lemma hn_refine_augment_res:
   assumes A: "hn_refine \<Gamma> f \<Gamma>' R g"
-  assumes B: "g \<le>\<^sub>n SPEC \<Phi>"
+  assumes B: "g \<le>\<^sub>n SPECT \<Phi>"
   shows "hn_refine \<Gamma> f \<Gamma>' (\<lambda>a c. R a c * \<up>(\<Phi> a)) g"
   apply (rule hn_refineI)
   apply (rule cons_post_rule)
   apply (erule A[THEN hn_refineD])
   using B
   apply (sep_auto simp: pw_le_iff pw_leof_iff)
-  done
+  done *)
 
 
 subsection \<open>Product Types\<close>
@@ -337,16 +489,16 @@ lemma hn_refine_guessI:
   \<comment> \<open>To prove a refinement, first synthesize one, and then prove equality\<close>
   using assms by simp
 
-
+(*
 lemma imp_correctI:
   assumes R: "hn_refine \<Gamma> c \<Gamma>' R a"
-  assumes C: "a \<le> SPEC \<Phi>"
+  assumes C: "a \<le> SPECT \<Phi>"
   shows "<\<Gamma>> c <\<lambda>r'. \<exists>\<^sub>Ar. \<Gamma>' * R r r' * \<up>(\<Phi> r)>\<^sub>t"
   apply (rule cons_post_rule)
   apply (rule hn_refineD[OF R])
   apply (rule le_RES_nofailI[OF C])
   apply (sep_auto dest: order_trans[OF _ C])
-  done
+  done 
 
 lemma hnr_pre_ex_conv: 
   shows "hn_refine (\<exists>\<^sub>Ax. \<Gamma> x) c \<Gamma>' R a \<longleftrightarrow> (\<forall>x. hn_refine (\<Gamma> x) c \<Gamma>' R a)"
@@ -356,46 +508,75 @@ lemma hnr_pre_ex_conv:
   apply (rule ent_ex_postI)
   apply (rule ent_refl)
   apply sep_auto
-  done
+  done *)
 
 lemma hnr_pre_pure_conv:  
   shows "hn_refine (\<Gamma> * \<up>P) c \<Gamma>' R a \<longleftrightarrow> (P \<longrightarrow> hn_refine \<Gamma> c \<Gamma>' R a)"
   unfolding hn_refine_def
   by auto
 
-lemma hn_refine_split_post:
+(*lemma hn_refine_split_post:
   assumes "hn_refine \<Gamma> c \<Gamma>' R a"
   shows "hn_refine \<Gamma> c (\<Gamma>' \<or>\<^sub>A \<Gamma>'') R a"
   apply (rule hn_refine_cons_post[OF assms])
-  by (rule entt_disjI1_direct)
+  by (rule entt_disjI1_direct) *)
 
-lemma hn_refine_post_other: 
+(* lemma hn_refine_post_other: 
   assumes "hn_refine \<Gamma> c \<Gamma>'' R a"
   shows "hn_refine \<Gamma> c (\<Gamma>' \<or>\<^sub>A \<Gamma>'') R a"
   apply (rule hn_refine_cons_post[OF assms])
-  by (rule entt_disjI2_direct)
+  by (rule entt_disjI2_direct) *)
 
 
 subsubsection \<open>Return\<close>
 
-lemma hnr_RETURN_pass:
-  "hn_refine (hn_ctxt R x p) (return p) (hn_invalid R x p) R (RETURN x)"
+lemma move_back_pure: "\<And>B P. \<up>B * P = P * \<up>B"  
+    by (simp add: assn_times_comm)  
+lemma move_back_pure': "\<And>Q B P. Q * \<up>B * P = Q * P * \<up>B"   
+    using assn_times_assoc assn_times_comm by auto  
+lemma consume_true: "\<And>R. true * R   * true = R   * true"  
+    by (metis mult.assoc mult.left_commute top_assn_reduce)
+lemmas move = move_back_pure move_back_pure' consume_true
+
+lemma hnr_uRETURN_pass:
+  "hn_refine (hn_ctxt R x p) (ureturn p) (hn_invalid R x p) R (RETURNT x)"
   \<comment> \<open>Pass on a value from the heap as return value\<close>
-  apply rule 
-  apply (sep_auto simp: hn_ctxt_def eintros: invalidate_clone')
+  unfolding hn_refine_def 
+  apply (auto simp: hn_ctxt_def)
+  subgoal for h as n
+    using execute_ureturn'[of p h] apply auto
+    subgoal  apply(rule exI[where x=0]) apply (simp add: zero_enat_def) 
+      apply(rule entailsD)  by(auto  simp: invalidate_clone')   
+    subgoal by(simp add:  relH_def)  done
   done
 
-lemma hnr_RETURN_pure:
+lemma hnr_uRETURN_pure:
   assumes "(c,a)\<in>R"
-  shows "hn_refine emp (return c) emp (pure R) (RETURN a)"
+  shows "hn_refine emp (ureturn c) emp (pure R) (RETURNT a)"
   \<comment> \<open>Return pure value\<close>
-  unfolding hn_refine_def using assms
-  by (sep_auto simp: pure_def)
+  unfolding hn_refine_def 
+  apply (auto simp: hn_ctxt_def)
+  subgoal for h as n
+    using execute_ureturn'[of c h] apply auto
+    subgoal  apply(rule exI[where x=0]) apply (simp add: zero_enat_def pure_def)  
+      apply(simp add: move assms)  
+      using entailsD entails_true by blast   
+    subgoal by(simp add:  relH_def)  done
+  done
   
-subsubsection \<open>Assertion\<close>
-lemma hnr_FAIL[simp, intro!]: "hn_refine \<Gamma> c \<Gamma>' R FAIL"
-  unfolding hn_refine_def
-  by simp
+subsubsection \<open>Assertion\<close> 
+
+definition "iASSERT ret \<Phi> \<equiv> if \<Phi> then ret () else top"
+
+definition ASSERT where "ASSERT \<equiv> iASSERT RETURNT"
+
+lemma ASSERT_True[simp]: "ASSERT True = RETURNT ()" 
+  by (auto simp: ASSERT_def iASSERT_def)
+lemma ASSERT_False[simp]: "ASSERT False = FAILT" 
+  by (auto simp: ASSERT_def iASSERT_def) 
+
+lemma bind_ASSERT_eq_if: "do { ASSERT \<Phi>; m } = (if \<Phi> then m else FAILT)"
+  unfolding ASSERT_def iASSERT_def by simp
 
 lemma hnr_ASSERT:
   assumes "\<Phi> \<Longrightarrow> hn_refine \<Gamma> c \<Gamma>' R c'"
@@ -405,66 +586,159 @@ lemma hnr_ASSERT:
   by auto
 
 subsubsection \<open>Bind\<close>
-lemma bind_det_aux: "\<lbrakk> RETURN x \<le> m; RETURN y \<le> f x \<rbrakk> \<Longrightarrow> RETURN y \<le> m \<bind> f"
+(*lemma bind_det_aux: "\<lbrakk> RETURN x \<le> m; RETURN y \<le> f x \<rbrakk> \<Longrightarrow> RETURN y \<le> m \<bind> f"
   apply (rule order_trans[rotated])
   apply (rule Refine_Basic.bind_mono)
   apply assumption
   apply (rule order_refl)
   apply simp
-  done
+  done *)
+
 
 lemma hnr_bind:
   assumes D1: "hn_refine \<Gamma> m' \<Gamma>1 Rh m"
   assumes D2: 
-    "\<And>x x'. RETURN x \<le> m \<Longrightarrow> hn_refine (\<Gamma>1 * hn_ctxt Rh x x') (f' x') (\<Gamma>2 x x') R (f x)"
-  assumes IMP: "\<And>x x'. \<Gamma>2 x x' \<Longrightarrow>\<^sub>t \<Gamma>' * hn_ctxt Rx x x'"
+    "\<And>x x'. RETURNT x \<le> m \<Longrightarrow> hn_refine (\<Gamma>1 * hn_ctxt Rh x x') (f' x') (\<Gamma>2 x x') R (f x)"
+  assumes IMP: "\<And>x x'. \<Gamma>2 x x' \<Longrightarrow>\<^sub>A \<Gamma>' * hn_ctxt Rx x x' * true"
   shows "hn_refine \<Gamma> (m'\<bind>f') \<Gamma>' R (m\<bind>f)"
-  using assms
-  unfolding hn_refine_def
-  apply (clarsimp simp add: pw_bind_nofail)
-  apply (rule Hoare_Triple.bind_rule)
-  apply assumption
-  apply (clarsimp intro!: normalize_rules simp: hn_ctxt_def)
-proof -
-  fix x' x
-  assume 1: "RETURN x \<le> m" 
-    and "nofail m" "\<forall>x. inres m x \<longrightarrow> nofail (f x)"
-  hence "nofail (f x)" by (auto simp: pw_le_iff)
-  moreover assume "\<And>x x'. RETURN x \<le> m \<Longrightarrow>
-           nofail (f x) \<longrightarrow> <\<Gamma>1 * Rh x x'> f' x'
-           <\<lambda>r'. \<exists>\<^sub>Ar. \<Gamma>2 x x' * R r r' * true * \<up> (RETURN r \<le> f x)>"
-  ultimately have "\<And>x'. <\<Gamma>1 * Rh x x'> f' x'
-           <\<lambda>r'. \<exists>\<^sub>Ar. \<Gamma>2 x x' * R r r' * true * \<up> (RETURN r \<le> f x)>"
-    using 1 by simp
-  also have "\<And>r'. \<exists>\<^sub>Ar. \<Gamma>2 x x' * R r r' * true * \<up> (RETURN r \<le> f x) \<Longrightarrow>\<^sub>A
-    \<exists>\<^sub>Ar. \<Gamma>' * R r r' * true * \<up> (RETURN r \<le> f x)"
-    apply (sep_auto)
-    apply (rule ent_frame_fwd[OF IMP[THEN enttD]])
-    apply frame_inference
-    apply (solve_entails)
-    done
-  finally (cons_post_rule) have 
-    R: "<\<Gamma>1 * Rh x x'> f' x' 
-        <\<lambda>r'. \<exists>\<^sub>Ar. \<Gamma>' * R r r' * true * \<up>(RETURN r \<le> f x)>"
-    .
-  show "<\<Gamma>1 * Rh x x' * true> f' x'
-          <\<lambda>r'. \<exists>\<^sub>Ar. \<Gamma>' * R r r' * true * \<up> (RETURN r \<le> m \<bind> f)>"
-    by (sep_auto heap: R intro: bind_det_aux[OF 1])
-qed
+    unfolding hn_refine_def apply clarify
+proof (goal_cases)
+  case (1 h as n Mf)
+  from 1(1) have nfm: "nofailT m" and nff: "\<And>x t. inresT m x t \<Longrightarrow> nofailT (f x)" by (auto simp: pw_bindT_nofailT)
+
+  from nfm obtain M where M: "m = SPECT M" by fastforce 
+
+  from D1 nfm 1(2) M 
+  obtain r h' t ra Ca where execm: "execute m' h = Some (r, h', t)"
+    and Mra: "M ra \<ge> Some (enat Ca)" and pH1: "pHeap h' (new_addrs h as h') (n + Ca - t) \<Turnstile> (\<Gamma>1 * Rh ra r) * true" and t: "t \<le> n + Ca"
+    and relH1:  "relH {a. a < heap.lim h \<and> a \<notin> as} h h'" and hl1: "heap.lim h \<le> heap.lim h'"
+    unfolding hn_refine_def by blast
+
+  from M Mra have ram: "RETURNT ra \<le> m" apply (auto simp: le_fun_def RETURNT_def) 
+    using dual_order.trans by fastforce
+  have noff: "nofailT (f ra)" apply(rule nff[where t=0]) using Mra M unfolding inresT_def
+    by (smt le_some_optE nrest.simps(5) zero_enat_def zero_le) 
+  then obtain fM where fMra: "f ra = SPECT fM" by fastforce
+
+  from D2[OF ram, of r] have D2': "\<And>h as n M.
+       pHeap h as n \<Turnstile> \<Gamma>1 * Rh ra r \<Longrightarrow>
+       f ra = SPECT M \<Longrightarrow>
+       \<exists>h' t rb. execute (f' r) h = Some (rb, h', t) \<and>
+                 (\<exists>raa Ca. M raa \<ge> Some (enat Ca) \<and> t \<le> n + Ca \<and> pHeap h' (new_addrs h as h') (n + Ca - t) \<Turnstile> \<Gamma>2 ra r * R raa rb * true) \<and>
+                 relH {a. a < heap.lim h \<and> a \<notin> as} h h' \<and> heap.lim h \<le> heap.lim h'"   unfolding hn_refine_def hn_ctxt_def by auto
+
+  from mod_star_convE[OF pH1]   obtain as1 as2 n1 n2 where  uni: "(new_addrs h as h') = as1 \<union> as2"
+    and a: "as1 \<inter> as2 = {}" and  n: "(n + Ca - t) = n1 + n2"
+    and pH1: "pHeap h' as1 n1 \<Turnstile> \<Gamma>1 * Rh ra r"
+    and Fr': "pHeap h' as2 n2 \<Turnstile> true"  by blast 
+
+  from D2'[OF pH1 fMra] obtain h'' t' r' ra' Ca' where execf: "execute (f' r) h' = Some (r', h'', t')" and
+    fMra': " fM ra' \<ge> Some (enat Ca')"
+    and M'':    " pHeap h'' (new_addrs h' as1 h'') (n1  + Ca' - t') \<Turnstile> \<Gamma>2 ra r * R ra' r' * true"
+    and t':" t' \<le> n1  + Ca'" 
+    and relH2': "relH {a. a < heap.lim h' \<and> a \<notin> as1} h' h''" and hl2: "heap.lim h' \<le> heap.lim h'' "
+    by blast
+
+  from Fr' have  Fr: "pHeap h'' as2 n2 \<Turnstile> true"  
+    using hl2 top_assn_rule by auto  
+
+  have disj: "new_addrs h' as1 h'' \<inter> as2 = {}"  
+    using a models_in_range[OF Fr'] hl2
+    by (auto simp: in_range.simps new_addrs_def)
+
+  have k: "{a. a < lim h' \<and> a \<notin> (new_addrs h as h')} \<subseteq> {a. a < lim h' \<and> a \<notin> as1}"
+    using uni  by auto
+  have relH2: "relH {a. a < heap.lim h' \<and> a \<notin> (new_addrs h as h')} h' h''" 
+    by(rule relH_subset[OF relH2' k])
+        
+
+      thm relH_subset
+  have addrs: "(new_addrs h' as1 h'' \<union> as2) = (new_addrs h' (new_addrs h as h') h'')"
+    using \<open>new_addrs h as h' = as1 \<union> as2\<close> new_addrs_def by auto
+
+  have n12: " (n1 + Ca' - t' + n2) = (n + Ca - t) + Ca' - t'" using n t' by auto
+
+
+  from mod_star_convI[OF disj M'' Fr] have
+    M'': "pHeap h'' (new_addrs h' (new_addrs h as h') h'') ((n + Ca - t) + Ca' - t') \<Turnstile> \<Gamma>2 ra r * R ra' r' * true"
+    unfolding n12  addrs by (metis assn_times_assoc assn_times_comm entailsD' entails_true)
+
+  from Mra fMra' obtain Car Car' where PF: "M ra = Some Car" "fM ra' = Some Car'" by fastforce+
+
+
+  thm execute_bind
+  have t'': "n + Ca - t + Ca' - t' = n + (Ca + Ca') - (t + t')" using t t' by simp 
+  have  
+    "new_addrs h' (new_addrs h as h') h'' = new_addrs h as h''" 
+    using hl1 hl2 
+    by (auto simp add: new_addrs_def)
+  with M'' have  
+    ende: "pHeap h'' (new_addrs h as h'') (n + (Ca + Ca') - (t + t')) \<Turnstile>  \<Gamma>2 ra r * R ra' r' * true" 
+    by (simp add: t'') 
+  thm Sup_upper 
+  have "Some (enat (Ca+Ca')) \<le> Some (Car+Car')" 
+    using PF Mra fMra' add_mono by fastforce 
+  also 
+  from  1(3) fMra M have 
+    "Some ((Car+Car')) \<le> Mf ra' "
+    unfolding bindT_def  apply simp apply(drule nrest_Sup_SPECT_D[where x=ra'])
+    apply simp apply(rule Sup_upper) apply auto
+    apply(rule exI[where x="(map_option ((+) (Car)) \<circ> fM)"]) 
+    using PF  
+    apply simp apply(rule exI[where x=ra]) apply(rule exI[where x="Car"]) by simp  
+  finally have "Some (enat (Ca+Ca')) \<le> Mf ra' " .
+
+  show ?case
+    apply(rule exI[where x=h''])
+    apply(rule exI[where x="t+t'"])
+    apply(rule exI[where x="r'"])
+  proof (safe)
+    show "execute (m' \<bind> f') h = Some (r', h'', t + t')"
+      by (simp add: execute_bind(1)[OF execm] execf) 
+    show "\<exists>ra Ca. Mf ra \<ge> Some (enat Ca)\<and> t + t' \<le> n + Ca \<and> pHeap h'' (new_addrs h as h'') (n + Ca - (t + t')) \<Turnstile> \<Gamma>' * R ra r' * true "
+      apply(rule exI[where x=ra'])
+      apply(rule exI[where x="Ca+Ca'"])
+    proof (safe)
+      show "Mf ra' \<ge> Some (enat (Ca+Ca'))" apply fact done
+
+      from IMP have "\<Gamma>2 ra r * R ra' r' * true \<Longrightarrow>\<^sub>A \<Gamma>' * R ra' r' * true"   
+      proof -
+        have "\<forall>a aa ab ac. (ac * ab \<Longrightarrow>\<^sub>A a * true) \<or> \<not> (ac \<Longrightarrow>\<^sub>A aa * a)"
+          by (metis (full_types) assn_times_assoc entail_trans2 entails_frame entails_true mult.left_commute)
+        then have "\<forall>a aa ab. ab * (aa * a) \<Longrightarrow>\<^sub>A aa * true"
+          by (metis (no_types) assn_times_assoc entails_frame entails_true)
+        then show ?thesis
+          by (metis (no_types) IMP assn_times_assoc entail_trans2 entails_frame)
+      qed  
+
+      with ende  show "pHeap h'' (new_addrs h as h'') (n + (Ca + Ca') - (t + t')) \<Turnstile> \<Gamma>' * R ra' r' * true"
+        using entailsD by blast
+      show "t + t' \<le> n + (Ca + Ca')" using n t t' by simp
+    qed 
+    note relH1
+    also have "relH {a. a < lim h \<and> a \<notin> as} h' h''"
+      apply (rule relH_subset[OF relH2])
+      using hl1 hl2
+      by (auto simp: new_addrs_def) 
+    finally show "relH {a. a < lim h \<and> a \<notin> as} h h''" . 
+    show "heap.lim h \<le> heap.lim h'' "
+      using hl1 hl2 by simp
+  qed   
+qed 
 
 subsubsection \<open>Recursion\<close>
 
-definition "hn_rel P m \<equiv> \<lambda>r. \<exists>\<^sub>Ax. P x r * \<up>(RETURN x \<le> m)"
+definition "hn_rel P m \<equiv> \<lambda>r. \<exists>\<^sub>Ax. P x r * \<up>(RETURNT x \<le> m)"
 
-lemma hn_refine_alt: "hn_refine Fpre c Fpost P m \<equiv> nofail m \<longrightarrow>
+(*lemma hn_refine_alt: "hn_refine Fpre c Fpost P m \<equiv> nofailT m \<longrightarrow>
   <Fpre> c <\<lambda>r. hn_rel P m r * Fpost>\<^sub>t"
   apply (rule eq_reflection)
   unfolding hn_refine_def hn_rel_def
   apply (simp add: hn_ctxt_def)
   apply (simp only: star_aci)
-  done
+  done *)
 
-lemma wit_swap_forall:
+(*lemma wit_swap_forall:
   assumes W: "<P> c <\<lambda>_. true>"
   assumes T: "(\<forall>x. A x \<longrightarrow> <P> c <Q x>)"
   shows "<P> c <\<lambda>r. \<not>\<^sub>A (\<exists>\<^sub>Ax. \<up>(A x) * \<not>\<^sub>A Q x r)>"
@@ -484,9 +758,9 @@ lemma wit_swap_forall:
   subgoal by (elim conjE) (rule hoare_tripleD[OF W], assumption+)
 
   subgoal by (elim conjE) (rule hoare_tripleD[OF W], assumption+) 
-  done
+  done*)
 
-lemma hn_admissible:
+(*lemma hn_admissible:
   assumes PREC: "precise Ry"
   assumes E: "\<forall>f\<in>A. nofail (f x) \<longrightarrow> <P> c <\<lambda>r. hn_rel Ry (f x) r * F>"
   assumes NF: "nofail (INF f:A. f x)"
@@ -575,7 +849,9 @@ proof (simp, intro conjI impI)
   thus "hn_refine (hn_ctxt Rx ax px * F)
      (ccpo.fixp (fun_lub Heap_lub) (fun_ord Heap_ord) cB px) (F' ax px) Ry
      (gfp aB ax)" by simp
-qed
+qed*)
+ 
+
 
 lemma hnr_RECT:
   assumes S: "\<And>cf af ax px. \<lbrakk>
@@ -583,11 +859,11 @@ lemma hnr_RECT:
     \<Longrightarrow> hn_refine (hn_ctxt Rx ax px * F) (cB cf px) (F' ax px) Ry (aB af ax)"
   assumes M: "(\<And>x. mono_Heap (\<lambda>f. cB f x))"
   shows "hn_refine 
-    (hn_ctxt Rx ax px * F) (heap.fixp_fun cB px) (F' ax px) Ry (RECT aB ax)"
-  unfolding RECT_def
+    (hn_ctxt Rx ax px * F) (heap.fixp_fun cB px) (F' ax px) Ry (Sepreftime.RECT aB ax)"
+  unfolding RECT_flat_gfp_def
 proof (simp, intro conjI impI)
-  assume "trimono aB"
-  hence "flatf_mono_ge aB" by (simp add: trimonoD)
+  assume "mono2 aB"
+  hence "flatf_mono_ge aB" by(rule trimonoD_flatf_ge)
   have "\<forall>ax px. 
     hn_refine (hn_ctxt Rx ax px * F) (heap.fixp_fun cB px) (F' ax px) Ry 
       (flatf_gfp aB ax)"
@@ -597,7 +873,7 @@ proof (simp, intro conjI impI)
     apply (rule flatf_admissible_pointwise)
     apply simp
 
-    apply (auto simp: hn_refine_alt) []
+    apply (auto simp: hn_refine_def) [] (* have no idea what happens here ! *)
 
     apply clarsimp
     apply (subst heap.mono_body_fixp[of cB, OF M])
@@ -607,7 +883,7 @@ proof (simp, intro conjI impI)
   thus "hn_refine (hn_ctxt Rx ax px * F)
      (ccpo.fixp (fun_lub Heap_lub) (fun_ord Heap_ord) cB px) (F' ax px) Ry
      (flatf_gfp aB ax)" by simp
-qed
+qed 
 
 lemma hnr_If:
   assumes P: "\<Gamma> \<Longrightarrow>\<^sub>t \<Gamma>1 * hn_val bool_rel a a'"
@@ -620,7 +896,7 @@ lemma hnr_If:
   applyF (cases a; simp add: hn_ctxt_def pure_def)
     focus
       apply1 (rule hn_refine_split_post)
-      applyF (rule hn_refine_cons_pre[OF _ RT])
+        applyF (rule hn_refine_cons_pre[OF _ RT])
         applyS (simp add: hn_ctxt_def pure_def)
         applyS simp
       solved
@@ -742,9 +1018,9 @@ ML {*
 
   structure Sepref_Basic: SEPREF_BASIC = struct
 
-    fun is_nresT (Type (@{type_name nres},[_])) = true | is_nresT _ = false
-    fun mk_nresT T = Type(@{type_name nres},[T])
-    fun dest_nresT (Type (@{type_name nres},[T])) = T | dest_nresT T = raise TYPE("dest_nresT",[T],[])
+    fun is_nresT (Type (@{type_name nrest},[_])) = true | is_nresT _ = false
+    fun mk_nresT T = Type(@{type_name nrest},[T])
+    fun dest_nresT (Type (@{type_name nrest},[T])) = T | dest_nresT T = raise TYPE("dest_nresT",[T],[])
 
 
     fun dest_lambda_rc ctxt (Abs (x,T,t)) = let
@@ -842,10 +1118,10 @@ ML {*
       | strip_abs_args @{mpat "?f$?a"} = (case strip_abs_args f of (f,args) => (f,args@[a]))
       | strip_abs_args t = (t,[])
   
-    fun dest_hnr_absfun @{mpat "RETURN$?a"} = (true, strip_abs_args a)
+    fun dest_hnr_absfun @{mpat "RETURNT$?a"} = (true, strip_abs_args a)
       | dest_hnr_absfun f = (false, strip_abs_args f)
   
-    fun mk_hnr_absfun (true,fa) = Autoref_Tagging.list_APP fa |> (fn a => @{mk_term "RETURN$?a"})
+    fun mk_hnr_absfun (true,fa) = Autoref_Tagging.list_APP fa |> (fn a => @{mk_term "RETURNT$?a"})
       | mk_hnr_absfun (false,fa) = Autoref_Tagging.list_APP fa
   
     fun mk_hnr_absfun' fa = let
@@ -853,8 +1129,8 @@ ML {*
       val T = fastype_of t
     in
       case T of
-        Type (@{type_name nres},_) => t
-      | _ => @{mk_term "RETURN$?t"}
+        Type (@{type_name nrest},_) => t
+      | _ => @{mk_term "RETURNT$?t"}
   
     end  
   

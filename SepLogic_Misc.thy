@@ -107,12 +107,14 @@ lemma ent_imp_entt: "P\<Longrightarrow>\<^sub>AQ \<Longrightarrow> P\<Longrighta
   by (simp add: entailsI mod_star_trueI)  
 
 
-lemma entt_refl: "P\<Longrightarrow>\<^sub>t P " 
+lemma entt_refl[simp, intro!]: "P\<Longrightarrow>\<^sub>t P " 
   by (simp add: entailst_def entailsI mod_star_trueI) 
 
 subsection "Heap Or"
- 
- 
+  
+
+declare or_assn_conv [simp]
+  
  
 
 lemma ent_disjI1_direct[simp]: "A \<Longrightarrow>\<^sub>A A \<or>\<^sub>A B"
@@ -256,6 +258,70 @@ proof -
     by (simp add: assn_times_comm)  
   finally show ?thesis .
 qed
+
+
+definition "is_pure_assn a \<equiv> \<exists>P. a=\<up>P"
+lemma is_pure_assnE: assumes "is_pure_assn a" obtains P where "a=\<up>P"
+  using assms
+  by (auto simp: is_pure_assn_def)
+
+lemma is_pure_assn_pure[simp, intro!]: "is_pure_assn (\<up>P)" 
+  by (auto simp add: is_pure_assn_def)
+
+lemma is_pure_assn_basic_simps[simp]:
+  "is_pure_assn false"
+  "is_pure_assn emp"
+proof -
+  have "is_pure_assn (\<up>False)" by rule thus "is_pure_assn false" by simp
+  have "is_pure_assn (\<up>True)" by rule thus "is_pure_assn emp" sorry
+qed  
+
+lemma is_pure_assn_starI[simp,intro!]: 
+  "\<lbrakk>is_pure_assn a; is_pure_assn b\<rbrakk> \<Longrightarrow> is_pure_assn (a*b)"
+  (* by (auto elim!: is_pure_assnE) *) sorry
+
+subsection "some automation"
+
+text {* Move existential quantifiers to the front of assertions *}
+lemma ex_assn_move_out[simp]:
+  "\<And>Q R. (\<exists>\<^sub>Ax. Q x) * R = (\<exists>\<^sub>Ax. (Q x * R))"
+  "\<And>Q R. R * (\<exists>\<^sub>Ax. Q x) = (\<exists>\<^sub>Ax. (R * Q x))"
+
+  "\<And>P Q. (\<exists>\<^sub>Ax. Q x) \<or>\<^sub>A P = (\<exists>\<^sub>Ax. (Q x \<or>\<^sub>A P))"
+  "\<And>P Q. Q \<or>\<^sub>A (\<exists>\<^sub>Ax. P x) = (\<exists>\<^sub>Ax. (Q \<or>\<^sub>A P x))"
+  apply -
+  apply (simp add: ex_distrib_star)
+  apply (subst mult.commute)
+  apply (subst (2) mult.commute)
+  apply (simp add: ex_distrib_star)
+
+  (*apply (simp add: ex_distrib_or)
+  apply (subst sup_commute)
+  apply (subst (2) sup_commute)
+  apply (simp add: ex_distrib_or)
+  done *) sorry
+
+
+declare pure_conj [simp]
+thm merge_true_star 
+
+lemma merge_pure_or[simp]:
+  "\<up>a \<or>\<^sub>A \<up>b = \<up>(a\<or>b)" sorry
+
+
+thm mod_pure_star_dist 
+
+
+lemma ent_iffI:
+  assumes "A\<Longrightarrow>\<^sub>AB"
+  assumes "B\<Longrightarrow>\<^sub>AA"
+  shows "A=B" sorry
+
+
+lemmas star_aci = 
+  mult.assoc[where 'a=assn] mult.commute[where 'a=assn] mult.left_commute[where 'a=assn]
+  assn_one_left mult_1_right[where 'a=assn]
+  merge_true_star merge_true_star_ctx
 
 
 
