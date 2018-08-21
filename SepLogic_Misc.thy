@@ -1,5 +1,5 @@
 theory SepLogic_Misc
-imports "../Imperative_HOL_Time/SepLogicTime/SepAuto"
+imports "SepLogicTime_RBTreeBasic.SepAuto"
 begin
 
 

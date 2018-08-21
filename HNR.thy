@@ -230,14 +230,14 @@ lemma hn_refine_cons_pre:
    
 
 definition hn_ctxt :: "('a\<Rightarrow>'c\<Rightarrow>assn) \<Rightarrow> 'a \<Rightarrow> 'c \<Rightarrow> assn" 
-  -- {* Tag for refinement assertion *}
+  \<comment> \<open> Tag for refinement assertion \<close>
   where
   "\<And>P. hn_ctxt P a c \<equiv> P a c"
 
 
 
 definition pure :: "('b \<times> 'a) set \<Rightarrow> 'a \<Rightarrow> 'b \<Rightarrow> assn"
-  -- {* Pure binding, not involving the heap *}
+  \<comment> \<open> Pure binding, not involving the heap \<close>
   where "pure R \<equiv> (\<lambda>a c. \<up>((c,a)\<in>R))"
 
 
@@ -282,7 +282,7 @@ subsection \<open>Return\<close>
 
 lemma hnr_RETURN_pass:
   "hn_refine (hn_ctxt R x p) (return p) (hn_invalid R x p) R (REST [x\<mapsto>1])"
-  -- \<open>Pass on a value from the heap as return value\<close>
+  \<comment> \<open>Pass on a value from the heap as return value\<close>
   unfolding hn_refine_def 
   apply (auto simp: hn_ctxt_def)
   subgoal for h as n
@@ -296,7 +296,7 @@ lemma hnr_RETURN_pass:
 lemma hnr_RETURN_pure:
   assumes "(c,a)\<in>R"
   shows "hn_refine emp (return c) emp (pure R) (REST [a\<mapsto>1])"
-  -- \<open>Return pure value\<close>
+  \<comment> \<open>Return pure value\<close>
   unfolding hn_refine_def 
   apply (auto simp: hn_ctxt_def)
   subgoal for h as n
@@ -336,7 +336,7 @@ section "ureturn"
 lemma hnr_uRETURN_pure:
   assumes "(c,a)\<in>R"
   shows "hn_refine emp (ureturn c) emp (pure R) (RETURNT a)"
-  -- \<open>Return pure value\<close>
+  \<comment> \<open>Return pure value\<close>
   unfolding hn_refine_def 
   apply (auto simp: hn_ctxt_def)
   subgoal for h as n
@@ -349,7 +349,7 @@ lemma hnr_uRETURN_pure:
 
 lemma hnr_uRETURN_pass:
   "hn_refine (hn_ctxt R x p) (ureturn p) (hn_invalid R x p) R (RETURNT x)"
-  -- \<open>Pass on a value from the heap as return value\<close>
+  \<comment> \<open>Pass on a value from the heap as return value\<close>
   unfolding hn_refine_def 
   apply (auto simp: hn_ctxt_def)
   subgoal for h as n
@@ -456,7 +456,7 @@ proof (goal_cases)
     "Some ((Car+Car')) \<le> Mf ra' "
     unfolding bindT_def  apply simp apply(drule nrest_Sup_SPECT_D[where x=ra'])
     apply simp apply(rule Sup_upper) apply auto
-    apply(rule exI[where x="(map_option (op + (Car)) \<circ> fM)"]) 
+    apply(rule exI[where x="(map_option ((+) (Car)) \<circ> fM)"]) 
     using PF  
     apply simp apply(rule exI[where x=ra]) apply(rule exI[where x="Car"]) by simp  
   finally have "Some (enat (Ca+Ca')) \<le> Mf ra' " .

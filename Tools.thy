@@ -158,7 +158,7 @@ lemma mod_starD: "h\<Turnstile>A*B \<Longrightarrow> \<exists>h1 h2. h1\<Turnsti
 method extract_hnr_invalids = (
   rule hn_refine_preI,
   ((drule mod_starD hn_invalidI | elim conjE exE)+)?
-) -- \<open>Extract \<open>hn_invalid _ _ _ = true\<close> preconditions from \<open>hn_refine\<close> goal.\<close>
+) \<comment> \<open>Extract \<open>hn_invalid _ _ _ = true\<close> preconditions from \<open>hn_refine\<close> goal.\<close>
   
 
 
