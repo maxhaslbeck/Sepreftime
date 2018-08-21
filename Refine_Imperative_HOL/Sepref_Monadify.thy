@@ -30,7 +30,7 @@ lemma PR_CONST_cong[cong]: "PR_CONST x \<equiv> PR_CONST x" by simp
 definition RCALL \<comment> \<open>Tag that marks recursive call\<close>
   where [simp]: "RCALL D \<equiv> D"
 definition EVAL \<comment> \<open>Tag that marks evaluation of plain expression for monadify phase\<close>
-  where [simp]: "EVAL x \<equiv> RETURN x"
+  where [simp]: "EVAL x \<equiv> RETURNT x"
 
 text {*
   Internally, the package first applies rewriting rules from 
@@ -45,23 +45,23 @@ text {*
 *}
 
 lemma monadify_simps: 
-  "Refine_Basic.bind$(RETURN$x)$(\<lambda>\<^sub>2x. f x) = f x" 
-  "EVAL$x \<equiv> RETURN$x"
+  "bindT$(RETURNT$x)$(\<lambda>\<^sub>2x. f x) = f x" 
+  "EVAL$x \<equiv> RETURNT$x"
   by simp_all
 
-definition [simp]: "PASS \<equiv> RETURN"
+definition [simp]: "PASS \<equiv> RETURNT"
   \<comment> \<open>Pass on value, invalidating old one\<close>
 
 lemma remove_pass_simps:
-  "Refine_Basic.bind$(PASS$x)$(\<lambda>\<^sub>2x. f x) \<equiv> f x" 
-  "Refine_Basic.bind$m$(\<lambda>\<^sub>2x. PASS$x) \<equiv> m"
+  "bindT$(PASS$x)$(\<lambda>\<^sub>2x. f x) \<equiv> f x" 
+  "bindT$m$(\<lambda>\<^sub>2x. PASS$x) \<equiv> m"
   by simp_all
 
 
 definition COPY :: "'a \<Rightarrow> 'a" 
   \<comment> \<open>Marks required copying of parameter\<close>
   where [simp]: "COPY x \<equiv> x"
-lemma RET_COPY_PASS_eq: "RETURN$(COPY$p) = PASS$p" by simp
+lemma RET_COPY_PASS_eq: "RETURNT$(COPY$p) = PASS$p" by simp
 
 
 named_theorems_rev sepref_monadify_arity "Sepref.Monadify: Arity alignment equations"
@@ -85,7 +85,7 @@ ML {*
           val lr = bind_args exp0 xms 
             |> incr_boundvars 1 
             |> lambda2_name x
-        in @{mk_term "Refine_Basic.bind$?m$?lr"} end
+        in @{mk_term "bindT$?m$?lr"} end
 
       fun monadify t = let
         val (f,args) = Autoref_Tagging.strip_app t
@@ -105,7 +105,7 @@ ML {*
         val res0 = let
           val x = Autoref_Tagging.list_APP (f,map #2 argVs)
         in 
-          @{mk_term "SP (RETURN$?x)"}
+          @{mk_term "SP (RETURNT$?x)"}
         end
 
         val res = bind_args res0 (argVs ~~ args)
@@ -150,7 +150,7 @@ ML {*
         val (P,c,Q,R,a) = dest_hn_refine t
         val pps = strip_star P |> map_filter (dest_hn_ctxt_opt #> map_option #2)
 
-        fun tr env (t as @{mpat "RETURN$?x"}) = 
+        fun tr env (t as @{mpat "RETURNT$?x"}) = 
               if is_Bound x orelse member (aconv) pps x then
                 @{mk_term env: "PASS$?x"}
               else t
@@ -174,7 +174,7 @@ ML {*
 
       open Sepref_Basic
 
-      fun dp ctxt (@{mpat "Refine_Basic.bind$(PASS$?p)$(?t' AS\<^sub>p (\<lambda>_. PROTECT2 _ DUMMY))"}) = 
+      fun dp ctxt (@{mpat "bindT$(PASS$?p)$(?t' AS\<^sub>p (\<lambda>_. PROTECT2 _ DUMMY))"}) = 
           let
             val (t',ps) = let
                 val ((t',rc),ctxt) = dest_lambda_rc ctxt t'
@@ -188,9 +188,9 @@ ML {*
   
             val dup = member (aconv) ps p
             val t = if dup then
-              @{mk_term "Refine_Basic.bind$(RETURN$(COPY$?p))$?t'"}
+              @{mk_term "bindT$(RETURNT$(COPY$?p))$?t'"}
             else
-              @{mk_term "Refine_Basic.bind$(PASS$?p)$?t'"}
+              @{mk_term "bindT$(PASS$?p)$?t'"}
           in
             (t,p::ps)
           end
@@ -265,7 +265,7 @@ ML {*
 *}
 
 lemma dflt_arity[sepref_monadify_arity]:
-  "RETURN \<equiv> \<lambda>\<^sub>2x. SP RETURN$x" 
+  "RETURNT \<equiv> \<lambda>\<^sub>2x. SP RETURNT$x" 
   "RECT \<equiv> \<lambda>\<^sub>2B x. SP RECT$(\<lambda>\<^sub>2D x. B$(\<lambda>\<^sub>2x. RCALL$D$x)$x)$x" 
   "case_list \<equiv> \<lambda>\<^sub>2fn fc l. SP case_list$fn$(\<lambda>\<^sub>2x xs. fc$x$xs)$l" 
   "case_prod \<equiv> \<lambda>\<^sub>2fp p. SP case_prod$(\<lambda>\<^sub>2a b. fp$a$b)$p" 
@@ -276,32 +276,32 @@ lemma dflt_arity[sepref_monadify_arity]:
 
 
 lemma dflt_comb[sepref_monadify_comb]:
-  "\<And>B x. RECT$B$x \<equiv> Refine_Basic.bind$(EVAL$x)$(\<lambda>\<^sub>2x. SP (RECT$B$x))"
-  "\<And>D x. RCALL$D$x \<equiv> Refine_Basic.bind$(EVAL$x)$(\<lambda>\<^sub>2x. SP (RCALL$D$x))"
-  "\<And>fn fc l. case_list$fn$fc$l \<equiv> Refine_Basic.bind$(EVAL$l)$(\<lambda>\<^sub>2l. (SP case_list$fn$fc$l))"
-  "\<And>fp p. case_prod$fp$p \<equiv> Refine_Basic.bind$(EVAL$p)$(\<lambda>\<^sub>2p. (SP case_prod$fp$p))"
+  "\<And>B x. RECT$B$x \<equiv> bindT$(EVAL$x)$(\<lambda>\<^sub>2x. SP (RECT$B$x))"
+  "\<And>D x. RCALL$D$x \<equiv> bindT$(EVAL$x)$(\<lambda>\<^sub>2x. SP (RCALL$D$x))"
+  "\<And>fn fc l. case_list$fn$fc$l \<equiv> bindT$(EVAL$l)$(\<lambda>\<^sub>2l. (SP case_list$fn$fc$l))"
+  "\<And>fp p. case_prod$fp$p \<equiv> bindT$(EVAL$p)$(\<lambda>\<^sub>2p. (SP case_prod$fp$p))"
   "\<And>fn fs ov. case_option$fn$fs$ov 
-    \<equiv> Refine_Basic.bind$(EVAL$ov)$(\<lambda>\<^sub>2ov. (SP case_option$fn$fs$ov))"
-  "\<And>b t e. If$b$t$e \<equiv> Refine_Basic.bind$(EVAL$b)$(\<lambda>\<^sub>2b. (SP If$b$t$e))"
-  "\<And>x. RETURN$x \<equiv> Refine_Basic.bind$(EVAL$x)$(\<lambda>\<^sub>2x. SP (RETURN$x))"
-  "\<And>x f. Let$x$f \<equiv> Refine_Basic.bind$(EVAL$x)$(\<lambda>\<^sub>2x. (SP Let$x$f))"
+    \<equiv> bindT$(EVAL$ov)$(\<lambda>\<^sub>2ov. (SP case_option$fn$fs$ov))"
+  "\<And>b t e. If$b$t$e \<equiv> bindT$(EVAL$b)$(\<lambda>\<^sub>2b. (SP If$b$t$e))"
+  "\<And>x. RETURNT$x \<equiv> bindT$(EVAL$x)$(\<lambda>\<^sub>2x. SP (RETURNT$x))"
+  "\<And>x f. Let$x$f \<equiv> bindT$(EVAL$x)$(\<lambda>\<^sub>2x. (SP Let$x$f))"
   by (simp_all)
 
 
 lemma dflt_plain_comb[sepref_monadify_comb]:
-  "EVAL$(If$b$t$e) \<equiv> Refine_Basic.bind$(EVAL$b)$(\<lambda>\<^sub>2b. If$b$(EVAL$t)$(EVAL$e))"
+  "EVAL$(If$b$t$e) \<equiv> bindT$(EVAL$b)$(\<lambda>\<^sub>2b. If$b$(EVAL$t)$(EVAL$e))"
   "EVAL$(case_list$fn$(\<lambda>\<^sub>2x xs. fc x xs)$l) \<equiv> 
-    Refine_Basic.bind$(EVAL$l)$(\<lambda>\<^sub>2l. case_list$(EVAL$fn)$(\<lambda>\<^sub>2x xs. EVAL$(fc x xs))$l)"
+    bindT$(EVAL$l)$(\<lambda>\<^sub>2l. case_list$(EVAL$fn)$(\<lambda>\<^sub>2x xs. EVAL$(fc x xs))$l)"
   "EVAL$(case_prod$(\<lambda>\<^sub>2a b. fp a b)$p) \<equiv> 
-    Refine_Basic.bind$(EVAL$p)$(\<lambda>\<^sub>2p. case_prod$(\<lambda>\<^sub>2a b. EVAL$(fp a b))$p)"
+    bindT$(EVAL$p)$(\<lambda>\<^sub>2p. case_prod$(\<lambda>\<^sub>2a b. EVAL$(fp a b))$p)"
   "EVAL$(case_option$fn$(\<lambda>\<^sub>2x. fs x)$ov) \<equiv> 
-    Refine_Basic.bind$(EVAL$ov)$(\<lambda>\<^sub>2ov. case_option$(EVAL$fn)$(\<lambda>\<^sub>2x. EVAL$(fs x))$ov)"
+    bindT$(EVAL$ov)$(\<lambda>\<^sub>2ov. case_option$(EVAL$fn)$(\<lambda>\<^sub>2x. EVAL$(fs x))$ov)"
   "EVAL $ (Let $ v $ (\<lambda>\<^sub>2x. f x)) \<equiv> (\<bind>) $ (EVAL $ v) $ (\<lambda>\<^sub>2x. EVAL $ (f x))"
   apply (rule eq_reflection, simp split: list.split prod.split option.split)+
   done
 
 lemma evalcomb_PR_CONST[sepref_monadify_comb]:
-  "EVAL$(PR_CONST x) \<equiv> SP (RETURN$(PR_CONST x))"
+  "EVAL$(PR_CONST x) \<equiv> SP (RETURNT$(PR_CONST x))"
   by simp
 
 
