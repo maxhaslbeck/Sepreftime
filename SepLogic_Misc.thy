@@ -1,5 +1,5 @@
 theory SepLogic_Misc
-imports "SepLogicTime_RBTreeBasic.SepAuto"
+imports "SepLogicTime_RBTreeBasic.SepAuto" DataRefinement
 begin
 
 
@@ -116,6 +116,13 @@ subsection "Heap Or"
 declare or_assn_conv [simp]
   
  
+lemma ent_disjI1:
+  assumes "P \<or>\<^sub>A Q \<Longrightarrow>\<^sub>A R" 
+  shows "P \<Longrightarrow>\<^sub>A R" using assms unfolding entails_def by simp
+
+lemma ent_disjI2:
+  assumes "P \<or>\<^sub>A Q \<Longrightarrow>\<^sub>A R" 
+  shows "Q \<Longrightarrow>\<^sub>A R" using assms unfolding entails_def by simp
 
 lemma ent_disjI1_direct[simp]: "A \<Longrightarrow>\<^sub>A A \<or>\<^sub>A B"
   by (simp add: entailsI or_assn_conv)  
@@ -132,6 +139,11 @@ lemma entt_disjI2_direct[simp]: "B \<Longrightarrow>\<^sub>t A \<or>\<^sub>A B"
 lemma ent_disjE: "\<lbrakk> A\<Longrightarrow>\<^sub>AC; B\<Longrightarrow>\<^sub>AC \<rbrakk> \<Longrightarrow> A\<or>\<^sub>AB \<Longrightarrow>\<^sub>AC"
   by (simp add: entails_def or_assn_conv)  
 
+lemma entt_disjD1: "A\<or>\<^sub>AB\<Longrightarrow>\<^sub>tC \<Longrightarrow> A\<Longrightarrow>\<^sub>tC"
+  using entt_disjI1_direct entt_trans by blast
+
+lemma entt_disjD2: "A\<or>\<^sub>AB\<Longrightarrow>\<^sub>tC \<Longrightarrow> B\<Longrightarrow>\<^sub>tC"
+  using entt_disjI2_direct entt_trans by blast
 
 
 subsection \<open>New command ureturn\<close>
@@ -188,6 +200,16 @@ subsection "Heap And"
 
 lemma mod_and_dist: "h\<Turnstile>P\<and>\<^sub>AQ \<longleftrightarrow> h\<Turnstile>P \<and> h\<Turnstile>Q"
   by (rule and_assn_conv) 
+
+
+lemma ent_conjI: "\<lbrakk> A\<Longrightarrow>\<^sub>AB; A\<Longrightarrow>\<^sub>AC \<rbrakk> \<Longrightarrow> A \<Longrightarrow>\<^sub>A B \<and>\<^sub>A C"  
+  unfolding entails_def by (auto simp: mod_and_dist)
+
+lemma ent_conjE1: "\<lbrakk>A\<Longrightarrow>\<^sub>AC\<rbrakk> \<Longrightarrow> A\<and>\<^sub>AB\<Longrightarrow>\<^sub>AC"
+  unfolding entails_def by (auto simp: mod_and_dist)
+lemma ent_conjE2: "\<lbrakk>B\<Longrightarrow>\<^sub>AC\<rbrakk> \<Longrightarrow> A\<and>\<^sub>AB\<Longrightarrow>\<^sub>AC"
+  unfolding entails_def by (auto simp: mod_and_dist)
+
 
 subsection {* Precision *}
 text {*
@@ -324,5 +346,99 @@ lemmas star_aci =
   merge_true_star merge_true_star_ctx
 
 
+
+lemma entt_star_mono: "\<lbrakk>entailst A B; entailst C D\<rbrakk> \<Longrightarrow> entailst (A*C) (B*D)"
+  unfolding entailst_def
+proof -
+  assume a1: "A \<Longrightarrow>\<^sub>A B * true"
+  assume "C \<Longrightarrow>\<^sub>A D * true"
+  then have "A * C \<Longrightarrow>\<^sub>A true * B * (true * D)"
+    using a1 assn_times_comm ent_star_mono by force
+  then show "A * C \<Longrightarrow>\<^sub>A B * D * true"
+    by (simp add: ab_semigroup_mult_class.mult.left_commute assn_times_comm)
+qed  
+
+
+lemma entt_emp[simp, intro!]:
+  "entailst A emp"
+  unfolding entailst_def by simp
+
+declare entails_triv [simp]
+
+lemma entt_star_true_simp[simp]:
+  "entailst A (B*true) \<longleftrightarrow> entailst A B"
+  "entailst (A*true) B \<longleftrightarrow> entailst A B"
+  unfolding entailst_def 
+  subgoal by (auto simp: assn_times_assoc)
+  subgoal
+    apply (intro iffI)
+    subgoal using entails_def mod_star_trueI by blast  
+    subgoal by (metis assn_times_assoc entails_triv ent_star_mono merge_true_star)  
+    done
+  done
+
+lemma entt_def_true: "(P\<Longrightarrow>\<^sub>tQ) \<equiv> (P*true \<Longrightarrow>\<^sub>A Q*true)"
+  unfolding entailst_def
+  apply (rule eq_reflection)
+  using entailst_def entt_star_true_simp(2) by auto  
+
+
+lemma mod_starD: "h\<Turnstile>A*B \<Longrightarrow> \<exists>h1 h2. h1\<Turnstile>A \<and> h2\<Turnstile>B" 
+  by (metis assn_ext mod_star_convE)
+    
+lemma pure_true[simp]: "\<up>True = emp" 
+  by (metis (full_types) is_pure_assnE is_pure_assn_basic_simps(2) mult.left_neutral pure_conj) 
+
+
+subsection {* Relators *} 
+  
+definition nrest_rel where 
+  nres_rel_def_internal: "nrest_rel R \<equiv> {(c,a). c \<le> \<Down>R a}"
+
+lemma nrest_rel_def: "\<langle>R\<rangle>nrest_rel \<equiv> {(c,a). c \<le> \<Down>R a}"
+  by (simp add: nres_rel_def_internal relAPP_def)
+
+lemma nrest_relD: "(c,a)\<in>\<langle>R\<rangle>nrest_rel \<Longrightarrow> c \<le>\<Down>R a" by (simp add: nrest_rel_def)
+lemma nrest_relI: "c \<le>\<Down>R a \<Longrightarrow> (c,a)\<in>\<langle>R\<rangle>nrest_rel" by (simp add: nrest_rel_def)
+
+lemma nrest_rel_comp: "\<langle>A\<rangle>nrest_rel O \<langle>B\<rangle>nrest_rel = \<langle>A O B\<rangle>nrest_rel"
+  by (auto simp: nrest_rel_def conc_fun_chain[symmetric] conc_trans)
+
+lemma pw_nrest_rel_iff: "(a,b)\<in>\<langle>A\<rangle>nrest_rel \<longleftrightarrow> nofailT (\<Down> A b) \<longrightarrow> nofailT a \<and> (\<forall>x t. inresT a x t \<longrightarrow> inresT (\<Down> A b) x t)"
+  by (simp add: pw_le_iff nrest_rel_def)
+    
+     
+
+lemma param_FAIL[param]: "(FAILT,FAILT) \<in> \<langle>R\<rangle>nrest_rel"
+  by (auto simp: nrest_rel_def)
+ 
+
+lemma param_RETURN[param]: 
+  "(RETURNT,RETURNT) \<in> R \<rightarrow> \<langle>R\<rangle>nrest_rel"
+  by (auto simp: nrest_rel_def RETURNT_refine)
+
+lemma param_bind[param]:
+  "(bindT,bindT) \<in> \<langle>Ra\<rangle>nrest_rel \<rightarrow> (Ra\<rightarrow>\<langle>Rb\<rangle>nrest_rel) \<rightarrow> \<langle>Rb\<rangle>nrest_rel"
+  by (auto simp: nrest_rel_def intro: bindT_refine dest: fun_relD)
+
+lemma ent_ex_preI: "(\<And>x. P x \<Longrightarrow>\<^sub>A Q) \<Longrightarrow> \<exists>\<^sub>Ax. P x \<Longrightarrow>\<^sub>A Q"  
+  by (meson entails_ex) 
+
+ 
+lemma entt_frame_fwd:
+  assumes "entailst P Q"
+  assumes "entailst A (P*F)"
+  assumes "entailst (Q*F) B"
+  shows "entailst A B"
+  using assms
+  by (metis entt_refl entt_star_mono entt_trans)
+
+lemma ent_frame_fwd:
+  assumes R: "P \<Longrightarrow>\<^sub>A R"
+  assumes F: "Ps \<Longrightarrow>\<^sub>A P*F"
+  assumes I: "R*F \<Longrightarrow>\<^sub>A Q"
+  shows "Ps \<Longrightarrow>\<^sub>A Q"
+  using assms
+  by (metis entails_triv ent_star_mono ent_trans)
 
 end

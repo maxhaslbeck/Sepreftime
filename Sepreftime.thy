@@ -1,6 +1,6 @@
 theory Sepreftime
-  imports   Refine_Monadic.Refine_Misc  
-  "HOL-Library.Monad_Syntax"  "HOL-Library.Extended_Nat" "Refine_Monadic.RefineG_Domain"
+  imports "HOL-Library.Extended_Nat" "Refine_Monadic.RefineG_Domain"  Refine_Monadic.Refine_Misc  
+  "HOL-Library.Monad_Syntax"  
 begin
 
 
@@ -1859,6 +1859,6 @@ abbreviation "TTT == T"
   definition le_or_fail :: "'a nrest \<Rightarrow> 'a nrest \<Rightarrow> bool" (infix "\<le>\<^sub>n" 50) where
     "m \<le>\<^sub>n m' \<equiv> nofailT m \<longrightarrow> m \<le> m'"
 
-
+hide_const T
  
 end

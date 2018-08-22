@@ -8,6 +8,7 @@ imports
   Sepref_Rules 
   Sepref_Combinator_Setup
   "Lib/User_Smashing"
+  Sepref_Additional
 begin
 
 
@@ -59,7 +60,7 @@ lemma mono_trigger: "mono_Heap F \<Longrightarrow> mono_Heap F" .
 
 text \<open>Tag to keep track of abstract bindings. 
   Required to recover information for side-condition solving.\<close>
-definition "bind_ref_tag x m \<equiv> RETURN x \<le> m"
+definition "bind_ref_tag x m \<equiv> RETURNT x \<le> m"
 
 (*
 abbreviation DEP_SIDE_PRECOND
@@ -82,7 +83,8 @@ lemma vassn_dest[dest!]:
   "vassn_tag (\<Gamma>\<^sub>1 * \<Gamma>\<^sub>2) \<Longrightarrow> vassn_tag \<Gamma>\<^sub>1 \<and> vassn_tag \<Gamma>\<^sub>2"
   "vassn_tag (hn_ctxt R a b) \<Longrightarrow> a\<in>rdom R"
   unfolding vassn_tag_def rdomp_def[abs_def]
-  by (auto simp: mod_star_conv hn_ctxt_def)
+  using mod_starD apply blast  
+  by (metis hn_ctxt_def mem_Collect_eq) 
 
 lemma entails_preI:
   assumes "vassn_tag A \<Longrightarrow> A \<Longrightarrow>\<^sub>A B"
@@ -97,7 +99,9 @@ lemma invalid_assn_const:
 lemma vassn_tag_simps[simp]: 
   "vassn_tag emp"
   "vassn_tag true"
-  by (sep_auto simp: vassn_tag_def mod_emp)+
+  apply (auto simp: vassn_tag_def  )+ 
+  apply (metis assn_ext mod_false pure_assn_eq_conv pure_true) 
+  by (meson models_in_range one_assn_rule pheap.sel(2) pheap.sel(3) top_assn_rule)  
 
 definition "GEN_ALGO f \<Phi> \<equiv> \<Phi> f"
 \<comment> \<open>Tag to synthesize @{term f} with property @{term \<Phi>}.\<close>
@@ -449,9 +453,8 @@ setup Sepref_Translate.setup
 subsubsection \<open>Basic Setup\<close>
               
 lemma hn_pass[sepref_fr_rules]:
-  shows "hn_refine (hn_ctxt P x x') (return x') (hn_invalid P x x') P (PASS$x)"
-  apply rule apply (sep_auto simp: hn_ctxt_def invalidate_clone')
-  done
+  shows "hn_refine (hn_ctxt P x x') (ureturn x') (hn_invalid P x x') P (PASS$x)"
+  using hnr_uRETURN_pass by fastforce
 
 (*lemma hn_pass_pure[sepref_fr_rules]:
   shows "hn_refine (hn_val P x x') (return x') (hn_val P x x') (pure P) (PASS$x)"
@@ -464,9 +467,10 @@ lemma hn_bind[sepref_comb_rules]:
     "\<And>x x'. bind_ref_tag x m \<Longrightarrow> 
       hn_refine (\<Gamma>1 * hn_ctxt Rh x x') (f' x') (\<Gamma>2 x x') R (f x)"
   assumes IMP: "\<And>x x'. \<Gamma>2 x x' \<Longrightarrow>\<^sub>t \<Gamma>' * hn_ctxt Rx x x'"
-  shows "hn_refine \<Gamma> (m'\<bind>f') \<Gamma>' R (Refine_Basic.bind$m$(\<lambda>\<^sub>2x. f x))"
+  shows "hn_refine \<Gamma> (m'\<bind>f') \<Gamma>' R (bindT$m$(\<lambda>\<^sub>2x. f x))"
   using assms
   unfolding APP_def PROTECT2_def bind_ref_tag_def
+  unfolding entailst_def
   by (rule hnr_bind)
 
 
@@ -509,7 +513,7 @@ definition "monadic_WHILEIT I b f s \<equiv> do {
     if bv then do {
       s \<leftarrow> f s;
       D s
-    } else do {RETURN s}
+    } else do {RETURNT s}
   }) s
 }"
 
@@ -519,7 +523,7 @@ definition "heap_WHILET b f s \<equiv> do {
     if bv then do {
       s \<leftarrow> f s;
       D s
-    } else do {return s}
+    } else do {ureturn s}
   }) s
 }"
 
@@ -530,7 +534,7 @@ lemma heap_WHILET_unfold[code]: "heap_WHILET b f s =
       s \<leftarrow> f s;
       heap_WHILET b f s
     } else
-      return s
+      ureturn s
   }"
   unfolding heap_WHILET_def
   apply (subst heap.mono_body_fixp)
@@ -540,31 +544,47 @@ lemma heap_WHILET_unfold[code]: "heap_WHILET b f s =
 
 
 
-lemma WHILEIT_to_monadic: "WHILEIT I b f s = monadic_WHILEIT I (\<lambda>s. RETURN (b s)) f s"
+definition  WHILEIT :: "('a \<Rightarrow> bool) \<Rightarrow> ('a \<Rightarrow> bool) \<Rightarrow> ('a \<Rightarrow> 'a nrest) \<Rightarrow> 'a \<Rightarrow> 'a nrest" where
+  " WHILEIT I b c = RECT (\<lambda>whileT s. (if I s then (if b s then bindT (c s) whileT else RETURNT s) else FAILT))"
+ 
+
+lemma WHILEIT_to_monadic: "WHILEIT I b f s = monadic_WHILEIT I (\<lambda>s. RETURNT (b s)) f s"
   unfolding WHILEIT_def monadic_WHILEIT_def
-  unfolding WHILEI_body_def bind_ASSERT_eq_if
-  by (simp cong: if_cong)
+  unfolding whileT_def bind_ASSERT_eq_if
+  by (simp cong: if_cong) 
+
+
+lemma whileT_I': "whileT b c s = WHILEIT (\<lambda>_. True) b c s"
+  unfolding WHILEIT_def whileT_def by simp
+
+lemma whileT_I: "whileT = WHILEIT (\<lambda>_. True) " using whileT_I' by fast
+  
+lemma Ra: "A * \<Gamma> \<Longrightarrow>\<^sub>t \<Gamma> * A"  
+  by (simp add: assn_times_comm entt_refl)  
 
 lemma WHILEIT_pat[def_pat_rules]:
   "WHILEIT$I \<equiv> UNPROTECT (WHILEIT I)"
-  "WHILET \<equiv> PR_CONST (WHILEIT (\<lambda>_. True))"
-  by (simp_all add: WHILET_def)
+  "whileT \<equiv> PR_CONST (WHILEIT (\<lambda>_. True))"
+  by (simp_all add: whileT_I)
 
 lemma id_WHILEIT[id_rules]: 
-  "PR_CONST (WHILEIT I) ::\<^sub>i TYPE(('a \<Rightarrow> bool) \<Rightarrow> ('a \<Rightarrow> 'a nres) \<Rightarrow> 'a \<Rightarrow> 'a nres)"
+  "PR_CONST (WHILEIT I) ::\<^sub>i TYPE(('a \<Rightarrow> bool) \<Rightarrow> ('a \<Rightarrow> 'a nrest) \<Rightarrow> 'a \<Rightarrow> 'a nrest)"
   by simp
 
 lemma WHILE_arities[sepref_monadify_arity]:
   (*"WHILET \<equiv> WHILEIT$(\<lambda>\<^sub>2_. True)"*)
   "PR_CONST (WHILEIT I) \<equiv> \<lambda>\<^sub>2b f s. SP (PR_CONST (WHILEIT I))$(\<lambda>\<^sub>2s. b$s)$(\<lambda>\<^sub>2s. f$s)$s"
-  by (simp_all add: WHILET_def)
+  by (simp_all add: whileT_I)
 
 lemma WHILEIT_comb[sepref_monadify_comb]:
   "PR_CONST (WHILEIT I)$(\<lambda>\<^sub>2x. b x)$f$s \<equiv> 
-    Refine_Basic.bind$(EVAL$s)$(\<lambda>\<^sub>2s. 
+    bindT$(EVAL$s)$(\<lambda>\<^sub>2s. 
       SP (PR_CONST (monadic_WHILEIT I))$(\<lambda>\<^sub>2x. (EVAL$(b x)))$f$s
     )"
   by (simp_all add: WHILEIT_to_monadic)
+
+
+
 
 lemma hn_monadic_WHILE_aux:
   assumes FR: "P \<Longrightarrow>\<^sub>t \<Gamma> * hn_ctxt Rs s' s"
@@ -599,46 +619,56 @@ lemma hn_monadic_WHILE_aux:
       solved  
 
       focus (rule hnr_If)
-        applyS (sep_auto; fail)
+        applyS (rule entt_refl)
         focus (rule hnr_bind)
           focus (rule hn_refine_cons[OF _ f_ref f_fr entt_refl])
-            apply (sep_auto simp: hn_ctxt_def pure_def intro!: enttI; fail)
+            subgoal unfolding entailst_def 
+              using ent_star_mono entails_triv entails_true by blast 
             apply assumption
           solved
       
-          focus (rule hn_refine_frame)
+          focus (rule hnr_frame)
             applyS rprems
-            applyS (rule enttI; solve_entails)
+            apply  (rule enttI)
+            apply(simp add: mult_ac ) 
+              apply rotater 
+              apply(rule match_first)
+              apply(rule match_first)
+              apply(rule match_rest) apply simp 
           solved
-  
-          apply (sep_auto intro!: enttI; fail)
-        solved  
-        applyF (sep_auto,rule hn_refine_frame)
-          applyS (rule hnr_RETURN_pass)
+          
+          apply rotatel apply rotatel apply rotater
+              apply(rule match_first)  apply rotater
+              apply(rule match_rest) apply simp
+            solved   
+        applyF (auto,rule hnr_frame)
+          applyS (rule hnr_uRETURN_pass)
           (*apply (tactic {* Sepref_Frame.frame_tac @{context} 1*})*)
           apply (rule enttI)
-          apply (fr_rot_rhs 1)
-          apply (fr_rot 1, rule fr_refl)
-          apply (rule fr_refl)
-          apply solve_entails
+          apply rotatel  apply rotater  
+              apply(rule match_first) apply rotater 
+              apply(rule match_rest) apply simp
         solved
 
         apply (rule entt_refl)
       solved  
 
-      apply (rule enttI)
-      applyF (rule ent_disjE)
-        apply1 (sep_auto simp: hn_ctxt_def pure_def)
-        apply1 (rule ent_true_drop)
-        apply1 (rule ent_true_drop)
-        applyS (rule ent_refl)
-        
-        applyS (sep_auto simp: hn_ctxt_def pure_def)
+            applyF (rule ent_disjE) apply(simp only: hn_ctxt_def)
+             apply rotatel apply (rule match_first) apply rotater 
+             apply (rule match_rest) apply simp 
+
+            apply(simp only: hn_ctxt_def)
+
+        apply1 (rule ent_true_drop) apply rotatel 
+        apply1 (rule match_first) 
+             
+            apply simp
+         
       solved    
     solved
     apply pf_mono
   solved
-  done
+  done  
 
 lemma hn_monadic_WHILE_lin[sepref_comb_rules]:
   assumes "INDEP Rs"
@@ -668,38 +698,40 @@ lemma hn_monadic_WHILE_lin[sepref_comb_rules]:
   unfolding APP_def PROTECT2_def CONSTRAINT_def PR_CONST_def
   by (rule hn_monadic_WHILE_aux)
 
-lemma monadic_WHILEIT_refine[refine]:  
-  assumes [refine]: "(s',s) \<in> R"
-  assumes [refine]: "\<And>s' s. \<lbrakk> (s',s)\<in>R; I s \<rbrakk> \<Longrightarrow> I' s'"  
-  assumes [refine]: "\<And>s' s. \<lbrakk> (s',s)\<in>R; I s; I' s' \<rbrakk> \<Longrightarrow> b' s' \<le>\<Down>bool_rel (b s)"
-  assumes [refine]: "\<And>s' s. \<lbrakk> (s',s)\<in>R; I s; I' s'; nofail (b s); inres (b s) True \<rbrakk> \<Longrightarrow> f' s' \<le>\<Down>R (f s)"
+lemma monadic_WHILEIT_refine:  
+  assumes  "(s',s) \<in> R"
+  assumes  "\<And>s' s. \<lbrakk> (s',s)\<in>R; I s \<rbrakk> \<Longrightarrow> I' s'"  
+  assumes  "\<And>s' s. \<lbrakk> (s',s)\<in>R; I s; I' s' \<rbrakk> \<Longrightarrow> b' s' \<le>\<Down>bool_rel (b s)"
+  assumes  "\<And>s' s. \<lbrakk> (s',s)\<in>R; I s; I' s'; nofailT (b s); (\<exists>t. inresT (b s) True t) \<rbrakk> \<Longrightarrow> f' s' \<le>\<Down>R (f s)"
   shows "monadic_WHILEIT I' b' f' s' \<le>\<Down>R (monadic_WHILEIT I b f s)"
-  unfolding monadic_WHILEIT_def
-  by (refine_rcg bind_refine'; assumption?; auto)
+  unfolding monadic_WHILEIT_def (*
+  apply (auto simp: bindT_refine')
+  apply (assumption?; auto) *) sorry
   
-lemma monadic_WHILEIT_refine_WHILEIT[refine]:  
-  assumes [refine]: "(s',s) \<in> R"
-  assumes [refine]: "\<And>s' s. \<lbrakk> (s',s)\<in>R; I s \<rbrakk> \<Longrightarrow> I' s'"  
-  assumes [THEN order_trans,refine_vcg]: "\<And>s' s. \<lbrakk> (s',s)\<in>R; I s; I' s' \<rbrakk> \<Longrightarrow> b' s' \<le> SPEC (\<lambda>r. r = b s)"
-  assumes [refine]: "\<And>s' s. \<lbrakk> (s',s)\<in>R; I s; I' s'; b s \<rbrakk> \<Longrightarrow> f' s' \<le>\<Down>R (f s)"
+(* lemma monadic_WHILEIT_refine_WHILEIT:  
+  assumes "(s',s) \<in> R"
+  assumes "\<And>s' s. \<lbrakk> (s',s)\<in>R; I s \<rbrakk> \<Longrightarrow> I' s'"  
+  assumes [THEN order_trans]: "\<And>s' s. \<lbrakk> (s',s)\<in>R; I s; I' s' \<rbrakk> \<Longrightarrow> b' s' \<le> SPEC (\<lambda>r. r = b s)"
+  assumes "\<And>s' s. \<lbrakk> (s',s)\<in>R; I s; I' s'; b s \<rbrakk> \<Longrightarrow> f' s' \<le>\<Down>R (f s)"
   shows "monadic_WHILEIT I' b' f' s' \<le>\<Down>R (WHILEIT I b f s)"
   unfolding WHILEIT_to_monadic
-  by (refine_vcg; assumption?; auto)
-  
-lemma monadic_WHILEIT_refine_WHILET[refine]:  
-  assumes [refine]: "(s',s) \<in> R"
-  assumes [THEN order_trans,refine_vcg]: "\<And>s' s. \<lbrakk> (s',s)\<in>R \<rbrakk> \<Longrightarrow> b' s' \<le> SPEC (\<lambda>r. r = b s)"
-  assumes [refine]: "\<And>s' s. \<lbrakk> (s',s)\<in>R; b s \<rbrakk> \<Longrightarrow> f' s' \<le>\<Down>R (f s)"
+  by (refine_vcg; assumption?; auto) *)
+
+(*
+lemma monadic_WHILEIT_refine_WHILET:  
+  assumes "(s',s) \<in> R"
+  assumes [THEN order_trans]: "\<And>s' s. \<lbrakk> (s',s)\<in>R \<rbrakk> \<Longrightarrow> b' s' \<le> SPEC (\<lambda>r. r = b s)"
+  assumes  "\<And>s' s. \<lbrakk> (s',s)\<in>R; b s \<rbrakk> \<Longrightarrow> f' s' \<le>\<Down>R (f s)"
   shows "monadic_WHILEIT (\<lambda>_. True) b' f' s' \<le>\<Down>R (WHILET b f s)"
   unfolding WHILET_def
-  by (refine_vcg; assumption?)  
+  by (refine_vcg; assumption?)  *)
 
 lemma monadic_WHILEIT_pat[def_pat_rules]:
   "monadic_WHILEIT$I \<equiv> UNPROTECT (monadic_WHILEIT I)"
   by auto  
     
 lemma id_monadic_WHILEIT[id_rules]: 
-  "PR_CONST (monadic_WHILEIT I) ::\<^sub>i TYPE(('a \<Rightarrow> bool nres) \<Rightarrow> ('a \<Rightarrow> 'a nres) \<Rightarrow> 'a \<Rightarrow> 'a nres)"
+  "PR_CONST (monadic_WHILEIT I) ::\<^sub>i TYPE(('a \<Rightarrow> bool nrest) \<Rightarrow> ('a \<Rightarrow> 'a nrest) \<Rightarrow> 'a \<Rightarrow> 'a nrest)"
   by simp
     
 lemma monadic_WHILEIT_arities[sepref_monadify_arity]:
@@ -708,20 +740,20 @@ lemma monadic_WHILEIT_arities[sepref_monadify_arity]:
 
 lemma monadic_WHILEIT_comb[sepref_monadify_comb]:
   "PR_CONST (monadic_WHILEIT I)$b$f$s \<equiv> 
-    Refine_Basic.bind$(EVAL$s)$(\<lambda>\<^sub>2s. 
+    bindT$(EVAL$s)$(\<lambda>\<^sub>2s. 
       SP (PR_CONST (monadic_WHILEIT I))$b$f$s
     )"
   by (simp)
     
     
-definition [simp]: "op_ASSERT_bind I m \<equiv> Refine_Basic.bind (ASSERT I) (\<lambda>_. m)"
+definition [simp]: "op_ASSERT_bind I m \<equiv> bindT (ASSERT I) (\<lambda>_. m)"
 lemma pat_ASSERT_bind[def_pat_rules]:
-  "Refine_Basic.bind$(ASSERT$I)$(\<lambda>\<^sub>2_. m) \<equiv> UNPROTECT (op_ASSERT_bind I)$m"
+  "bindT$(ASSERT$I)$(\<lambda>\<^sub>2_. m) \<equiv> UNPROTECT (op_ASSERT_bind I)$m"
   by simp
 
 term "PR_CONST (op_ASSERT_bind I)"
 lemma id_op_ASSERT_bind[id_rules]: 
-  "PR_CONST (op_ASSERT_bind I) ::\<^sub>i TYPE('a nres \<Rightarrow> 'a nres)"
+  "PR_CONST (op_ASSERT_bind I) ::\<^sub>i TYPE('a nrest \<Rightarrow> 'a nrest)"
   by simp
 
 lemma arity_ASSERT_bind[sepref_monadify_arity]:
@@ -736,10 +768,10 @@ lemma hn_ASSERT_bind[sepref_comb_rules]:
   apply (cases I)
   apply auto
   done
-
-definition [simp]: "op_ASSUME_bind I m \<equiv> Refine_Basic.bind (ASSUME I) (\<lambda>_. m)"
+(*
+definition [simp]: "op_ASSUME_bind I m \<equiv> bindT (ASSUME I) (\<lambda>_. m)"
 lemma pat_ASSUME_bind[def_pat_rules]:
-  "Refine_Basic.bind$(ASSUME$I)$(\<lambda>\<^sub>2_. m) \<equiv> UNPROTECT (op_ASSUME_bind I)$m"
+  "bindT$(ASSUME$I)$(\<lambda>\<^sub>2_. m) \<equiv> UNPROTECT (op_ASSUME_bind I)$m"
   by simp
 
 lemma id_op_ASSUME_bind[id_rules]: 
@@ -759,21 +791,21 @@ lemma hn_ASSUME_bind[sepref_comb_rules]:
   using assms
   apply (cases I)
   apply (auto simp: vassn_tag_def)
-  done
+  done*)
     
     
 subsection "Import of Parametricity Theorems"
 lemma pure_hn_refineI:
   assumes "Q \<longrightarrow> (c,a)\<in>R"
-  shows "hn_refine (\<up>Q) (return c) (\<up>Q) (pure R) (RETURN a)"
+  shows "hn_refine (\<up>Q) (ureturn c) (\<up>Q) (pure R) (RETURNT a)"
   unfolding hn_refine_def using assms
-  by (sep_auto simp: pure_def)
+  apply (auto simp: pure_def) sorry
 
 lemma pure_hn_refineI_no_asm:
   assumes "(c,a)\<in>R"
-  shows "hn_refine emp (return c) emp (pure R) (RETURN a)"
+  shows "hn_refine emp (ureturn c) emp (pure R) (RETURNT a)"
   unfolding hn_refine_def using assms
-  by (sep_auto simp: pure_def)
+  apply (auto simp: pure_def) sorry
 
 lemma import_param_0:
   "(P\<Longrightarrow>Q) \<equiv> Trueprop (PROTECT P \<longrightarrow> Q)"
@@ -907,12 +939,14 @@ lemma import_rel2_pure_conv: "import_rel2 R (pure A) (pure B) = pure (\<langle>A
 
 lemma precise_pure[constraint_rules]: "single_valued R \<Longrightarrow> precise (pure R)"
   unfolding precise_def pure_def
-  by (auto dest: single_valuedD)
+  apply (auto dest: single_valuedD) 
+  using and_assn_conv assn_times_comm single_valuedD by fastforce 
 
 lemma precise_pure_iff_sv: "precise (pure R) \<longleftrightarrow> single_valued R"          
   apply (auto simp: precise_pure)
   using preciseD[where R="pure R" and F=emp and F'=emp]
-  by (sep_auto simp: mod_and_dist intro: single_valuedI)
+  apply (auto simp: mod_and_dist intro: single_valuedI) 
+  by (smt ab_semigroup_mult_class.mult_ac(1) entailsD entails_pure entt_refl' hn_ctxt_def hn_val_unfold move_back_pure preciseD' single_valuedI vassn_tag_def vassn_tag_simps(2)) 
 
 lemma pure_precise_iff_sv: "\<lbrakk>is_pure R\<rbrakk> 
   \<Longrightarrow> precise R \<longleftrightarrow> single_valued (the_pure R)"

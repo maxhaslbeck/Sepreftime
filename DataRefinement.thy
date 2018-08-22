@@ -351,4 +351,31 @@ lemma conc_trans_additional[trans]:
 
 
 
+lemma RETURNT_refine:
+  assumes "(x,x')\<in>R"
+  shows "RETURNT x \<le> \<Down>R (RETURNT x')"
+  using assms
+  by (auto simp: RETURNT_def conc_fun_RES le_fun_def Sup_upper)  
+
+
+lemma bindT_refine':
+  fixes R' :: "('a\<times>'b) set" and R::"('c\<times>'d) set"
+  assumes R1: "M \<le> \<Down> R' M'"
+  assumes R2: "\<And>x x' t . \<lbrakk> (x,x')\<in>R'; inresT M x t; inresT M' x' t;
+    nofailT M; nofailT M'
+  \<rbrakk> \<Longrightarrow> f x \<le> \<Down> R (f' x')"
+  shows "bindT M (\<lambda>x. f x) \<le> \<Down> R (bindT M' (\<lambda>x'. f' x'))"
+  using assms
+  apply (simp add: pw_le_iff refine_pw_simps)  
+  by blast
+
+lemma bindT_refine:
+  fixes R' :: "('a\<times>'b) set" and R::"('c\<times>'d) set"
+  assumes R1: "M \<le> \<Down> R' M'"
+  assumes R2: "\<And>x x'. \<lbrakk> (x,x')\<in>R' \<rbrakk> 
+    \<Longrightarrow> f x \<le> \<Down> R (f' x')"
+  shows "bindT M (\<lambda>x. f x) \<le> \<Down> R (bind M' (\<lambda>x'. f' x'))"
+  apply (rule bindT_refine') using assms by auto
+
+
 end

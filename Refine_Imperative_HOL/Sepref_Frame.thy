@@ -23,7 +23,7 @@ definition mismatch_assn :: "('a \<Rightarrow> 'c \<Rightarrow> assn) \<Rightarr
 abbreviation "hn_mismatch R1 R2 \<equiv> hn_ctxt (mismatch_assn R1 R2)"
 
 lemma recover_pure_aux: "CONSTRAINT is_pure R \<Longrightarrow> hn_invalid R x y \<Longrightarrow>\<^sub>t hn_ctxt R x y"
-  by (auto simp: is_pure_conv invalid_pure_recover hn_ctxt_def)
+  (* by (auto simp: is_pure_conv invalid_pure_recover hn_ctxt_def) *) sorry
 
 
 
@@ -39,10 +39,11 @@ lemma frame_thms:
   subgoal
     apply (simp add: hn_ctxt_def)
     apply (rule enttI)
-    apply (rule ent_trans[OF invalidate[of R]])
-    by solve_entails
-  applyS (sep_auto simp: hn_ctxt_def)  
-  applyS (erule recover_pure_aux)
+    apply (rule ent_trans[OF invalidate[of R]])  
+    by (simp add: entt_refl') 
+  subgoal
+    by (auto simp: hn_ctxt_def entailst_def)  
+  apply (erule recover_pure_aux)
   done
 
 named_theorems_rev sepref_frame_match_rules \<open>Sepref: Additional frame rules\<close>
@@ -78,7 +79,7 @@ proof -
   assume a1: "A \<or>\<^sub>A C \<Longrightarrow>\<^sub>t E"
   assume "B \<or>\<^sub>A D \<Longrightarrow>\<^sub>t F"
   then have "A * B \<or>\<^sub>A C * D \<Longrightarrow>\<^sub>A true * E * (true * F)"
-    using a1 by (simp add: ent_disj_star_mono enttD)
+    using a1 by (simp add: assn_times_comm ent_disj_star_mono enttD)       
   then show ?thesis
     by (metis (no_types) assn_times_comm enttI merge_true_star_ctx star_aci(3))
 qed
@@ -90,19 +91,22 @@ lemma hn_merge1:
   "F \<or>\<^sub>A F \<Longrightarrow>\<^sub>t F"
   "\<lbrakk> hn_ctxt R1 x x' \<or>\<^sub>A hn_ctxt R2 x x' \<Longrightarrow>\<^sub>t hn_ctxt R x x'; Fl \<or>\<^sub>A Fr \<Longrightarrow>\<^sub>t F \<rbrakk> 
     \<Longrightarrow> Fl * hn_ctxt R1 x x' \<or>\<^sub>A Fr * hn_ctxt R2 x x' \<Longrightarrow>\<^sub>t F * hn_ctxt R x x'"
-  apply simp
+  subgoal by (simp add: ent_disjE enttI entt_refl')  
   by (rule entt_disj_star_mono; simp)
 
 lemma hn_merge2:
   "hn_invalid R x x' \<or>\<^sub>A hn_ctxt R x x' \<Longrightarrow>\<^sub>t hn_invalid R x x'"
   "hn_ctxt R x x' \<or>\<^sub>A hn_invalid R x x' \<Longrightarrow>\<^sub>t hn_invalid R x x'"
-  by (sep_auto eintros: invalidate ent_disjE intro!: ent_imp_entt simp: hn_ctxt_def)+
+  by (auto intro!: invalidate ent_disjE ent_imp_entt simp: hn_ctxt_def)+
 
 lemma invalid_assn_mono: "hn_ctxt A x y \<Longrightarrow>\<^sub>t hn_ctxt B x y 
   \<Longrightarrow> hn_invalid A x y \<Longrightarrow>\<^sub>t hn_invalid B x y"
-  by (clarsimp simp: invalid_assn_def entailst_def entails_def hn_ctxt_def)
-      (force simp: mod_star_conv)
+  apply (clarsimp simp: invalid_assn_def entailst_def entails_def hn_ctxt_def)
+  by (metis ent_iffI entails_def entails_pure entt_refl' move_back_pure)
 
+
+lemma entt_disjE: "\<lbrakk> A\<Longrightarrow>\<^sub>tM; B\<Longrightarrow>\<^sub>tM \<rbrakk> \<Longrightarrow> A\<or>\<^sub>AB \<Longrightarrow>\<^sub>t M"
+  using ent_disjE enttD enttI by blast  
 lemma hn_merge3: (* Not used *)
   "\<lbrakk>NO_MATCH (hn_invalid XX) R2; hn_ctxt R1 x x' \<or>\<^sub>A hn_ctxt R2 x x' \<Longrightarrow>\<^sub>t hn_ctxt Rm x x'\<rbrakk> \<Longrightarrow> hn_invalid R1 x x' \<or>\<^sub>A hn_ctxt R2 x x' \<Longrightarrow>\<^sub>t hn_invalid Rm x x'"
   "\<lbrakk>NO_MATCH (hn_invalid XX) R1; hn_ctxt R1 x x' \<or>\<^sub>A hn_ctxt R2 x x' \<Longrightarrow>\<^sub>t hn_ctxt Rm x x'\<rbrakk> \<Longrightarrow> hn_ctxt R1 x x' \<or>\<^sub>A hn_invalid R2 x x' \<Longrightarrow>\<^sub>t hn_invalid Rm x x'"
@@ -116,7 +120,7 @@ named_theorems sepref_frame_merge_rules \<open>Sepref: Additional merge rules\<c
 
 
 lemma hn_merge_mismatch: "hn_ctxt R1 x x' \<or>\<^sub>A hn_ctxt R2 x x' \<Longrightarrow>\<^sub>t hn_mismatch R1 R2 x x'"
-  by (sep_auto simp: hn_ctxt_def mismatch_assn_def)
+  by (auto simp: hn_ctxt_def mismatch_assn_def)
 
 lemma is_merge: "P1\<or>\<^sub>AP2\<Longrightarrow>\<^sub>tP \<Longrightarrow> P1\<or>\<^sub>AP2\<Longrightarrow>\<^sub>tP" .
 
@@ -143,15 +147,15 @@ lemma recover_pure:
   "CONSTRAINT is_pure R \<Longrightarrow> RECOVER_PURE (hn_invalid R x y) (hn_ctxt R x y)"
   "RECOVER_PURE (hn_ctxt R x y) (hn_ctxt R x y)"
   unfolding RECOVER_PURE_def
-  subgoal by sep_auto
+  subgoal by auto
   subgoal by (drule (1) entt_star_mono)
   subgoal by (rule recover_pure_aux)
-  subgoal by sep_auto
+  subgoal by auto
   done
   
 lemma recover_pure_triv: 
   "RECOVER_PURE P P"
-  unfolding RECOVER_PURE_def by sep_auto
+  unfolding RECOVER_PURE_def by auto
 
 
 text \<open>Weakening the postcondition by converting @{const invalid_assn} to @{term "\<lambda>_ _. true"}\<close>
@@ -168,7 +172,7 @@ lemma weaken_hnr_postI:
 
 lemma weaken_hnr_post_triv: "WEAKEN_HNR_POST \<Gamma> P P"
   unfolding WEAKEN_HNR_POST_def
-  by sep_auto
+  by auto
 
 lemma weaken_hnr_post:
   "\<lbrakk>WEAKEN_HNR_POST \<Gamma> P P'; WEAKEN_HNR_POST \<Gamma>' Q Q'\<rbrakk> \<Longrightarrow> WEAKEN_HNR_POST (\<Gamma>*\<Gamma>') (P*Q) (P'*Q')"
@@ -178,16 +182,20 @@ proof (goal_cases)
   case 1 thus ?case
     unfolding WEAKEN_HNR_POST_def
     apply clarsimp
-    apply (rule entt_star_mono) 
-    by (auto simp: mod_star_conv)
+    apply (rule entt_star_mono)     
+    apply (auto)  
+    subgoal using entailsD' entails_def mod_false' by blast  
+    subgoal using entailsD' entails_def mod_false' by blast
+    subgoal using entailsD' entails_def mod_false' by blast 
+    subgoal by (metis assn_times_comm entailsD' entails_def mod_false') 
+    done
 next
   case 2 thus ?case by (rule weaken_hnr_post_triv)
 next
   case 3 thus ?case 
     unfolding WEAKEN_HNR_POST_def 
-    by (sep_auto simp: invalid_assn_def hn_ctxt_def)
+    by (auto simp: invalid_assn_def hn_ctxt_def)
 qed
-
 
 
 lemma reorder_enttI:
@@ -526,6 +534,7 @@ setup Sepref_Frame.setup
 
 method_setup weaken_hnr_post = \<open>Scan.succeed (fn ctxt => SIMPLE_METHOD' (Sepref_Frame.weaken_post_tac ctxt))\<close>
   \<open>Convert "hn_invalid" to "hn_ctxt (\<lambda>_ _. true)" in postcondition of hn_refine goal\<close>
+
 
 (* TODO: Improper, modifies all h\<Turnstile>_ premises that happen to be there. Use tagging to protect! *)
 method extract_hnr_invalids = (

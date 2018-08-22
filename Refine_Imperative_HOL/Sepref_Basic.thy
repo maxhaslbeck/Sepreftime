@@ -182,13 +182,13 @@ text {* Predicate that expresses refinement. Given a heap
   @{text "\<Gamma>"}, program @{text "c"} produces a heap @{text "\<Gamma>'"} and
   a concrete result that is related with predicate @{text "R"} to some
   abstract result from @{text "m"}*}
-definition "\<And>T. hn_refine \<Gamma> c \<Gamma>' R m \<equiv> nofailT m \<longrightarrow> 
+definition "hn_refine \<Gamma> c \<Gamma>' R m \<equiv> nofailT m \<longrightarrow> 
     (\<forall>h as  n   M. pHeap h as n \<Turnstile> \<Gamma>  \<longrightarrow> m = REST M \<longrightarrow>
     (\<exists>h' t r. execute c h = Some (r, h', t) \<and>
-       (\<exists>ra Ca. M ra \<ge> Some Ca  \<and> n+Ca\<ge>t
+       (\<exists>ra (Ca::nat). M ra \<ge> Some (enat Ca)  \<and> n+Ca\<ge>t
            \<and> pHeap h' (new_addrs h as h') ((n+Ca)-t) \<Turnstile> \<Gamma>' * R ra r * true
           )
-       \<and> relH {a . a < lim h \<and> a \<notin> as} h h' \<and> lim h \<le> lim h'))" 
+       \<and> relH {a . a < Heap.lim h \<and> a \<notin> as} h h' \<and> Heap.lim h \<le> Heap.lim h'))" 
 
 (*
 (* TODO: Can we change the patterns of assn_simproc to add this pattern? *)
@@ -578,6 +578,18 @@ lemma ASSERT_False[simp]: "ASSERT False = FAILT"
 lemma bind_ASSERT_eq_if: "do { ASSERT \<Phi>; m } = (if \<Phi> then m else FAILT)"
   unfolding ASSERT_def iASSERT_def by simp
 
+lemma pw_ASSERT[refine_pw_simps]:
+  "nofailT (ASSERT \<Phi>) \<longleftrightarrow> \<Phi>"
+  "inresT (ASSERT \<Phi>) x 0"
+  by (cases \<Phi>, simp_all)+
+
+
+lemma param_ASSERT_bind[param]: "\<lbrakk> 
+    (\<Phi>,\<Psi>) \<in> bool_rel; 
+    \<lbrakk> \<Phi>; \<Psi> \<rbrakk> \<Longrightarrow> (f,g)\<in>\<langle>R\<rangle>nrest_rel
+  \<rbrakk> \<Longrightarrow> (ASSERT \<Phi> \<then> f, ASSERT \<Psi> \<then> g) \<in> \<langle>R\<rangle>nrest_rel"
+  by (auto intro: nrest_relI)
+
 lemma hnr_ASSERT:
   assumes "\<Phi> \<Longrightarrow> hn_refine \<Gamma> c \<Gamma>' R c'"
   shows "hn_refine \<Gamma> c \<Gamma>' R (do { ASSERT \<Phi>; c'})"
@@ -646,7 +658,7 @@ proof (goal_cases)
     using a models_in_range[OF Fr'] hl2
     by (auto simp: in_range.simps new_addrs_def)
 
-  have k: "{a. a < lim h' \<and> a \<notin> (new_addrs h as h')} \<subseteq> {a. a < lim h' \<and> a \<notin> as1}"
+  have k: "{a. a < Heap.lim h' \<and> a \<notin> (new_addrs h as h')} \<subseteq> {a. a < Heap.lim h' \<and> a \<notin> as1}"
     using uni  by auto
   have relH2: "relH {a. a < heap.lim h' \<and> a \<notin> (new_addrs h as h')} h' h''" 
     by(rule relH_subset[OF relH2' k])
@@ -716,11 +728,11 @@ proof (goal_cases)
       show "t + t' \<le> n + (Ca + Ca')" using n t t' by simp
     qed 
     note relH1
-    also have "relH {a. a < lim h \<and> a \<notin> as} h' h''"
+    also have "relH {a. a < Heap.lim h \<and> a \<notin> as} h' h''"
       apply (rule relH_subset[OF relH2])
       using hl1 hl2
       by (auto simp: new_addrs_def) 
-    finally show "relH {a. a < lim h \<and> a \<notin> as} h h''" . 
+    finally show "relH {a. a < Heap.lim h \<and> a \<notin> as} h h''" . 
     show "heap.lim h \<le> heap.lim h'' "
       using hl1 hl2 by simp
   qed   

@@ -237,16 +237,16 @@ ML \<open>
       val T = Logic.dest_type tyt
       val (argsT,resT) = strip_type T
 
-      val _ = forall (all_tcons_of (fn tn => tn <> @{type_name nres})) argsT 
+      val _ = forall (all_tcons_of (fn tn => tn <> @{type_name nrest})) argsT 
         orelse raise TYPE (
           "Arguments contain nres-type "  
         ^ "(currently not supported by this attribute)",
         argsT,[c,tyt])
 
       val kind = case resT of  
-        Type (@{type_name nres},_) => COMB
+        Type (@{type_name nrest},_) => COMB
       | T => let
-          val _ = all_tcons_of (fn tn => tn <> @{type_name nres}) T 
+          val _ = all_tcons_of (fn tn => tn <> @{type_name nrest}) T 
             orelse raise TYPE (
               "Result contains inner nres-type",
             argsT,[c,tyt])

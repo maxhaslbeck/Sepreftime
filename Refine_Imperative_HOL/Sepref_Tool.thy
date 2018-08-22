@@ -1,6 +1,6 @@
 section \<open>Sepref Tool\<close>
 theory Sepref_Tool
-imports Sepref_Translate Sepref_Definition Sepref_Combinator_Setup Sepref_Intf_Util
+imports Sepref_Translate (* Sepref_Definition *) Sepref_Combinator_Setup Sepref_Intf_Util
 begin
 
 text \<open>In this theory, we set up the sepref tool.\<close>
@@ -147,7 +147,7 @@ method_setup sepref_dbg_keep = \<open>Scan.succeed (fn ctxt => let
   \<open>Automatic refinement to Imperative/HOL, debug mode\<close>
 
 subsubsection \<open>Default Optimizer Setup\<close>
-lemma return_bind_eq_let: "do { x\<leftarrow>return v; f x } = do { let x=v; f x }" by simp
+lemma return_bind_eq_let: "do { x\<leftarrow>ureturn v; f x } = do { let x=v; f x }" by simp
 lemmas [sepref_opt_simps] = return_bind_eq_let bind_return bind_bind id_def
 
 text \<open>We allow the synthesized function to contain tagged function applications.
@@ -302,7 +302,7 @@ method_setup sepref_to_hoare = \<open>
     in
       Sepref.preproc_tac ctxt 
       THEN' Sepref_Frame.weaken_post_tac ctxt 
-      THEN' resolve_tac ctxt @{thms hn_refineI}
+   (*   THEN' resolve_tac ctxt @{thms hn_refineI} *)
       THEN' asm_full_simp_tac ss
     end  
   in
@@ -319,8 +319,9 @@ sepref_register COPY
 
 text \<open>Copy is treated as normal operator, and one can just declare rules for it! \<close>
 lemma hnr_pure_COPY[sepref_fr_rules]:
-  "CONSTRAINT is_pure R \<Longrightarrow> (return, RETURN o COPY) \<in> R\<^sup>k \<rightarrow>\<^sub>a R"
-  by (sep_auto simp: is_pure_conv pure_def intro!: hfrefI hn_refineI)
+  "CONSTRAINT is_pure R \<Longrightarrow> (ureturn, RETURNT o COPY) \<in> R\<^sup>k \<rightarrow>\<^sub>a R"
+  apply (auto simp: is_pure_conv pure_def intro!: hfrefI  )
+  unfolding hn_refine_def sorry
 
 
 subsubsection \<open>Short-Circuit Boolean Evaluation\<close>
@@ -360,15 +361,11 @@ subsubsection \<open>Precision Proofs\<close>
     unfolding prec_spec_def 
     by (auto simp: mod_and_dist mod_star_trueI)
 
-  lemma prec_split1_aux: "A*B*true \<Longrightarrow>\<^sub>A A*true"
-    apply (fr_rot 2, fr_rot_rhs 1)
-    apply (rule ent_star_mono)
-    by simp_all
+  lemma prec_split1_aux: "A*B*true \<Longrightarrow>\<^sub>A A*true" 
+    by (simp add: ent_true_drop(1) entt_refl')
 
   lemma prec_split2_aux: "A*B*true \<Longrightarrow>\<^sub>A B*true"
-    apply (fr_rot 1, fr_rot_rhs 1)
-    apply (rule ent_star_mono)
-    by simp_all
+    by (simp add: ent_true_drop(1) ent_true_drop_fst entt_refl') 
 
   lemma prec_spec_splitE: 
     assumes "prec_spec h (A*B) (C*D)"  
@@ -435,7 +432,7 @@ subsubsection \<open>Precision Proofs\<close>
     then have "A \<or>\<^sub>A B \<Longrightarrow>\<^sub>A D * true"
       using a1 by (meson ent_disjI1_direct ent_frame_fwd enttD entt_def_true)
     then show ?thesis
-      using a1 by (metis (no_types) Assertions.ent_disjI2 ent_disjE enttD enttI semigroup.assoc sup.semigroup_axioms)
+      using a1  by (meson ent_disjI1 entailst_def entt_disjD2 entt_disjE)
   qed
     
     
