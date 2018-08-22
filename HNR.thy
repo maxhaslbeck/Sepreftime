@@ -13,7 +13,7 @@ definition "\<And>T. hn_refine \<Gamma> c \<Gamma>' R m \<equiv> nofailT m \<lon
        (\<exists>ra Ca. M ra \<ge> Some Ca  \<and> n+Ca\<ge>t
            \<and> pHeap h' (new_addrs h as h') ((n+Ca)-t) \<Turnstile> \<Gamma>' * R ra r * true
           )
-       \<and> relH {a . a < lim h \<and> a \<notin> as} h h' \<and> lim h \<le> lim h'))"    
+       \<and> relH {a . a < Heap.lim h \<and> a \<notin> as} h h' \<and> Heap.lim h \<le> Heap.lim h'))"    
 
 subsection "easy rules"
 
@@ -419,7 +419,7 @@ proof (goal_cases)
     using a models_in_range[OF Fr'] hl2
     by (auto simp: in_range.simps new_addrs_def)
 
-  have k: "{a. a < lim h' \<and> a \<notin> (new_addrs h as h')} \<subseteq> {a. a < lim h' \<and> a \<notin> as1}"
+  have k: "{a. a < Heap.lim h' \<and> a \<notin> (new_addrs h as h')} \<subseteq> {a. a < Heap.lim h' \<and> a \<notin> as1}"
     using uni  by auto
   have relH2: "relH {a. a < heap.lim h' \<and> a \<notin> (new_addrs h as h')} h' h''" 
     by(rule relH_subset[OF relH2' k])
@@ -489,11 +489,11 @@ proof (goal_cases)
       show "t + t' \<le> n + (Ca + Ca')" using n t t' by simp
     qed 
     note relH1
-    also have "relH {a. a < lim h \<and> a \<notin> as} h' h''"
+    also have "relH {a. a < Heap.lim h \<and> a \<notin> as} h' h''"
       apply (rule relH_subset[OF relH2])
       using hl1 hl2
       by (auto simp: new_addrs_def) 
-    finally show "relH {a. a < lim h \<and> a \<notin> as} h h''" . 
+    finally show "relH {a. a < Heap.lim h \<and> a \<notin> as} h h''" . 
     show "heap.lim h \<le> heap.lim h'' "
       using hl1 hl2 by simp
   qed   
