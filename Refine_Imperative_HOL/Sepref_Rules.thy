@@ -1,6 +1,6 @@
 section \<open>Refinement Rule Management\<close>
 theory Sepref_Rules
-imports Sepref_Basic Sepref_Constraints
+imports Sepref_Basic Sepref_Constraints Sepref_Additional
 begin
   text \<open>This theory contains tools for managing the refinement rules used by Sepref\<close>
 
@@ -215,16 +215,21 @@ begin
 
   subsubsection \<open>Conversion from fref to hfref\<close>  
    (* TODO: Variant of import-param! Automate this! *)
-  lemma fref_to_pure_hfref':
+(* never used
+lemma fref_to_pure_hfref':
     assumes "(f,g) \<in> [P]\<^sub>f R\<rightarrow>\<langle>S\<rangle>nrest_rel"
     assumes "\<And>x. x\<in>Domain R \<inter> R\<inverse>``Collect P \<Longrightarrow> f x = RETURNT (f' x)"
     shows "(ureturn o f', g) \<in> [P]\<^sub>a (pure R)\<^sup>k\<rightarrow>pure S"
     apply (rule hfrefI) 
-    using assms
-    apply ((auto simp: fref_def pure_def pw_le_iff pw_nrest_rel_iff
-      refine_pw_simps  ))
-    sorry 
-
+    unfolding hn_refine_def apply (auto simp add: execute_ureturn' pure_assn_rule)
+    subgoal         
+      using assms
+      apply ((auto simp: fref_def pure_def pw_le_iff pw_nrest_rel_iff
+            refine_pw_simps  ))
+        sorry
+    subgoal by (simp add: relH_def)
+    done 
+*)
 
   subsubsection \<open>Conversion from hfref to hnr\<close>  
   text \<open>This section contains the lemmas. The ML code is further down. \<close>
@@ -372,27 +377,53 @@ begin
     apply sep_auto+
     done*)
     
+
+lemma isolate_first: "\<And>A B C. \<Gamma> \<Longrightarrow>\<^sub>A \<Gamma>' \<Longrightarrow> A \<Longrightarrow>\<^sub>A B \<Longrightarrow> \<Gamma> * A \<Longrightarrow>\<^sub>A \<Gamma>' * B"  
+  by (simp add: ent_star_mono)  
+
   lemma hr_comp_emp[simp]: "hr_comp (\<lambda>a c. emp) R a c = \<up>(\<exists>b. (b,a)\<in>R)"
     unfolding hr_comp_def[abs_def]
     apply (intro ext ent_iffI)
-    apply auto sorry
-
+     apply auto
+    subgoal by (metis entailsI entails_ex pure_assn_rule) 
+    subgoal apply(rule entailsI)    
+      by (smt mod_ex_dist)
+    done
+  thm prod.splits
   lemma hr_comp_prod_conv[simp]:
     "hr_comp (prod_assn Ra Rb) (Ra' \<times>\<^sub>r Rb') 
     = prod_assn (hr_comp Ra Ra') (hr_comp Rb Rb')"  
-    unfolding hr_comp_def[abs_def] prod_assn_def[abs_def]
-    apply (intro ext ent_iffI) (*
-    apply solve_entails apply clarsimp apply sep_auto
-    apply clarsimp apply (intro ent_ex_preI)
-    apply (rule ent_ex_postI) apply (sep_auto split: prod.splits)
-    done *) sorry
+    unfolding hr_comp_def[abs_def] unfolding prod_assn_def[abs_def]
+    apply (intro ext ent_iffI)
+     apply (auto intro!: ent_ex_preI  simp: pure_conj[symmetric] simp del: pure_conj)
+    subgoal apply(intro ent_ex_postI)
+      apply (simp only: mult.assoc)
+        apply (rule match_first)
+        apply rotater apply (rule match_first) 
+      by(simp add: assn_times_comm  pure_conj[symmetric] del: pure_conj) 
+    subgoal for a b aa ba bb bc
+      apply(intro ent_ex_postI[where x="(bc,bb)"])
+      apply (auto simp: mult.assoc)
+      apply (rule match_first)  
+      apply rotatel apply (rule match_first)
+      by(simp add: assn_times_comm  pure_conj[symmetric] del: pure_conj)  
+    done
+ 
+lemma pure_entails: "(P\<Longrightarrow>Q) \<Longrightarrow> \<up> P \<Longrightarrow>\<^sub>A \<up> Q"  
+  using entails_pure' entails_triv by blast  
+
+lemma ex_pure: "(\<exists>\<^sub>Ab. \<up> (B b)) = \<up> (\<exists>b. B b)"
+  apply(rule assn_ext) by(simp add: mod_ex_dist pure_assn_rule)  
 
   lemma hr_comp_pure: "hr_comp (pure R) S = pure (R O S)"  
     apply (intro ext)
     apply (rule ent_iffI)
     unfolding hr_comp_def[abs_def] 
-     apply (auto simp: pure_def)+ 
-    sorry
+     apply (auto  intro!: ent_ex_preI  simp: pure_def   simp: pure_conj[symmetric] simp del: pure_conj)
+    subgoal by (metis entail_equiv_forward entails_pure' relcomp.relcompI) 
+    subgoal apply(simp only: ex_pure) apply(intro pure_entails)
+      by blast
+    done                        
 
   lemma hr_comp_is_pure[safe_constraint_rules]: "is_pure A \<Longrightarrow> is_pure (hr_comp A B)"
     by (auto simp: hr_comp_pure is_pure_conv)
@@ -402,16 +433,30 @@ begin
     by (clarsimp simp: hr_comp_pure)
 
   lemma rdomp_hrcomp_conv: "rdomp (hr_comp A R) x \<longleftrightarrow> (\<exists>y. rdomp A y \<and> (y,x)\<in>R)"
-    apply (auto simp: rdomp_def hr_comp_def)
-    sorry 
+    by (auto simp: rdomp_def hr_comp_def mod_ex_dist)
+      
+
+  lemma ret_le_down_conv: 
+    "nofailT m \<Longrightarrow> RETURNT c \<le> \<Down>R m \<longleftrightarrow> (\<exists>a. (c,a)\<in>R \<and> RETURNT a \<le> m)"
+    by (auto simp: pw_le_iff refine_pw_simps) 
+
+lemma entails_pure'': "(B \<Longrightarrow> A \<Longrightarrow>\<^sub>A C) \<Longrightarrow> A * \<up> B \<Longrightarrow>\<^sub>A C" 
+  using entails_pure by blast 
+
+lemma entails_pure''': "(emp \<Longrightarrow>\<^sub>A \<up> B) = B"  
+  by (metis ent_iffI pure_assn_eq_conv pure_entails pure_true)   
 
   lemma hn_rel_compI: 
     "\<lbrakk>nofailT a; (b,a)\<in>\<langle>R2\<rangle>nrest_rel\<rbrakk> \<Longrightarrow> hn_rel R1 b c \<Longrightarrow>\<^sub>A hn_rel (hr_comp R1 R2) a c"
     unfolding hr_comp_def hn_rel_def nrest_rel_def
-    apply (clarsimp intro!: ent_ex_preI simp:  pure_conj[symmetric]) (*
-    apply (drule (1) order_trans)
-    apply (simp add: ret_le_down_conv)
-    by sep_auto *) sorry
+    apply (clarsimp intro!: ent_ex_preI entails_pure'' simp:  pure_conj[symmetric] del: pure_conj) 
+    apply (drule (1)  order_trans) 
+    apply (simp add: ret_le_down_conv) apply auto
+    apply (rule ent_ex_postI)
+    apply (rule ent_ex_postI)
+    apply (simp only: mult.assoc)
+    apply(simp  add: pure_conj[symmetric] del: pure_conj)
+    apply (rule match_rest) by(simp only: entails_pure''') 
 
   lemma hr_comp_precise[constraint_rules]:
     assumes [safe_constraint_rules]: "precise R"
@@ -419,8 +464,8 @@ begin
     shows "precise (hr_comp R S)"
     apply (rule preciseI)
     unfolding hr_comp_def
-    apply clarsimp sorry (*
-    by (metis SV assms(1) preciseD single_valuedD) *)
+    apply clarsimp 
+    by (smt SV mod_pure_star_dist and_assn_conv assms(1) assn_times_assoc mod_ex_dist mod_starD preciseD' single_valuedD)  
 
   lemma hr_comp_assoc: "hr_comp (hr_comp R S) T = hr_comp R (S O T)"
     apply (intro ext)
@@ -430,7 +475,16 @@ begin
     apply (rule ent_ex_preI; clarsimp) (* TODO: 
       sep_auto/solve_entails is too eager splitting the subgoal here! *)
     apply sep_auto
-    done *) sorry
+    done *) 
+    subgoal by (smt SepLogic_Misc.mod_pure_star_dist entailsI mod_ex_dist relcomp.relcompI) 
+    subgoal 
+      apply (clarsimp intro!: ent_ex_preI entails_pure'' simp:  pure_conj[symmetric] del: pure_conj)
+      apply (rule ent_ex_postI)
+      apply (rule ent_ex_postI)
+      apply (simp only: mult.assoc)
+      apply(simp  add: pure_conj[symmetric] del: pure_conj)
+      apply (rule match_rest) by(simp only: entails_pure''')  
+    done
 
 
   lemma hnr_comp:
@@ -443,7 +497,87 @@ begin
       (c c1)
       (hr_comp R1p R1' a1 c1 * \<Gamma>') 
       (hr_comp R R') 
-      (a a1)" (*
+      (a a1)" 
+    unfolding hn_refine_def
+  proof clarsimp
+    fix h as n M
+    assume anofail: "a a1 = SPECT M"
+    then have anofail': "nofailT (a a1)" by auto
+    assume "pHeap h as n \<Turnstile> hr_comp R1 R1' a1 c1 * \<Gamma>"
+    then obtain b1 where pb: "pHeap h as n \<Turnstile> R1 b1 c1  * \<Gamma> * \<up> ((b1, a1) \<in> R1')" 
+      unfolding hr_comp_def ex_distrib_star[symmetric] move_back_pure' mod_ex_dist by blast
+    then have h: "pHeap h as n \<Turnstile> R1 b1 c1 * \<Gamma>" and b1: "(b1, a1) \<in> R1'"   
+      by auto
+
+    from b1 PQ Q have P: "P b1" by auto
+    from S Q b1 have R': "(b b1,a a1)\<in>\<langle>R'\<rangle>nrest_rel" by auto
+    with anofail have nfbb: "nofailT (b b1)" apply(auto dest!: nrest_relD) 
+      apply(cases "b b1") by auto
+    then obtain M' where SPbb: "b b1 = SPECT M'" by force
+
+    from R' anofail SPbb have over: "SPECT M' \<le> \<Down> R' (SPECT M)" unfolding nrest_rel_def by simp
+
+    from R[OF P] h nfbb SPbb have "
+                   (\<exists>h' t r.
+                       execute (c c1) h = Some (r, h', t) \<and>
+                       (\<exists>ra Ca.
+                           Some (enat Ca) \<le> M' ra \<and>
+                           t \<le> n + Ca \<and> pHeap h' (new_addrs h as h') (n + Ca - t) \<Turnstile> R1p b1 c1 * \<Gamma>' * R ra r * true) \<and>
+                       relH {a. a < heap.lim h \<and> a \<notin> as} h h' \<and> heap.lim h \<le> heap.lim h')"
+      unfolding hn_refine_def by auto
+    then obtain h' t r ra' Ca'
+      where "execute (c c1) h = Some (r, h', t)"
+            "Some (enat Ca') \<le> M' ra'" "t \<le> n + Ca'" 
+           and h': "pHeap h' (new_addrs h as h') (n + Ca' - t) \<Turnstile> R1p b1 c1 * \<Gamma>' * R ra' r * true"
+       and     "relH {a. a < heap.lim h \<and> a \<notin> as} h h'" "heap.lim h \<le> heap.lim h'" by blast
+
+    from over obtain ra Ca where "(ra', ra)\<in> R'" "M ra = Some (enat Ca)" "Ca \<ge> Ca'" 
+      unfolding conc_fun_def apply auto sorry
+
+
+    thm hn_rel_compI[OF anofail' R']
+    thm hr_compI[OF b1]
+
+    show "\<exists>h' t r.
+          execute (c c1) h = Some (r, h', t) \<and>
+          (\<exists>ra Ca.
+              Some (enat Ca) \<le> M ra \<and>
+              t \<le> n + Ca \<and>
+              pHeap h' (new_addrs h as h') (n + Ca - t) \<Turnstile> hr_comp R1p R1' a1 c1 * \<Gamma>' * hr_comp R R' ra r * true) \<and>
+          relH {a. a < heap.lim h \<and> a \<notin> as} h h' \<and> heap.lim h \<le> heap.lim h'"
+      apply(rule exI[where x=h'])
+      apply(rule exI[where x=t])
+      apply(rule exI[where x=r])
+      apply safe apply fact      
+      subgoal unfolding hr_comp_def  
+       apply(rule exI[where x=ra]) 
+       apply(rule exI[where x=Ca])
+        sorry
+      by fact+
+
+      apply (subst hr_comp_def)
+      apply (clarsimp intro!: norm_pre_ex_rule)
+    proof -
+      fix b1
+      assume R1: "(b1, a1) \<in> R1'"
+
+      from S R1 Q have R': "(b b1, a a1) \<in> \<langle>R'\<rangle>nres_rel" by blast
+      with NF have NFB: "nofail (b b1)" 
+        by (simp add: nres_rel_def pw_le_iff refine_pw_simps)
+      
+      from PQ R1 Q have P: "P b1" by blast
+      with NFB R have "<R1 b1 c1 * \<Gamma>> c c1 <\<lambda>r. hn_rel R (b b1) r * (R1p b1 c1 * \<Gamma>')>\<^sub>t"
+        unfolding hn_refine_alt by auto
+      thus "<R1 b1 c1 * \<Gamma>> 
+        c c1 
+        <\<lambda>r. hn_rel (hr_comp R R') (a a1) r * (hr_comp R1p R1' a1 c1 * \<Gamma>')>\<^sub>t"
+        apply (rule cons_post_rule)
+        apply (solve_entails)
+        by (intro ent_star_mono hn_rel_compI[OF NF R'] hr_compI[OF R1] ent_refl)
+    qed
+  qed     
+
+ (*
     unfolding hn_refine_alt
   proof clarsimp
     assume NF: "nofail (a a1)"
@@ -540,8 +674,7 @@ begin
 
   lemma hr_comp_invalid: "hr_comp (invalid_assn R1) R2 = invalid_assn (hr_comp R1 R2)"
     apply (intro ent_iffI entailsI ext)
-    unfolding invalid_assn_def hr_comp_def
-     sorry
+    unfolding invalid_assn_def hr_comp_def by(auto simp add: mod_ex_dist) 
 
   lemma hrp_comp_dest: "hrp_comp (A\<^sup>d) B = (hr_comp A B)\<^sup>d"
     by (auto simp: hrp_comp_def hr_comp_invalid)
@@ -726,10 +859,12 @@ begin
   lemmas [fcomp_norm_cong] = hrp_comp_cong hrp_prod_cong
   (*lemmas [fcomp_norm_norm] = hrp_comp_dest*)
   lemmas [fcomp_norm_refl] = refl hrp_imp_refl
+ 
+    
 
   lemma ensure_fref_nresI: "(f,g)\<in>[P]\<^sub>f R\<rightarrow>S \<Longrightarrow> (RETURNT o f, RETURNT o g)\<in>[P]\<^sub>f R\<rightarrow>\<langle>S\<rangle>nrest_rel" 
-    apply (auto intro: nrest_relI simp: fref_def)
-    sorry
+    by (auto intro!: RETURNT_refine nrest_relI simp: fref_def)
+     
 
   lemma ensure_fref_nres_unfold:
     "\<And>f. RETURNT o (uncurry0 f) = uncurry0 (RETURNT f)" 

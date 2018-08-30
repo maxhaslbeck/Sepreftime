@@ -15,6 +15,10 @@ lemma mod_false[simp]: "\<not> h\<Turnstile>false"
 lemma mod_pure_star_dist[simp]: "h\<Turnstile>P*\<up>b \<longleftrightarrow> h\<Turnstile>P \<and> b"
   by (simp add: mod_pure_star_dist)
 
+lemma mod_pure_star_dist'[simp]: "h\<Turnstile>\<up>b*P \<longleftrightarrow> h\<Turnstile>P \<and> b"
+  using mod_pure_star_dist  
+  by (simp add: mult.commute) 
+
 
 lemma pure_assn_eq_conv[simp]: "\<up>P = \<up>Q \<longleftrightarrow> P=Q" 
   by (metis (full_types) assn_times_comm empty_iff in_range.simps mod_false' mod_pure_star_dist top_assn_rule)
@@ -438,7 +442,9 @@ lemma param_bind[param]:
 lemma ent_ex_preI: "(\<And>x. P x \<Longrightarrow>\<^sub>A Q) \<Longrightarrow> \<exists>\<^sub>Ax. P x \<Longrightarrow>\<^sub>A Q"  
   by (meson entails_ex) 
 
- 
+lemma ent_ex_postI: "Q \<Longrightarrow>\<^sub>A P x \<Longrightarrow> Q \<Longrightarrow>\<^sub>A \<exists>\<^sub>Ax. P x "  
+  using entails_ex_post by blast
+
 lemma entt_frame_fwd:
   assumes "entailst P Q"
   assumes "entailst A (P*F)"

@@ -23,7 +23,7 @@ definition mismatch_assn :: "('a \<Rightarrow> 'c \<Rightarrow> assn) \<Rightarr
 abbreviation "hn_mismatch R1 R2 \<equiv> hn_ctxt (mismatch_assn R1 R2)"
 
 lemma recover_pure_aux: "CONSTRAINT is_pure R \<Longrightarrow> hn_invalid R x y \<Longrightarrow>\<^sub>t hn_ctxt R x y"
-  (* by (auto simp: is_pure_conv invalid_pure_recover hn_ctxt_def) *) sorry
+  by (auto simp: is_pure_conv invalid_pure_recover hn_ctxt_def)
 
 
 
