@@ -115,6 +115,11 @@ subsection "Heap Or"
 
 declare or_assn_conv [simp]
   
+lemma ex_distrib_or: "(\<exists>\<^sub>Ax. Q x) \<or>\<^sub>A P = (\<exists>\<^sub>Ax. Q x \<or>\<^sub>A P)"
+  by (auto intro!: assn_ext simp: mod_ex_dist)  
+
+lemma sup_commute: "P \<or>\<^sub>A Q = Q \<or>\<^sub>A P"
+  by (meson assn_ext or_assn_conv)
  
 lemma ent_disjI1:
   assumes "P \<or>\<^sub>A Q \<Longrightarrow>\<^sub>A R" 
@@ -210,6 +215,9 @@ lemma ent_conjE1: "\<lbrakk>A\<Longrightarrow>\<^sub>AC\<rbrakk> \<Longrightarro
 lemma ent_conjE2: "\<lbrakk>B\<Longrightarrow>\<^sub>AC\<rbrakk> \<Longrightarrow> A\<and>\<^sub>AB\<Longrightarrow>\<^sub>AC"
   unfolding entails_def by (auto simp: mod_and_dist)
 
+lemma True_emp: "(\<up>True) = emp"  
+  by (metis assn_ext entailsD entails_pure' entails_triv)  
+
 
 subsection {* Precision *}
 text {*
@@ -244,31 +252,33 @@ lemma preciseD':
   apply (blast intro: assms)
   done
 
+lemma false_absorb: "false * R = false" 
+  by (simp add: assn_ext mod_false') 
+
 lemma precise_extr_pure[simp]: 
   "precise (\<lambda>x y. \<up>P * R x y) \<longleftrightarrow> (P \<longrightarrow> precise R)"
   "precise (\<lambda>x y. R x y * \<up>P) \<longleftrightarrow> (P \<longrightarrow> precise R)"
-  (* apply (cases P, (auto intro!: preciseI) [2])+
-  done *) sorry
+   subgoal apply (cases P) by (auto intro!: preciseI simp: false_absorb True_emp and_assn_conv)  
+   subgoal apply (cases P) by (auto intro!: preciseI simp: false_absorb assn_times_comm True_emp and_assn_conv)  
+   done   
+  
 
-lemma sngr_prec: "precise (\<lambda>x p. p\<mapsto>\<^sub>rx)" (*
+lemma sngr_prec: "precise (\<lambda>x p. p\<mapsto>\<^sub>rx)"  
   apply rule
   apply (clarsimp simp: mod_and_dist)
-  unfolding sngr_assn_def times_assn_def
-  apply (simp add: Abs_assn_inverse)
-  apply auto
-  done *) sorry
+  subgoal for a a' h
+    apply(cases h)
+    by(auto dest!: mod_star_convE simp: sngr_assn_rule)   
+  done
 
-lemma snga_prec: "precise (\<lambda>x p. p\<mapsto>\<^sub>ax)" (*
+lemma snga_prec: "precise (\<lambda>x p. p\<mapsto>\<^sub>ax)" 
   apply rule
   apply (clarsimp simp: mod_and_dist)
-  unfolding snga_assn_def times_assn_def
-  apply (simp add: Abs_assn_inverse)
-  apply auto
-  done *) sorry
-
-
-
- 
+  subgoal for a a' h
+    apply(cases h)
+    by(auto dest!: mod_star_convE simp: snga_assn_rule)   
+  done
+  
 
 lemma ex_distrib_star': "Q * (\<exists>\<^sub>Ax. P x ) = (\<exists>\<^sub>Ax. Q * P x)"
 proof -
@@ -295,14 +305,15 @@ lemma is_pure_assn_basic_simps[simp]:
   "is_pure_assn emp"
 proof -
   have "is_pure_assn (\<up>False)" by rule thus "is_pure_assn false" by simp
-  have "is_pure_assn (\<up>True)" by rule thus "is_pure_assn emp" sorry
+  have "is_pure_assn (\<up>True)" by rule thus "is_pure_assn emp" using True_emp by simp
 qed  
 
 lemma is_pure_assn_starI[simp,intro!]: 
-  "\<lbrakk>is_pure_assn a; is_pure_assn b\<rbrakk> \<Longrightarrow> is_pure_assn (a*b)"
-  (* by (auto elim!: is_pure_assnE) *) sorry
+  "\<lbrakk>is_pure_assn a; is_pure_assn b\<rbrakk> \<Longrightarrow> is_pure_assn (a*b)" 
+    by (auto simp: pure_conj[symmetric] elim!: is_pure_assnE)
 
 subsection "some automation"
+
 
 text {* Move existential quantifiers to the front of assertions *}
 lemma ex_assn_move_out[simp]:
@@ -317,18 +328,18 @@ lemma ex_assn_move_out[simp]:
   apply (subst (2) mult.commute)
   apply (simp add: ex_distrib_star)
 
-  (*apply (simp add: ex_distrib_or)
+  apply (simp add: ex_distrib_or)  
   apply (subst sup_commute)
   apply (subst (2) sup_commute)
   apply (simp add: ex_distrib_or)
-  done *) sorry
-
+  done  
 
 declare pure_conj [simp]
 thm merge_true_star 
 
 lemma merge_pure_or[simp]:
-  "\<up>a \<or>\<^sub>A \<up>b = \<up>(a\<or>b)" sorry
+  "\<up>a \<or>\<^sub>A \<up>b = \<up>(a\<or>b)"
+  by(auto intro!: assn_ext simp add: and_assn_conv pure_assn_rule)  
 
 
 thm mod_pure_star_dist 
@@ -337,7 +348,10 @@ thm mod_pure_star_dist
 lemma ent_iffI:
   assumes "A\<Longrightarrow>\<^sub>AB"
   assumes "B\<Longrightarrow>\<^sub>AA"
-  shows "A=B" sorry
+  shows "A=B"
+  apply(rule assn_ext)
+  using assms  
+  using entails_def by blast  
 
 
 lemmas star_aci = 

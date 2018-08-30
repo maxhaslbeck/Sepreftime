@@ -219,7 +219,7 @@ lemma pw_abs_inre:
   apply (auto simp: abs_fun_def)
   done*)
 
-
+(*
 lemma pw_conc_inres:
   "inresT (\<Down>R S') s t = (nofailT S' 
   \<longrightarrow> (\<exists>s'. (s,s')\<in>R \<and> inresT S' s' t))"
@@ -232,7 +232,7 @@ lemma pw_conc_inres:
     subgoal 
       apply (auto simp: conc_fun_RES) sorry
     done
-  oops
+  oops *)
 
 lemma sv_the: "single_valued R \<Longrightarrow> (c,a) \<in> R \<Longrightarrow> (THE a. (c, a) \<in> R) = a"
   by (simp add: single_valued_def the_equality)

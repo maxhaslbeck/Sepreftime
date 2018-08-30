@@ -113,37 +113,37 @@ abbreviation "hn_invalid R \<equiv> hn_ctxt (invalid_assn R)"
 lemma invalidate_clone: "R x y \<Longrightarrow>\<^sub>A invalid_assn R x y * R x y"
   apply (rule entailsI)
   unfolding invalid_assn_def
- (* apply (auto simp: models_in_range mod_star_trueI)  
-  done*) sorry
+  by (metis mod_pure_star_dist abel_semigroup.commute entailsD entt_refl' linordered_field_class.sign_simps(4) mult.abel_semigroup_axioms)
 
 lemma invalidate_clone': "R x y \<Longrightarrow>\<^sub>A invalid_assn R x y * R x y * true"
   apply (rule entailsI)
-  unfolding invalid_assn_def
- (* apply (auto simp: models_in_range mod_star_trueI)
-  done *) sorry
+  unfolding invalid_assn_def  
+  by (metis (full_types) assn_times_comm mod_star_trueI monoid.left_neutral mult.monoid_axioms pure_true)  
 
 lemma invalidate: "R x y \<Longrightarrow>\<^sub>A invalid_assn R x y"
   apply (rule entailsI)
-  unfolding invalid_assn_def (*
-  apply (auto simp: models_in_range mod_star_trueI)
-  done *) sorry
+  unfolding invalid_assn_def 
+  using assn_times_comm entails_def entails_true by auto  
 
 lemma invalid_pure_recover: "invalid_assn (pure R) x y = pure R x y * true"
   apply (rule ent_iffI) 
   subgoal
     apply (rule entailsI)
     unfolding invalid_assn_def
-    (*by (auto simp: pure_def) *) sorry
+    apply (auto simp: pure_def) 
+    using mod_starD pure_assn_rule by force 
   subgoal
     unfolding invalid_assn_def
-    (* by (auto simp: pure_def) *) sorry
+    apply (auto simp: pure_def) 
+    by (metis entailsI entails_frame entails_pure') 
   done    
 
 lemma hn_invalidI: "h\<Turnstile>hn_ctxt P x y \<Longrightarrow> hn_invalid P x y = true"
- (* apply (cases h)
+ apply (cases h)
   apply (rule ent_iffI)
-  apply (auto simp: invalid_assn_def hn_ctxt_def)
-  done *) sorry
+   apply (auto simp: invalid_assn_def hn_ctxt_def)   
+  using assn_times_comm entails_pure_post by fastforce
+     
 
 lemma invalid_assn_cong[cong]:
   assumes "x\<equiv>x'"
@@ -156,7 +156,7 @@ lemma invalid_assn_cong[cong]:
 subsection \<open>Constraints in Refinement Relations\<close>
 
 lemma mod_pure_conv[simp]: "pHeap h as n \<Turnstile>pure R a b \<longleftrightarrow> (as={} \<and> n=0 \<and> (b,a)\<in>R)"
-  apply (auto simp: pure_def) sorry
+  by (auto simp: pure_def pure_assn_rule)
 
 definition rdomp :: "('a \<Rightarrow> 'c \<Rightarrow> assn) \<Rightarrow> 'a \<Rightarrow> bool" where
   "rdomp R a \<equiv> \<exists>h c. h \<Turnstile> R a c"
@@ -167,10 +167,15 @@ lemma rdomp_ctxt[simp]: "rdomp (hn_ctxt R) = rdomp R"
   by (simp add: hn_ctxt_def[abs_def])  
 
 lemma rdomp_pure[simp]: "rdomp (pure R) a \<longleftrightarrow> a\<in>Range R"
-  unfolding rdomp_def pure_def apply auto sorry
+  unfolding rdomp_def pure_def apply (auto simp: pure_assn_rule)  
+  using pheap.sel(2) pheap.sel(3) pure_assn_rule by blast  
+
+lemma pureD: "h \<Turnstile> \<up>B \<Longrightarrow> B"  
+  by (simp add: pure_assn_rule)
 
 lemma rdom_pure[simp]: "rdom (pure R) = Range R"
-  unfolding rdomp_def[abs_def] pure_def apply auto sorry
+  unfolding rdomp_def[abs_def] pure_def apply (auto dest: pureD simp: pure_assn_rule)
+  by (meson pheap.sel(2) pheap.sel(3))
 
 lemma Range_of_constraint_conv[simp]: "Range (A\<inter>UNIV\<times>C) = Range A \<inter> C"
   by auto
@@ -413,7 +418,8 @@ lemma hn_refine_cons_pre:
 
 lemma hn_refine_nofailI: 
   assumes "nofailT a \<Longrightarrow> hn_refine \<Gamma> c \<Gamma>' R a"  
-  shows "hn_refine \<Gamma> c \<Gamma>' R a" sorry
+  shows "hn_refine \<Gamma> c \<Gamma>' R a"  
+  using assms hn_refine_def by blast  
 
 lemma hn_refine_false[simp]: "hn_refine false c \<Gamma>' R m"
   by (simp add: hn_refine_def)  

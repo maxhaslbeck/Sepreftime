@@ -1000,6 +1000,11 @@ lemma T_bindT: "T Q (bindT M f) = T (\<lambda>y. T Q (f y)) M"
   by (rule pw_T_eq_iff, rule nres3_bindT)
 
 
+definition "lst c Q = (\<lambda>s. T Q (c s))"
+lemma "lst (%x. bindT (M x) f) Q = lst M (lst f Q)"
+  unfolding lst_def apply rule by (simp only: T_bindT) 
+
+
 lemma T_REST: "T Q (REST [x\<mapsto>t]) = mm2 (Q x) (Some t)"
 proof- 
   have *: "Inf {uu. \<exists>xa. (xa = x \<longrightarrow> uu= v) \<and> (xa \<noteq> x \<longrightarrow> uu = Some \<infinity>)} = v"  (is "Inf ?S = v") for v :: "enat option"
