@@ -527,13 +527,38 @@ lemma entails_pure''': "(emp \<Longrightarrow>\<^sub>A \<up> B) = B"
       unfolding hn_refine_def by auto
     then obtain h' t r ra' Ca'
       where "execute (c c1) h = Some (r, h', t)"
-            "Some (enat Ca') \<le> M' ra'" "t \<le> n + Ca'" 
+            and t: "Some (enat Ca') \<le> M' ra'" "t \<le> n + Ca'" 
            and h': "pHeap h' (new_addrs h as h') (n + Ca' - t) \<Turnstile> R1p b1 c1 * \<Gamma>' * R ra' r * true"
        and     "relH {a. a < heap.lim h \<and> a \<notin> as} h h'" "heap.lim h \<le> heap.lim h'" by blast
 
-    from over obtain ra Ca where "(ra', ra)\<in> R'" "M ra = Some (enat Ca)" "Ca \<ge> Ca'" 
-      unfolding conc_fun_def apply auto sorry
+    from over have f: "\<And>ra. M' ra \<le> Sup {M a |a. (ra, a) \<in> R'}"  unfolding conc_fun_def by (auto simp: le_fun_def)
 
+    from t(1) have "M' ra' > None"  
+      by (metis le_some_optE less_option_None_Some_code)   
+    with f[of ra'] have "None < Sup {M a |a. (ra', a) \<in> R'}" by auto
+    then have " {M a |a. (ra', a) \<in> R'} \<noteq> {}" by force
+
+    have "\<exists>ra. (ra', ra) \<in> R' \<and> M ra \<ge> Some (enat Ca')"
+    proof (rule ccontr)
+      assume a: "\<nexists>ra. (ra', ra) \<in> R' \<and> Some (enat Ca') \<le> M ra"
+      hence "\<And>ra. (ra', ra) \<in> R' \<Longrightarrow> Some (enat Ca') > M ra" by auto
+      then have "Sup {M a |a. (ra', a) \<in> R'} <  Some (enat Ca')"         
+        by (smt Sup_finite_enat Sup_least dual_order.antisym linear mem_Collect_eq not_less)
+      with t(1) f[of ra'] show "False" by auto
+    qed
+
+    then obtain ra where R'': "(ra', ra)\<in> R'" and t': "M ra \<ge> Some (enat Ca')" by blast
+
+
+    have "pHeap h' (new_addrs h as h') (n + Ca' - t) \<Turnstile> (\<exists>\<^sub>Ab. R1p b c1 * \<up> ((b, a1) \<in> R1')) * \<Gamma>' * (\<exists>\<^sub>Ab. R b r * \<up> ((b, ra) \<in> R')) * true"
+      apply(rule entailsD[OF _ h'])
+      apply(simp add: ex_distrib_star[symmetric])
+      apply(rule ent_ex_postI)
+      apply(rule ent_ex_postI)
+      apply(simp only: mult.assoc ) apply(rule match_first) apply rotater
+      apply(rule match_first) apply(rule match_first) apply rotater apply(rule match_rest)
+      apply (simp only: entails_pure''' pure_conj[symmetric])
+      using b1 R'' by auto
 
     thm hn_rel_compI[OF anofail' R']
     thm hr_compI[OF b1]
@@ -551,32 +576,12 @@ lemma entails_pure''': "(emp \<Longrightarrow>\<^sub>A \<up> B) = B"
       apply safe apply fact      
       subgoal unfolding hr_comp_def  
        apply(rule exI[where x=ra]) 
-       apply(rule exI[where x=Ca])
-        sorry
+        apply(rule exI[where x=Ca'])
+        apply safe 
+        by fact+
       by fact+
-
-      apply (subst hr_comp_def)
-      apply (clarsimp intro!: norm_pre_ex_rule)
-    proof -
-      fix b1
-      assume R1: "(b1, a1) \<in> R1'"
-
-      from S R1 Q have R': "(b b1, a a1) \<in> \<langle>R'\<rangle>nres_rel" by blast
-      with NF have NFB: "nofail (b b1)" 
-        by (simp add: nres_rel_def pw_le_iff refine_pw_simps)
-      
-      from PQ R1 Q have P: "P b1" by blast
-      with NFB R have "<R1 b1 c1 * \<Gamma>> c c1 <\<lambda>r. hn_rel R (b b1) r * (R1p b1 c1 * \<Gamma>')>\<^sub>t"
-        unfolding hn_refine_alt by auto
-      thus "<R1 b1 c1 * \<Gamma>> 
-        c c1 
-        <\<lambda>r. hn_rel (hr_comp R R') (a a1) r * (hr_comp R1p R1' a1 c1 * \<Gamma>')>\<^sub>t"
-        apply (rule cons_post_rule)
-        apply (solve_entails)
-        by (intro ent_star_mono hn_rel_compI[OF NF R'] hr_compI[OF R1] ent_refl)
-    qed
-  qed     
-
+  qed
+ 
  (*
     unfolding hn_refine_alt
   proof clarsimp
@@ -605,7 +610,7 @@ lemma entails_pure''': "(emp \<Longrightarrow>\<^sub>A \<up> B) = B"
         apply (solve_entails)
         by (intro ent_star_mono hn_rel_compI[OF NF R'] hr_compI[OF R1] ent_refl)
     qed
-  qed    *) sorry
+  qed    *)  
 
   lemma hnr_comp1_aux:
     assumes R: "\<And>b1 c1. P b1 \<Longrightarrow> hn_refine (hn_ctxt R1 b1 c1) (c c1) (hn_ctxt R1p b1 c1) R (b$b1)"
@@ -696,10 +701,15 @@ lemma entails_pure''': "(emp \<Longrightarrow>\<^sub>A \<up> B) = B"
   lemma hrp_imp_reflI: "RR = RR' \<Longrightarrow> hrp_imp RR RR'"
     unfolding hrp_imp_def by auto
 
+  lemma fe: "B \<Longrightarrow> A \<Longrightarrow>\<^sub>A C \<Longrightarrow>  A \<Longrightarrow>\<^sub>A C * \<up>B" 
+    by simp
 
+  thm move_back_pure
   lemma hrp_comp_cong: "hrp_imp A A' \<Longrightarrow> B=B' \<Longrightarrow> hrp_imp (hrp_comp A B) (hrp_comp A' B')"
-    apply (auto simp: hrp_imp_def hrp_comp_def hr_comp_def entailst_def)
-    sorry
+    apply (auto intro!: ent_ex_preI entails_pure'' simp:  hrp_imp_def hrp_comp_def hr_comp_def entailst_def)
+    apply(rule ent_ex_postI)  apply(simp add: move_back_pure') apply(rule fe) apply auto
+    apply(rule ent_ex_postI)  apply(simp add: move_back_pure') apply(rule fe) apply auto
+    done
 
   lemma hrp_prod_cong: "hrp_imp A A' \<Longrightarrow> hrp_imp B B' \<Longrightarrow> hrp_imp (A*\<^sub>aB) (A'*\<^sub>aB')"
     by (auto simp: hrp_imp_def prod_assn_def intro: entt_star_mono)

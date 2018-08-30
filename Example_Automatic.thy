@@ -88,10 +88,10 @@ lemma hn_refine_less[sepref_fr_rules]: " hn_refine
      (ureturn (y < x))
      (hn_val nat_rel y' y * hn_val nat_rel x' x)
      (pure bool_rel) (RETURNT $ ((<) $ y' $ x'))"
-  unfolding hn_refine_def apply (auto simp: zuf mult.assoc  execute_ureturn pure_def hn_ctxt_def)
-   apply(rule exI[where x=0]) apply (auto simp: zero_enat_def relH_def  )      
-    using models_in_range top_assn_rule  
-    by (metis (full_types) SepLogic_Misc.mod_pure_star_dist assn_times_comm)
+  unfolding hn_refine_def apply (auto simp: zuf mult.assoc  execute_ureturn pure_def hn_ctxt_def )
+   apply(rule exI[where x=0]) apply (auto simp: zero_enat_def relH_def  elim: pureD )      
+    using models_in_range top_assn_rule   
+    by (metis (full_types) SepLogic_Misc.mod_pure_star_dist assn_times_comm)+
 
 lemma hn_Pair[sepref_fr_rules]: "hn_refine 
   (hn_ctxt P1 x1 x1' * hn_ctxt P2 x2 x2')
@@ -109,18 +109,18 @@ lemma hn_refine_length[sepref_fr_rules]: " hn_refine (hn_val Id xs' xs)
        (hn_val Id xs' xs)
        (pure Id) (RETURNT $ (length $ xs'))"
   unfolding hn_refine_def apply (auto simp: zuf mult.assoc  execute_ureturn pure_def hn_ctxt_def)
-   apply(rule exI[where x=0]) apply (auto simp: zero_enat_def relH_def )      
+   apply(rule exI[where x=0]) apply (auto simp: zero_enat_def relH_def elim: pureD  )      
     using models_in_range top_assn_rule  
-    by (metis (full_types) mod_false zuf)  
+    by (metis (full_types) mod_false)+  
 
 lemma hn_refine_hd[sepref_fr_rules]: " hn_refine (hn_val Id s' s)
            (ureturn (hd s))
        (hn_val Id s' s)
        (pure Id) (RETURNT $ (hd $ s'))"
   unfolding hn_refine_def apply (auto simp: zuf mult.assoc  execute_ureturn pure_def hn_ctxt_def)
-   apply(rule exI[where x=0]) apply (auto simp: zero_enat_def relH_def )      
+   apply(rule exI[where x=0]) apply (auto simp: zero_enat_def relH_def  elim: pureD )      
     using models_in_range top_assn_rule  
-    by (metis (full_types) mod_false zuf)  
+    by (metis (full_types) mod_false zuf)+
   
 
 lemma hn_refine_tl[sepref_fr_rules]: " hn_refine (hn_val Id s' s)
@@ -128,9 +128,9 @@ lemma hn_refine_tl[sepref_fr_rules]: " hn_refine (hn_val Id s' s)
        (hn_val Id s' s)
        (pure Id) (RETURNT $ (tl $ s'))"
   unfolding hn_refine_def apply (auto simp: zuf mult.assoc  execute_ureturn pure_def hn_ctxt_def)
-   apply(rule exI[where x=0]) apply (auto simp: zero_enat_def relH_def )      
+   apply(rule exI[where x=0]) apply (auto simp: zero_enat_def relH_def  elim: pureD )      
     using models_in_range top_assn_rule  
-    by (metis (full_types) mod_false zuf)  
+    by (metis (full_types) mod_false zuf)+
 
  
 
@@ -194,7 +194,7 @@ schematic_goal "hn_refine \<Gamma> (?C::?'a Heap) ?\<Gamma>' ?R (rd_impl1 as)" u
      apply sepref_dbg_monadify
 
      apply sepref_dbg_opt_init
-
+                                              
   apply sepref_dbg_trans_step+ 
 
   apply sepref_dbg_opt

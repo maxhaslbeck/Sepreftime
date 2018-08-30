@@ -45,7 +45,8 @@ subsection \<open>Operations with Precondition\<close>
     using assms
     apply (auto 
       simp: mop_def fref_def pw_nrest_rel_iff refine_pw_simps
-      dest: fun_relD) sorry
+      dest: fun_relD) 
+    by fastforce 
 
   lemma param_mopI:
     assumes "(f,g) \<in> [P]\<^sub>f R \<rightarrow> \<langle>S\<rangle>nrest_rel"  
@@ -67,7 +68,7 @@ subsection \<open>Operations with Precondition\<close>
     assumes "P x \<Longrightarrow> g x \<le>\<^sub>n z"
     shows "f x \<le>\<^sub>n z"
     using assms 
-    (*by (simp add: pw_leof_iff refine_pw_simps) *) sorry
+    apply (simp add: le_or_fail_def pw_le_iff refine_pw_simps) by auto
 
 
   lemma assert_true_bind_conv: "ASSERT True \<then> m = m" by simp 
