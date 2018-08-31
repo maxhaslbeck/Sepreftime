@@ -2,9 +2,23 @@ theory SepLogic_Misc
 imports "SepLogicTime_RBTreeBasic.SepAuto" DataRefinement
 begin
 
+  
+
+lemma ent_iffI:
+  assumes "A\<Longrightarrow>\<^sub>AB"
+  assumes "B\<Longrightarrow>\<^sub>AA"
+  shows "A=B"
+  apply(rule assn_ext)
+  using assms  
+  using entails_def by blast  
+
+lemma [simp]: "pHeap h {} 0 \<Turnstile> emp" by(simp add: one_assn_rule)
 
 lemma mod_star_trueI: "h\<Turnstile>P \<Longrightarrow> h\<Turnstile>P*true"  
   by (metis assn_times_comm entailsD' entails_true mult.left_neutral) 
+
+lemma pure_true[simp]: "\<up>True = emp" 
+    by (auto intro: assn_ext simp: one_assn_rule pure_assn_rule)  
 
 
 lemma merge_true_star[simp]: "true*true = true"
@@ -98,6 +112,8 @@ lemma enttD: "A\<Longrightarrow>\<^sub>tB \<Longrightarrow> A\<Longrightarrow>\<
 lemma ent_trans[trans]: "\<lbrakk> P \<Longrightarrow>\<^sub>A Q; Q \<Longrightarrow>\<^sub>AR \<rbrakk> \<Longrightarrow> P \<Longrightarrow>\<^sub>A R"
   by (auto intro: entailsI dest: entailsD)
 
+lemma entt_fr_drop: "F\<Longrightarrow>\<^sub>tF' \<Longrightarrow> F*A \<Longrightarrow>\<^sub>t F'"
+  using ent_true_drop(1) enttD enttI by blast 
 
 lemma entt_trans:
   "entailst A B \<Longrightarrow> entailst B C \<Longrightarrow> entailst A C"
@@ -145,6 +161,12 @@ lemma entt_disjI1_direct[simp]: "A \<Longrightarrow>\<^sub>t A \<or>\<^sub>A B"
 lemma entt_disjI2_direct[simp]: "B \<Longrightarrow>\<^sub>t A \<or>\<^sub>A B"
   by (rule ent_imp_entt[OF ent_disjI2_direct])
 
+lemma entt_disjI1': "A\<Longrightarrow>\<^sub>tB \<Longrightarrow> A\<Longrightarrow>\<^sub>tB\<or>\<^sub>AC" 
+  using entt_disjI1_direct entt_trans by blast  
+
+lemma entt_disjI2': "A\<Longrightarrow>\<^sub>tC \<Longrightarrow> A\<Longrightarrow>\<^sub>tB\<or>\<^sub>AC" 
+  using entt_disjI2_direct entt_trans by blast  
+
 lemma ent_disjE: "\<lbrakk> A\<Longrightarrow>\<^sub>AC; B\<Longrightarrow>\<^sub>AC \<rbrakk> \<Longrightarrow> A\<or>\<^sub>AB \<Longrightarrow>\<^sub>AC"
   by (simp add: entails_def or_assn_conv)  
 
@@ -153,6 +175,33 @@ lemma entt_disjD1: "A\<or>\<^sub>AB\<Longrightarrow>\<^sub>tC \<Longrightarrow> 
 
 lemma entt_disjD2: "A\<or>\<^sub>AB\<Longrightarrow>\<^sub>tC \<Longrightarrow> B\<Longrightarrow>\<^sub>tC"
   using entt_disjI2_direct entt_trans by blast
+
+lemma mod_star_conv: "h\<Turnstile>A*B 
+  \<longleftrightarrow> (\<exists>hr as1 as2 n1 n2. h=pHeap hr (as1\<union>as2) (n1+n2) \<and> as1\<inter>as2={} \<and> pHeap hr as1 n1\<Turnstile>A \<and> pHeap hr as2 n2\<Turnstile>B)"
+  apply (cases h)
+  apply rule 
+  by(auto dest!: mod_star_convE intro!: mod_star_convI) 
+
+
+lemma star_or_dist1: 
+  "(A \<or>\<^sub>A B)*C = (A*C \<or>\<^sub>A B*C)"  
+  apply (rule ent_iffI) 
+  unfolding entails_def 
+  by (fastforce simp: mod_star_conv )+ 
+  
+lemma star_or_dist2: 
+  "C*(A \<or>\<^sub>A B) = (C*A \<or>\<^sub>A C*B)"  
+  apply (rule ent_iffI) 
+  unfolding entails_def
+  by (fastforce simp: mod_star_conv )+ 
+
+lemmas star_or_dist = star_or_dist1 star_or_dist2  
+
+lemma ent_disjI1': "A\<Longrightarrow>\<^sub>AB \<Longrightarrow> A\<Longrightarrow>\<^sub>AB\<or>\<^sub>AC"
+  by (auto simp: entails_def star_or_dist)
+
+lemma ent_disjI2': "A\<Longrightarrow>\<^sub>AC \<Longrightarrow> A\<Longrightarrow>\<^sub>AB\<or>\<^sub>AC"
+  by (auto simp: entails_def star_or_dist)
 
 
 subsection \<open>New command ureturn\<close>
@@ -195,12 +244,11 @@ lemma execute_ureturn' [rewrite]: "execute (ureturn x) h = Some (x, h, 0)" by (m
 lemma run_ureturnD: "run (ureturn x) (Some h) \<sigma> r t \<Longrightarrow> \<sigma> = Some h \<and> r = x \<and> t = 0"
   by (auto simp add: execute_ureturn' run.simps)
 
+
 lemma return_rule:
   "<$0> ureturn x <\<lambda>r. \<up>(r = x)>" 
-  unfolding hoare_triple_def apply (auto dest!: run_ureturnD simp: timeCredit_assn_rule)
-  subgoal by (metis (mono_tags, hide_lams) pheap.sel(2) pheap.sel(3) pure_assn_rule)
-  subgoal using relH_def by fastforce 
-  done
+  unfolding hoare_triple_def by (auto dest!: run_ureturnD simp: relH_def timeCredit_assn_rule)
+   
 
 
 subsection "Heap And"
@@ -210,6 +258,12 @@ subsection "Heap And"
 lemma mod_and_dist: "h\<Turnstile>P\<and>\<^sub>AQ \<longleftrightarrow> h\<Turnstile>P \<and> h\<Turnstile>Q"
   by (rule and_assn_conv) 
 
+lemma [simp]: "false\<and>\<^sub>AQ = false"
+  apply(rule assn_ext)
+  by(simp add: mod_and_dist)
+lemma [simp]: "Q\<and>\<^sub>Afalse = false"
+  apply(rule assn_ext)
+  by(simp add: mod_and_dist)
 
 lemma ent_conjI: "\<lbrakk> A\<Longrightarrow>\<^sub>AB; A\<Longrightarrow>\<^sub>AC \<rbrakk> \<Longrightarrow> A \<Longrightarrow>\<^sub>A B \<and>\<^sub>A C"  
   unfolding entails_def by (auto simp: mod_and_dist)
@@ -219,9 +273,9 @@ lemma ent_conjE1: "\<lbrakk>A\<Longrightarrow>\<^sub>AC\<rbrakk> \<Longrightarro
 lemma ent_conjE2: "\<lbrakk>B\<Longrightarrow>\<^sub>AC\<rbrakk> \<Longrightarrow> A\<and>\<^sub>AB\<Longrightarrow>\<^sub>AC"
   unfolding entails_def by (auto simp: mod_and_dist)
 
-lemma True_emp: "(\<up>True) = emp"  
+(* lemma True_emp: "(\<up>True) = emp"  
   by (metis assn_ext entailsD entails_pure' entails_triv)  
-
+*)
 
 subsection {* Precision *}
 text {*
@@ -256,14 +310,19 @@ lemma preciseD':
   apply (blast intro: assms)
   done
 
-lemma false_absorb: "false * R = false" 
+lemma false_absorb[simp]: "false * R = false" 
   by (simp add: assn_ext mod_false') 
+
+
+lemma star_false_right[simp]: "P * false = false"
+  using false_absorb by (simp add: assn_times_comm)
+
 
 lemma precise_extr_pure[simp]: 
   "precise (\<lambda>x y. \<up>P * R x y) \<longleftrightarrow> (P \<longrightarrow> precise R)"
   "precise (\<lambda>x y. R x y * \<up>P) \<longleftrightarrow> (P \<longrightarrow> precise R)"
-   subgoal apply (cases P) by (auto intro!: preciseI simp: false_absorb True_emp and_assn_conv)  
-   subgoal apply (cases P) by (auto intro!: preciseI simp: false_absorb assn_times_comm True_emp and_assn_conv)  
+   subgoal apply (cases P) by (auto intro!: preciseI simp: false_absorb pure_true and_assn_conv)  
+   subgoal apply (cases P) by (auto intro!: preciseI simp: false_absorb assn_times_comm and_assn_conv)  
    done   
   
 
@@ -309,7 +368,7 @@ lemma is_pure_assn_basic_simps[simp]:
   "is_pure_assn emp"
 proof -
   have "is_pure_assn (\<up>False)" by rule thus "is_pure_assn false" by simp
-  have "is_pure_assn (\<up>True)" by rule thus "is_pure_assn emp" using True_emp by simp
+  have "is_pure_assn (\<up>True)" by rule thus "is_pure_assn emp" by simp
 qed  
 
 lemma is_pure_assn_starI[simp,intro!]: 
@@ -337,8 +396,7 @@ lemma ex_assn_move_out[simp]:
   apply (subst (2) sup_commute)
   apply (simp add: ex_distrib_or)
   done  
-
-declare pure_conj [simp]
+ 
 thm merge_true_star 
 
 lemma merge_pure_or[simp]:
@@ -348,14 +406,6 @@ lemma merge_pure_or[simp]:
 
 thm mod_pure_star_dist 
 
-
-lemma ent_iffI:
-  assumes "A\<Longrightarrow>\<^sub>AB"
-  assumes "B\<Longrightarrow>\<^sub>AA"
-  shows "A=B"
-  apply(rule assn_ext)
-  using assms  
-  using entails_def by blast  
 
 
 lemmas star_aci = 
@@ -404,10 +454,6 @@ lemma entt_def_true: "(P\<Longrightarrow>\<^sub>tQ) \<equiv> (P*true \<Longright
 lemma mod_starD: "h\<Turnstile>A*B \<Longrightarrow> \<exists>h1 h2. h1\<Turnstile>A \<and> h2\<Turnstile>B" 
   by (metis assn_ext mod_star_convE)
     
-lemma pure_true[simp]: "\<up>True = emp" 
-  by (metis (full_types) is_pure_assnE is_pure_assn_basic_simps(2) mult.left_neutral pure_conj) 
-
-
 subsection {* Relators *} 
   
 definition nrest_rel where 

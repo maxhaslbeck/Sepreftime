@@ -171,10 +171,8 @@ lemma set_ins_hnr_abs:
   unfolding gr_def apply(simp only: ex_distrib_star')
     apply(rule inst_ex_assn)
     apply rotater unfolding hn_ctxt_def pure_def 
-  apply(rule fl') apply (simp add: pure_conj[symmetric])
-      apply(intro fl ) apply(rule entails_triv)
-  apply simp
-   apply(rule entails_triv) 
+    apply(rule fl') apply (simp ) apply safe
+  prefer 4  apply(rule entails_triv) 
   by (auto simp: set_ins_t_def) 
 
 subsubsection "set membership via rbtree"

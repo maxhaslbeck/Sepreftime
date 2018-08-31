@@ -1,5 +1,5 @@
 theory Example_Recursive  
-  imports "Refine_Imperative_HOL/Sepref_Tool" "SepLogicTime_RBTreeBasic.RBTree_Impl"
+  imports "Refine_Imperative_HOL/Sepref" "SepLogicTime_RBTreeBasic.RBTree_Impl"
     Set_Impl2 
 begin
 
@@ -56,50 +56,24 @@ lemma spec: "myfun n \<le> fib_SPEC n"
     by (metis option.simps(3)) 
   done
 
-
-
-
-lemma zuf: "\<up> True * true =  true"  
-  by (simp add: abel_semigroup.commute assn_ext mult.abel_semigroup_axioms)  
-
-lemma hn_refine_minus[sepref_fr_rules]: " hn_refine
-     (hn_val nat_rel x' x * hn_val nat_rel y' y)
-     (ureturn (y - x))
-     (hn_val nat_rel y' y * hn_val nat_rel x' x)
-     (pure nat_rel) (RETURNT $  ((-) $ y' $ x'))"
-  unfolding hn_refine_def apply (auto simp: zuf mult.assoc  execute_ureturn pure_def hn_ctxt_def )
-   apply(rule exI[where x=0]) apply (auto simp: zero_enat_def one_enat_def relH_def  elim: pureD )      
-    using models_in_range top_assn_rule   
-    by (metis (full_types) SepLogic_Misc.mod_pure_star_dist assn_times_comm)+
+ 
 
 lemma hn_refine_op_plus[sepref_fr_rules]: " hn_refine
      (hn_val nat_rel y' y * hn_val nat_rel x' x)
      (ureturn (y + x))
      (hn_val nat_rel y' y * hn_val nat_rel x' x)
      (pure nat_rel) ( (op_plus $ y' $ x'))"
-  unfolding hn_refine_def apply (auto simp: op_plus_def zuf mult.assoc  execute_ureturn pure_def hn_ctxt_def )
-   apply(rule exI[where x=0]) apply (auto simp: zero_enat_def one_enat_def relH_def  elim: pureD )      
-    using models_in_range top_assn_rule   
-    by (metis (full_types) SepLogic_Misc.mod_pure_star_dist assn_times_comm)+
-
-lemma hn_refine_plus[sepref_fr_rules]: " hn_refine
-     (hn_val nat_rel y' y * hn_val nat_rel x' x)
-     (ureturn (y + x))
-     (hn_val nat_rel y' y * hn_val nat_rel x' x)
-     (pure nat_rel) (RETURNT $ ((+) $ y' $ x'))"
-  unfolding hn_refine_def apply (auto simp: op_plus_def zuf mult.assoc  execute_ureturn pure_def hn_ctxt_def )
-   apply(rule exI[where x=0]) apply (auto simp: zero_enat_def one_enat_def relH_def  elim: pureD )      
-    using models_in_range top_assn_rule   
-    by (metis (full_types) SepLogic_Misc.mod_pure_star_dist assn_times_comm)+
-
+  unfolding hn_refine_def apply (auto simp: op_plus_def mult.assoc  execute_ureturn pure_def hn_ctxt_def )
+   apply(rule exI[where x=0]) by (auto simp: top_assn_rule zero_enat_def one_enat_def relH_def  elim: pureD )      
+ 
 
 lemma hn_refine_zero[sepref_fr_rules]: " hn_refine
      (emp)
      (ureturn (0))
      (emp)
      (pure nat_rel) ( (op_zero))"
-  unfolding hn_refine_def apply (auto simp: zuf mult.assoc  execute_ureturn pure_def hn_ctxt_def )
-   apply(rule exI[where x=0]) apply (auto simp: zero_enat_def op_zero_def one_enat_def relH_def  elim: pureD )      
+  unfolding hn_refine_def apply (auto simp:   mult.assoc  execute_ureturn pure_def hn_ctxt_def )
+   apply(rule exI[where x=0]) apply (auto simp:  zero_enat_def op_zero_def one_enat_def relH_def  elim: pureD )      
     using models_in_range top_assn_rule   
     by (metis (full_types) SepLogic_Misc.mod_pure_star_dist assn_times_comm)+
 
@@ -109,11 +83,12 @@ lemma hn_refine_one[sepref_fr_rules]: " hn_refine
      (ureturn (1))
      (emp)
      (pure nat_rel) ( (op_one))"
-  unfolding hn_refine_def apply (auto simp: zuf mult.assoc  execute_ureturn pure_def hn_ctxt_def )
+  unfolding hn_refine_def apply (auto simp:   mult.assoc  execute_ureturn pure_def hn_ctxt_def )
    apply(rule exI[where x=0]) apply (auto simp: zero_enat_def op_one_def one_enat_def relH_def  elim: pureD )      
     using models_in_range top_assn_rule   
     by (metis (full_types) SepLogic_Misc.mod_pure_star_dist assn_times_comm)+
 
+(*
 
 lemma hn_refine_PR2[sepref_fr_rules]: " hn_refine emp
            (ureturn (2::nat)) emp
@@ -153,22 +128,8 @@ lemma hn_refine_eq[sepref_fr_rules]: " hn_refine
      (hn_val nat_rel y' y * hn_val nat_rel x' x)
      (pure bool_rel) (RETURNT $ ((=) $ y' $ x'))"
   unfolding hn_refine_def apply (auto simp: zuf mult.assoc  execute_ureturn pure_def hn_ctxt_def )
-   apply(rule exI[where x=0]) apply (auto simp: zero_enat_def relH_def  elim: pureD )      
-    using models_in_range top_assn_rule   
-    by (metis (full_types) SepLogic_Misc.mod_pure_star_dist assn_times_comm)+
-
-
-
-
-lemma hn_if[sepref_comb_rules]:
-  assumes P: "\<Gamma> \<Longrightarrow>\<^sub>t \<Gamma>1 * hn_val bool_rel a a'"
-  assumes RT: "a \<Longrightarrow> hn_refine (\<Gamma>1 * hn_val bool_rel a a') b' \<Gamma>2b R b"
-  assumes RE: "\<not>a \<Longrightarrow> hn_refine (\<Gamma>1 * hn_val bool_rel a a') c' \<Gamma>2c R c"
-  assumes IMP: "TERM If \<Longrightarrow> \<Gamma>2b \<or>\<^sub>A \<Gamma>2c \<Longrightarrow>\<^sub>t \<Gamma>'"
-  shows "hn_refine \<Gamma> (if a' then b' else c') \<Gamma>' R (If$a$b$c)"
-  using P RT RE IMP[OF TERMI]
-  unfolding APP_def PROTECT2_def 
-  by (rule hnr_If)
+   by (auto simp:top_assn_rule  zero_enat_def relH_def  elim: pureD )      
+  *)
 
 context 
   fixes n::"nat"
@@ -227,9 +188,12 @@ lemma "<$ (fib_time n)>
   apply safe
   subgoal by auto  
   subgoal by simp 
-  subgoal apply (auto intro!: ent_ex_postI ent_ex)
+  subgoal apply (auto intro!: ent_ex_preI)
+    apply(rule ent_ex_postI)
+    apply auto
     apply(rule ent_true_drop(2)) by (rule entails_triv) 
   done
+
   
 
 

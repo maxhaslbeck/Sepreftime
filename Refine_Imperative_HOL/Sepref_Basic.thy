@@ -7,7 +7,7 @@ imports
   "../SepLogic_Misc"
   "Lib/Structured_Apply"
   "Lib/Sepref_Misc"
-  
+  SepLog_Automatic
   Sepref_Id_Op 
 begin
 no_notation i_ANNOT (infixr ":::\<^sub>i" 10)
@@ -130,19 +130,17 @@ lemma invalid_pure_recover: "invalid_assn (pure R) x y = pure R x y * true"
   subgoal
     apply (rule entailsI)
     unfolding invalid_assn_def
-    apply (auto simp: pure_def) 
-    using mod_starD pure_assn_rule by force 
+    by (auto simp: pure_def)  
   subgoal
     unfolding invalid_assn_def
     apply (auto simp: pure_def) 
-    by (metis entailsI entails_frame entails_pure') 
+    using pheap.sel(2) pheap.sel(3) by blast
   done    
 
 lemma hn_invalidI: "h\<Turnstile>hn_ctxt P x y \<Longrightarrow> hn_invalid P x y = true"
  apply (cases h)
   apply (rule ent_iffI)
-   apply (auto simp: invalid_assn_def hn_ctxt_def)   
-  using assn_times_comm entails_pure_post by fastforce
+  by (auto simp: invalid_assn_def hn_ctxt_def)    
      
 
 lemma invalid_assn_cong[cong]:
@@ -264,7 +262,7 @@ proof clarsimp
   assume "P \<Longrightarrow>\<^sub>A F * P' * true" "pHeap h as n \<Turnstile> P"
   then have "pHeap h as n \<Turnstile> F * P' * true" by(rule entailsD)
   then have H: "pHeap h as n \<Turnstile> P' * (F * true)" 
-    by (simp add: mult.assoc mult.left_commute)
+    apply simp by (metis mult.commute)  
 
 
   with assms(1)[unfolded hn_refine_def] have D1: "(\<And>h as n M. pHeap h as n \<Turnstile> P' \<Longrightarrow>

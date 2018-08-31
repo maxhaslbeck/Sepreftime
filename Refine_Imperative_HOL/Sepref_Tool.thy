@@ -322,9 +322,8 @@ lemma hnr_pure_COPY[sepref_fr_rules]:
   "CONSTRAINT is_pure R \<Longrightarrow> (ureturn, RETURNT o COPY) \<in> R\<^sup>k \<rightarrow>\<^sub>a R"
   apply (auto simp: is_pure_conv pure_def intro!: hfrefI  )
   unfolding hn_refine_def apply (auto simp: execute_ureturn' pure_conj[symmetric] simp del: pure_conj)
-   apply(rule exI[where x=0]) apply (auto simp: zero_enat_def relH_def dest: pureD)
-    subgoal using models_in_range top_assn_rule by blast 
-  done
+   apply(rule exI[where x=0]) by (auto simp: zero_enat_def top_assn_rule  relH_def dest: pureD)
+  
 
 subsubsection \<open>Short-Circuit Boolean Evaluation\<close>
 text \<open>Convert boolean operators to short-circuiting. 

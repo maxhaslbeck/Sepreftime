@@ -628,17 +628,17 @@ lemma hn_monadic_WHILE_aux:
           solved
       
           focus (rule hnr_frame)
-            applyS rprems
-            apply  (rule enttI)
-            apply(simp add: mult_ac ) 
-              apply rotater 
-              apply(rule match_first)
-              apply(rule match_first)
-              apply(rule match_rest) apply simp 
-          solved
+            applyS rprems 
+            apply(simp only: mult_ac )   
+              apply(rule match_firstt)
+              apply(rule match_firstt)
+              apply(rule match_restt) apply (rule entt_refl) 
+            solved
+
+          apply(simp only: mult_ac)  
           
-          apply rotatel apply rotatel apply rotater
-              apply(rule match_first)  apply rotater
+          apply rotatel apply rotatel  apply rotatel apply rotater apply rotater
+              apply(rule match_first)   apply rotater
               apply(rule match_rest) apply simp
             solved   
         applyF (auto,rule hnr_frame)
@@ -799,7 +799,7 @@ lemma pure_hn_refineI:
   assumes "Q \<longrightarrow> (c,a)\<in>R"
   shows "hn_refine (\<up>Q) (ureturn c) (\<up>Q) (pure R) (RETURNT a)"
   unfolding hn_refine_def using assms
-  by (auto simp: entailsD pure_def relH_def execute_ureturn' zero_enat_def elim!: pureD) 
+  by (auto simp: entailsD pure_def relH_def execute_ureturn' zero_enat_def top_assn_rule) 
 
 lemma pure_hn_refineI_no_asm:
   assumes "(c,a)\<in>R"
@@ -941,8 +941,7 @@ lemma import_rel2_pure_conv: "import_rel2 R (pure A) (pure B) = pure (\<langle>A
 
 lemma precise_pure[constraint_rules]: "single_valued R \<Longrightarrow> precise (pure R)"
   unfolding precise_def pure_def
-  apply (auto dest: single_valuedD) 
-  using and_assn_conv assn_times_comm single_valuedD by fastforce 
+  by (auto dest: single_valuedD) 
 
 lemma precise_pure_iff_sv: "precise (pure R) \<longleftrightarrow> single_valued R"          
   apply (auto simp: precise_pure)

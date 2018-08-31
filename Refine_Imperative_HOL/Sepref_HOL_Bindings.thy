@@ -10,8 +10,11 @@ definition ASSN_ANNOT :: "('a \<Rightarrow> 'ai \<Rightarrow> assn) \<Rightarrow
 context fixes A :: "'a \<Rightarrow> 'ai \<Rightarrow> assn" begin
   sepref_register "PR_CONST (ASSN_ANNOT A)"
   lemma [def_pat_rules]: "ASSN_ANNOT$A \<equiv> UNPROTECT (ASSN_ANNOT A)" by simp
-  lemma [sepref_fr_rules]: "(return o (\<lambda>x. x), RETURN o PR_CONST (ASSN_ANNOT A)) \<in> A\<^sup>d\<rightarrow>\<^sub>aA"
-    by sepref_to_hoare sep_auto
+  lemma [sepref_fr_rules]: "(ureturn o (\<lambda>x. x), RETURNT o PR_CONST (ASSN_ANNOT A)) \<in> A\<^sup>d\<rightarrow>\<^sub>aA"
+    apply rule
+    unfolding hn_refine_def
+    apply (auto simp: execute_ureturn' invalid_assn_def relH_def zero_enat_def)     
+    by (metis (full_types) entails_def entt_refl' mult.right_neutral pure_true star_aci(3)) 
 end  
 
 lemma annotate_assn: "x \<equiv> ASSN_ANNOT A x" by simp
@@ -279,7 +282,7 @@ lemma b_rel_triv[simp]:
   by (auto simp: b_rel_def)
 lemma b_assn_nesting[simp]: 
   "b_assn (b_assn A P1) P2 = b_assn A (\<lambda>x. P1 x \<and> P2 x)"
-  by (auto simp: b_assn_def pure_def intro!: ext)
+  by (auto simp: b_assn_def pure_def mult.assoc intro!: ext)
 lemma b_assn_triv[simp]: 
   "b_assn A (\<lambda>_. True) = A"
   by (auto simp: b_assn_def pure_def intro!: ext)
@@ -323,8 +326,8 @@ lemma b_assn_subtyping_match[sepref_frame_match_rules]:
   shows "hn_ctxt (b_assn A P) x y \<Longrightarrow>\<^sub>t hn_ctxt (b_assn A' P') x y"
   using assms
   unfolding hn_ctxt_def b_assn_def entailst_def entails_def
-  by (fastforce simp: vassn_tag_def mod_star_conv)
-  
+  by (auto simp: vassn_tag_def move_back_pure' dest: mod_starD )
+    
 \<comment> \<open>Simplified forms:\<close>
 lemma b_assn_subtyping_match_eqA[sepref_frame_match_rules]:
   assumes "\<lbrakk>vassn_tag (hn_ctxt A x y); P x\<rbrakk> \<Longrightarrow> P' x"
@@ -332,7 +335,7 @@ lemma b_assn_subtyping_match_eqA[sepref_frame_match_rules]:
   apply (rule b_assn_subtyping_match)
   subgoal 
     unfolding hn_ctxt_def b_assn_def entailst_def entails_def
-    by (fastforce simp: vassn_tag_def mod_star_conv)
+    by (auto simp: vassn_tag_def intro:mod_star_trueI)
   subgoal
     using assms .
   done  
@@ -342,7 +345,7 @@ lemma b_assn_subtyping_match_tR[sepref_frame_match_rules]:
   shows "hn_ctxt (b_assn A P) x y \<Longrightarrow>\<^sub>t hn_ctxt A' x y"
   using assms
   unfolding hn_ctxt_def b_assn_def entailst_def entails_def
-  by (fastforce simp: vassn_tag_def mod_star_conv)
+  by (auto simp: vassn_tag_def  )
 
 lemma b_assn_subtyping_match_tL[sepref_frame_match_rules]:
   assumes "hn_ctxt A x y \<Longrightarrow>\<^sub>t hn_ctxt A' x y"
@@ -350,20 +353,20 @@ lemma b_assn_subtyping_match_tL[sepref_frame_match_rules]:
   shows "hn_ctxt A x y \<Longrightarrow>\<^sub>t hn_ctxt (b_assn A' P') x y"
   using assms
   unfolding hn_ctxt_def b_assn_def entailst_def entails_def
-  by (fastforce simp: vassn_tag_def mod_star_conv)
+  by (fastforce simp: vassn_tag_def  )
 
 
 lemma b_assn_subtyping_match_eqA_tR[sepref_frame_match_rules]: 
   "hn_ctxt (b_assn A P) x y \<Longrightarrow>\<^sub>t hn_ctxt A x y"
   unfolding hn_ctxt_def b_assn_def
-  by (sep_auto intro!: enttI)
+  apply (auto intro!: enttI  ) by(rule ent_true_drop entails_triv)+
 
 lemma b_assn_subtyping_match_eqA_tL[sepref_frame_match_rules]:
   assumes "\<lbrakk>vassn_tag (hn_ctxt A x y)\<rbrakk> \<Longrightarrow> P' x"
   shows "hn_ctxt A x y \<Longrightarrow>\<^sub>t hn_ctxt (b_assn A P') x y"
   using assms
   unfolding hn_ctxt_def b_assn_def entailst_def entails_def
-  by (fastforce simp: vassn_tag_def mod_star_conv)
+  by (auto simp: vassn_tag_def move_back_pure' intro:mod_star_trueI )
 
 \<comment> \<open>General form\<close>
 lemma b_rel_subtyping_merge[sepref_frame_merge_rules]:
@@ -377,7 +380,8 @@ lemma b_rel_subtyping_merge[sepref_frame_merge_rules]:
 lemma b_rel_subtyping_merge_eqA[sepref_frame_merge_rules]:
   shows "hn_ctxt (b_assn A P) x y \<or>\<^sub>A hn_ctxt (b_assn A P') x y \<Longrightarrow>\<^sub>t hn_ctxt (b_assn A (\<lambda>x. P x \<or> P' x)) x y"
   apply (rule b_rel_subtyping_merge)
-  by simp
+  apply (auto simp add: entailst_def intro!: ent_true_drop(2))
+  apply(rule ent_disjE) by auto
 
 lemma b_rel_subtyping_merge_tL[sepref_frame_merge_rules]:
   assumes "hn_ctxt A x y \<or>\<^sub>A hn_ctxt A' x y \<Longrightarrow>\<^sub>t hn_ctxt Am x y"
@@ -400,35 +404,36 @@ lemma b_rel_subtyping_merge_eqA_tR[sepref_frame_merge_rules]:
 (* TODO: Combinatorial explosion :( *)
 lemma b_assn_invalid_merge1: "hn_invalid (b_assn A P) x y \<or>\<^sub>A hn_invalid (b_assn A P') x y
   \<Longrightarrow>\<^sub>t hn_invalid (b_assn A (\<lambda>x. P x \<or> P' x)) x y"
-  by (sep_auto simp: hn_ctxt_def invalid_assn_def entailst_def)
+  by (auto simp: hn_ctxt_def invalid_assn_def entailst_def) 
 
 lemma b_assn_invalid_merge2: "hn_invalid (b_assn A P) x y \<or>\<^sub>A hn_invalid A x y
   \<Longrightarrow>\<^sub>t hn_invalid A x y"
-  by (sep_auto simp: hn_ctxt_def invalid_assn_def entailst_def)
+  by (auto simp: hn_ctxt_def invalid_assn_def entailst_def)
+
 lemma b_assn_invalid_merge3: "hn_invalid A x y \<or>\<^sub>A hn_invalid (b_assn A P) x y
   \<Longrightarrow>\<^sub>t hn_invalid A x y"
-  by (sep_auto simp: hn_ctxt_def invalid_assn_def entailst_def)
+  by (auto simp: hn_ctxt_def invalid_assn_def entailst_def)
 
 lemma b_assn_invalid_merge4: "hn_invalid (b_assn A P) x y \<or>\<^sub>A hn_ctxt (b_assn A P') x y
   \<Longrightarrow>\<^sub>t hn_invalid (b_assn A (\<lambda>x. P x \<or> P' x)) x y"
-  by (sep_auto simp: hn_ctxt_def invalid_assn_def entailst_def)
+  by (auto simp: hn_ctxt_def invalid_assn_def entailst_def)
 lemma b_assn_invalid_merge5: "hn_ctxt (b_assn A P') x y \<or>\<^sub>A hn_invalid (b_assn A P) x y
   \<Longrightarrow>\<^sub>t hn_invalid (b_assn A (\<lambda>x. P x \<or> P' x)) x y"
-  by (sep_auto simp: hn_ctxt_def invalid_assn_def entailst_def)
+  by (auto simp: hn_ctxt_def invalid_assn_def entailst_def)
 
 lemma b_assn_invalid_merge6: "hn_invalid (b_assn A P) x y \<or>\<^sub>A hn_ctxt A x y
   \<Longrightarrow>\<^sub>t hn_invalid A x y"
-  by (sep_auto simp: hn_ctxt_def invalid_assn_def entailst_def)
+  by (auto simp: hn_ctxt_def invalid_assn_def entailst_def)
 lemma b_assn_invalid_merge7: "hn_ctxt A x y \<or>\<^sub>A hn_invalid (b_assn A P) x y
   \<Longrightarrow>\<^sub>t hn_invalid A x y"
-  by (sep_auto simp: hn_ctxt_def invalid_assn_def entailst_def)
+  by (auto simp: hn_ctxt_def invalid_assn_def entailst_def)
 
 lemma b_assn_invalid_merge8: "hn_ctxt (b_assn A P) x y \<or>\<^sub>A hn_invalid A x y
   \<Longrightarrow>\<^sub>t hn_invalid A x y"
-  by (sep_auto simp: hn_ctxt_def invalid_assn_def entailst_def)
+  by (auto simp: hn_ctxt_def invalid_assn_def entailst_def)
 lemma b_assn_invalid_merge9: "hn_invalid A x y \<or>\<^sub>A hn_ctxt (b_assn A P) x y
   \<Longrightarrow>\<^sub>t hn_invalid A x y"
-  by (sep_auto simp: hn_ctxt_def invalid_assn_def entailst_def)
+  by (auto simp: hn_ctxt_def invalid_assn_def entailst_def)
 
 lemmas b_assn_invalid_merge[sepref_frame_merge_rules] = 
   b_assn_invalid_merge1
@@ -592,12 +597,15 @@ lemmas [sepref_import_rewrite, sepref_frame_normrel_eqs, fcomp_norm_unfold] = pr
 lemma prod_assn_precise[constraint_rules]: 
   "precise P1 \<Longrightarrow> precise P2 \<Longrightarrow> precise (prod_assn P1 P2)"
   apply rule
-  apply (clarsimp simp: prod_assn_def star_assoc)
+  apply (clarsimp simp: prod_assn_def mult.assoc)
   apply safe
-  apply (erule (1) prec_frame) apply frame_inference+
-  apply (erule (1) prec_frame) apply frame_inference+
+  subgoal apply (erule (1) prec_frame) by(rule match_first, rule entails_triv)+
+  subgoal apply (erule (1) prec_frame)
+      apply rotatel apply (rule match_first) apply (rule entails_triv)
+    apply rotatel apply (rule match_first) apply (rule entails_triv)
+    done
   done
-
+(*
 lemma  
   "precise P1 \<Longrightarrow> precise P2 \<Longrightarrow> precise (prod_assn P1 P2)" \<comment> \<open>Original proof\<close>
   apply rule
@@ -613,7 +621,7 @@ proof (rule conjI)
   from F have "(h, as) \<Turnstile> P2 b bp * (P1 a ap * F) \<and>\<^sub>A P2 b' bp * (P1 a' ap * F')"
     by (simp only: mult.assoc[where 'a=assn] mult.commute[where 'a=assn] mult.left_commute[where 'a=assn])
   with preciseD[OF P2] show "b=b'" .
-qed
+qed *)
 
 (* TODO Add corresponding rules for other types and add to datatype snippet *)
 lemma intf_of_prod_assn[intf_of_assn]:
@@ -662,7 +670,7 @@ lemma entt_invalid_prod: "hn_invalid (prod_assn A B) p p' \<Longrightarrow>\<^su
     apply (simp add: hn_ctxt_def invalid_assn_def[abs_def])
     apply (rule enttI)
     apply clarsimp
-    apply (cases p; cases p'; auto simp: mod_star_conv pure_def) 
+    apply (cases p; cases p'; auto simp:  pure_def dest: mod_starD) 
     done
 
 lemmas invalid_prod_merge[sepref_frame_merge_rules] = gen_merge_cons[OF entt_invalid_prod]
@@ -681,11 +689,16 @@ lemma hn_case_prod'[sepref_prep_comb_rule,sepref_comb_rules]:
     apply1 extract_hnr_invalids
     apply1 (cases p; cases p'; simp add: prod_assn_pair_conv[THEN prod_assn_ctxt])
     apply (rule hn_refine_cons[OF _ Pair _ entt_refl])
-    applyS (simp add: hn_ctxt_def)
+   
+    applyS (simp add: hn_ctxt_def  ) 
     applyS simp
-    applyS (simp add: hn_ctxt_def entt_fr_refl entt_fr_drop)
-    done
-
+      subgoal  
+        apply  (simp only: hn_ctxt_def entailst_def mult.assoc)
+    apply(rule match_first)
+    apply(rule match_first) apply(rotatel)
+    apply(rule match_first)  by simp
+      done
+(*
 lemma hn_case_prod_old:
   assumes P: "\<Gamma>\<Longrightarrow>\<^sub>t\<Gamma>1 * hn_ctxt (prod_assn P1 P2) p' p"
   assumes R: "\<And>a1 a2 a1' a2'. \<lbrakk>p'=(a1',a2')\<rbrakk> 
@@ -708,25 +721,25 @@ lemma hn_case_prod_old:
   applyS (sep_auto intro!: enttI simp: hn_ctxt_def)
 
   applyS simp
-  done
+  done *)
 
 lemma hn_Pair[sepref_fr_rules]: "hn_refine 
   (hn_ctxt P1 x1 x1' * hn_ctxt P2 x2 x2')
-  (return (x1',x2'))
+  (ureturn (x1',x2'))
   (hn_invalid P1 x1 x1' * hn_invalid P2 x2 x2')
   (prod_assn P1 P2)
-  (RETURN$(Pair$x1$x2))"
-  unfolding hn_refine_def
-  apply (sep_auto simp: hn_ctxt_def prod_assn_def)
-  apply (rule ent_frame_fwd[OF invalidate_clone'[of P1]], frame_inference)
-  apply (rule ent_frame_fwd[OF invalidate_clone'[of P2]], frame_inference)
-  apply sep_auto
-  done
+  (RETURNT$(Pair$x1$x2))"
+  unfolding hn_refine_def apply (auto simp: execute_ureturn pure_def hn_ctxt_def)
+   apply(rule exI[where x=0]) apply (auto simp: zero_enat_def relH_def )      
+  apply(rule entailsD)  prefer 2 by (auto simp: entt_refl' invalid_assn_def dest: mod_starD ) 
 
-lemma fst_hnr[sepref_fr_rules]: "(return o fst,RETURN o fst) \<in> (prod_assn A B)\<^sup>d \<rightarrow>\<^sub>a A"
-  by sepref_to_hoare sep_auto
-lemma snd_hnr[sepref_fr_rules]: "(return o snd,RETURN o snd) \<in> (prod_assn A B)\<^sup>d \<rightarrow>\<^sub>a B"
-  by sepref_to_hoare sep_auto
+lemma fst_hnr[sepref_fr_rules]: "(ureturn o fst,RETURNT o fst) \<in> (prod_assn A B)\<^sup>d \<rightarrow>\<^sub>a A"
+  apply rule apply(auto simp: hn_refine_def relH_def execute_ureturn invalid_assn_def zero_enat_def  )
+  apply(rule entailsD) apply auto apply (rule match_first) by auto 
+
+lemma snd_hnr[sepref_fr_rules]: "(ureturn o snd,RETURNT o snd) \<in> (prod_assn A B)\<^sup>d \<rightarrow>\<^sub>a B"
+  apply rule apply(auto simp: hn_refine_def relH_def execute_ureturn invalid_assn_def zero_enat_def  )
+  apply(rule entailsD) apply auto  apply rotatel apply (rule match_first) by auto 
 
 
 lemmas [constraint_simps] = prod_assn_pure_conv
@@ -734,7 +747,7 @@ lemmas [sepref_import_param] = param_prod_swap
 
 lemma rdomp_prodD[dest!]: "rdomp (prod_assn A B) (a,b) \<Longrightarrow> rdomp A a \<and> rdomp B b"
   unfolding rdomp_def prod_assn_def
-  by (sep_auto simp: mod_star_conv)
+  by (auto dest!: mod_starD   )
 
 
 subsection "Option"
@@ -770,18 +783,21 @@ lemma hr_comp_option_conv[simp, fcomp_norm_unfold]: "
   = option_assn (hr_comp R R')"
   unfolding hr_comp_def[abs_def]
   apply (intro ext ent_iffI)
-  apply solve_entails
+  subgoal for a c
+  apply (auto  intro!: ent_ex_preI  )
   apply (case_tac "(R,b,c)" rule: option_assn.cases)
-  apply clarsimp_all
+       apply clarsimp_all apply (cases a) apply auto
+    apply (rule ent_ex_postI) apply auto
+    done
   
-  apply (sep_auto simp: option_assn_alt_def split: option.splits)
-  apply (clarsimp simp: option_assn_alt_def split: option.splits; safe)
-  apply (sep_auto split: option.splits)
+  apply (auto simp: option_assn_alt_def split: option.splits)
+    apply (rule ent_ex_postI) apply auto 
   apply (intro ent_ex_preI) 
   apply (rule ent_ex_postI)
-  apply (sep_auto split: option.splits)
+  apply (auto split: option.splits)
   done
       
+ 
 
 lemma option_assn_precise[safe_constraint_rules]: 
   assumes "precise P"  
@@ -844,7 +860,7 @@ lemma hn_case_option[sepref_prep_comb_rule, sepref_comb_rules]:
 
     subgoal
       apply (rule hn_refine_cons[OF _ Rs _ entt_refl]; assumption?)
-      applyS (simp add: hn_ctxt_def)
+      applyS (auto simp add: hn_ctxt_def  )
       apply (rule entt_star_mono)
       apply1 (rule entt_fr_drop)
       applyS (simp add: hn_ctxt_def)
@@ -854,22 +870,26 @@ lemma hn_case_option[sepref_prep_comb_rule, sepref_comb_rules]:
     done
 
 lemma hn_None[sepref_fr_rules]:
-  "hn_refine emp (return None) emp (option_assn P) (RETURN$None)"
-  by rule sep_auto
+  "hn_refine emp (ureturn None) emp (option_assn P) (RETURNT$None)"
+  apply (auto simp: hn_refine_def execute_ureturn zero_enat_def relH_def  )
+  using mod_star_trueI by force 
+
 
 lemma hn_Some[sepref_fr_rules]: "hn_refine 
   (hn_ctxt P v v')
-  (return (Some v'))
+  (ureturn (Some v'))
   (hn_invalid P v v')
   (option_assn P)
-  (RETURN$(Some$v))"
-  by rule (sep_auto simp: hn_ctxt_def invalidate_clone')
+  (RETURNT$(Some$v))"
+  apply (auto simp: hn_refine_def relH_def invalid_assn_def zero_enat_def execute_ureturn hn_ctxt_def invalidate_clone')
+  apply(rule entailsD) apply auto apply (rule match_rest) by simp
 
 definition "imp_option_eq eq a b \<equiv> case (a,b) of 
   (None,None) \<Rightarrow> return True
 | (Some a, Some b) \<Rightarrow> eq a b
 | _ \<Rightarrow> return False"
 
+(*
 (* TODO: This is some kind of generic algorithm! Use GEN_ALGO here, and 
   let GEN_ALGO re-use the registered operator rules *)
 lemma option_assn_eq[sepref_comb_rules]:
@@ -880,7 +900,7 @@ lemma option_assn_eq[sepref_comb_rules]:
     (eq' va' vb') 
     (\<Gamma>' va va' vb vb') 
     bool_assn
-    (RETURN$((=) $va$vb))"
+    (RETURNT$((=) $va$vb))"
   assumes F2: 
     "\<And>va va' vb vb'. 
       \<Gamma>' va va' vb vb' \<Longrightarrow>\<^sub>t hn_ctxt P va va' * hn_ctxt P vb vb' * \<Gamma>1"
@@ -889,7 +909,7 @@ lemma option_assn_eq[sepref_comb_rules]:
     (imp_option_eq eq' a' b') 
     (hn_ctxt (option_assn P) a a' * hn_ctxt (option_assn P) b b' * \<Gamma>1)
     bool_assn 
-    (RETURN$((=) $a$b))"
+    (RETURNT$((=) $a$b))"
   apply (rule hn_refine_cons_pre[OF F1])
   unfolding imp_option_eq_def
   apply rule
@@ -909,7 +929,7 @@ lemma option_assn_eq[sepref_comb_rules]:
   apply (rule ent_refl)
   apply (sep_auto simp: pure_def)
   done
-
+*)
 lemma [pat_rules]: 
   "(=) $a$None \<equiv> is_None$a"
   "(=) $None$a \<equiv> is_None$a"
@@ -918,30 +938,29 @@ lemma [pat_rules]:
 
 lemma hn_is_None[sepref_fr_rules]: "hn_refine 
   (hn_ctxt (option_assn P) a a')
-  (return (is_None a'))
+  (ureturn (is_None a'))
   (hn_ctxt (option_assn P) a a')
   bool_assn
-  (RETURN$(is_None$a))"
-  apply rule
-  apply (sep_auto split: option.split simp: hn_ctxt_def pure_def)
-  done
+  (RETURNT$(is_None$a))" 
+  apply (auto simp: top_assn_rule hn_refine_def execute_ureturn zero_enat_def relH_def split: option.split simp: hn_ctxt_def pure_def)
+    using mod_star_trueI by blast 
+   
 
 lemma (in -) sepref_the_complete[sepref_fr_rules]:
   assumes "x\<noteq>None"
   shows "hn_refine 
     (hn_ctxt (option_assn R) x xi) 
-    (return (the xi)) 
+    (ureturn (the xi)) 
     (hn_invalid (option_assn R) x xi)
     (R)
-    (RETURN$(the$x))"
+    (RETURNT$(the$x))"
     using assms
     apply (cases x)
     apply simp
     apply (cases xi)
-    apply (simp add: hn_ctxt_def)
-    apply rule
-    apply (sep_auto simp: hn_ctxt_def invalidate_clone' vassn_tagI invalid_assn_const)
-    done
+    apply (simp add: hn_ctxt_def) 
+    apply (auto simp: hn_refine_def execute_ureturn zero_enat_def relH_def hn_ctxt_def invalidate_clone' vassn_tagI invalid_assn_const)
+    by (metis assn_times_comm mod_star_trueI)
 
 (* As the sepref_the_complete rule does not work for us 
   --- the assertion ensuring the side-condition gets decoupled from its variable by a copy-operation ---
@@ -950,20 +969,17 @@ lemma (in -) sepref_the_id:
   assumes "CONSTRAINT (IS_PURE IS_ID) R"
   shows "hn_refine 
     (hn_ctxt (option_assn R) x xi) 
-    (return (the xi)) 
+    (ureturn (the xi)) 
     (hn_ctxt (option_assn R) x xi)
     (R)
-    (RETURN$(the$x))"
+    (RETURNT$(the$x))"
     using assms 
     apply (clarsimp simp: IS_PURE_def IS_ID_def hn_ctxt_def is_pure_conv)
-    apply (cases x)
-    apply simp
-    apply (cases xi)
-    apply (simp add: hn_ctxt_def invalid_assn_def)
-    apply rule apply (sep_auto simp: pure_def)
-    apply rule apply (sep_auto)
-    apply (simp add: option_assn_pure_conv)
-    apply rule apply (sep_auto simp: pure_def invalid_assn_def)
+    apply (cases x; cases xi)
+    apply (auto simp add: hn_ctxt_def invalid_assn_def)
+      apply (auto simp: hn_refine_def  execute_ureturn zero_enat_def relH_def  pure_def) 
+    subgoal using mod_star_trueI by force   
+    subgoal by (simp add: top_assn_rule)  
     done
 
 
@@ -992,7 +1008,7 @@ lemma list_assn_aux_append[simp]:
     = list_assn P l1 l1' * list_assn P l2 l2'"
   apply (induct rule: list_induct2)
   apply simp
-  apply (simp add: star_assoc)
+  apply (simp add: mult.assoc)
   done
 
 lemma list_assn_aux_ineq_len: "length l \<noteq> length li \<Longrightarrow> list_assn A l li = false"
@@ -1061,7 +1077,7 @@ proof
         and F'="list_assn P ls2 ls * F2"
         ])
       using M
-      by (simp add: star_assoc)
+      by (simp add: mult.assoc)
     
     moreover have "ls1=ls2"
       apply (rule Cons.hyps[where ?F1.0="P a1 a * F1" and ?F2.0="P a2 a * F2"])
@@ -1139,15 +1155,23 @@ proof (intro ext)
   { fix x l y m
     have "hr_comp (list_assn A) (\<langle>B\<rangle>list_rel) (x # l) (y # m) = 
       hr_comp A B x y * hr_comp (list_assn A) (\<langle>B\<rangle>list_rel) l m"
-      by (sep_auto 
+      apply (auto 
         simp: hr_comp_def list_rel_split_left_iff
-        intro!: ent_ex_preI ent_iffI) (* TODO: ent_ex_preI should be applied by default, before ent_ex_postI!*)
+        intro!:  ent_ex_preI ent_iffI)
+      apply(rule ent_ex_postI)
+       apply(rule ent_ex_postI) apply(simp only: mult.assoc) apply(rule match_first) 
+       apply(rule match_rest) apply simp
+      subgoal for b ba
+        apply(rule ent_ex_postI[where x="ba#b"]) by simp  
+      done
+       
+ (* TODO: ent_ex_preI should be applied by default, before ent_ex_postI!*)
   } note aux = this
 
   fix l li
   show "hr_comp (list_assn A) (\<langle>B\<rangle>list_rel) l li = list_assn (hr_comp A B) l li"
     apply (induction l arbitrary: li; case_tac li; intro ent_iffI)
-    apply (sep_auto simp: hr_comp_def; fail)+
+    apply ((auto simp add: hr_comp_def intro!: ent_ex_preI ent_ex_postI ; fail)[1]) + 
     by (simp_all add: aux)
 qed  
 
@@ -1179,7 +1203,7 @@ lemma hn_case_list[sepref_prep_comb_rule, sepref_comb_rules]:
 
     subgoal
       apply (rule hn_refine_cons[OF _ Rs _ entt_refl]; assumption?)
-      applyS (simp add: hn_ctxt_def)
+      applyS (simp add: hn_ctxt_def)       
       apply (rule entt_star_mono)
       apply1 (rule entt_fr_drop)
       apply (rule entt_star_mono)
@@ -1199,19 +1223,19 @@ lemma hn_case_list[sepref_prep_comb_rule, sepref_comb_rules]:
     done
 
 lemma hn_Nil[sepref_fr_rules]: 
-  "hn_refine emp (return []) emp (list_assn P) (RETURN$[])"
+  "hn_refine emp (ureturn []) emp (list_assn P) (RETURNT$[])"
   unfolding hn_refine_def
-  by sep_auto
+  apply(auto simp: hn_refine_def execute_ureturn zero_enat_def relH_def )
+  using mod_star_trueI by force 
 
 lemma hn_Cons[sepref_fr_rules]: "hn_refine (hn_ctxt P x x' * hn_ctxt (list_assn P) xs xs') 
-  (return (x'#xs')) (hn_invalid P x x' * hn_invalid (list_assn P) xs xs') (list_assn P)
-  (RETURN$((#) $x$xs))"
-  unfolding hn_refine_def
-  apply (sep_auto simp: hn_ctxt_def)
-  apply (rule ent_frame_fwd[OF invalidate_clone'[of P]], frame_inference)
-  apply (rule ent_frame_fwd[OF invalidate_clone'[of "list_assn P"]], frame_inference)
-  apply solve_entails
-  done
+  (ureturn (x'#xs')) (hn_invalid P x x' * hn_invalid (list_assn P) xs xs') (list_assn P)
+  (RETURNT$((#) $x$xs))"
+  unfolding hn_refine_def apply (auto simp:  execute_ureturn pure_def hn_ctxt_def)
+   apply(rule exI[where x=0]) apply (auto simp: zero_enat_def invalid_assn_def relH_def intro: mod_star_trueI)
+  using mod_star_convE apply blast
+  using mod_star_convE apply blast done
+ 
 
 lemma list_assn_aux_len: 
   "list_assn P l l' = list_assn P l l' * \<up>(length l = length l')"
@@ -1227,44 +1251,69 @@ lemma list_assn_aux_eqlen_simp:
   apply (subst (asm) list_assn_aux_len; auto simp: vassn_tag_def)+
   done
 
+
 lemma hn_append[sepref_fr_rules]: "hn_refine (hn_ctxt (list_assn P) l1 l1' * hn_ctxt (list_assn P) l2 l2')
-  (return (l1'@l2')) (hn_invalid (list_assn P) l1 l1' * hn_invalid (list_assn P) l2 l2') (list_assn P)
-  (RETURN$((@) $l1$l2))"
-  apply rule
-  apply (sep_auto simp: hn_ctxt_def)
-  apply (subst list_assn_aux_len)
-  apply (sep_auto)
-  apply (rule ent_frame_fwd[OF invalidate_clone'[of "list_assn P"]], frame_inference)
-  apply (rule ent_frame_fwd[OF invalidate_clone'[of "list_assn P"]], frame_inference)
-  apply solve_entails
-  done
+  (ureturn (l1'@l2')) (hn_invalid (list_assn P) l1 l1' * hn_invalid (list_assn P) l2 l2') (list_assn P)
+  (RETURNT$((@) $l1$l2))"
+  unfolding hn_refine_def apply (auto simp:  execute_ureturn pure_def hn_ctxt_def)
+   apply(rule exI[where x=0]) apply (auto simp: zero_enat_def invalid_assn_def relH_def intro!: mod_star_trueI)
+  subgoal
+    apply (subst (asm) list_assn_aux_len) 
+    apply(rule entailsD) prefer 2 by (auto) 
+  using mod_star_convE apply blast
+  using mod_star_convE apply blast done 
+
 
 lemma list_assn_aux_cons_conv1:
   "list_assn R (a#l) m = (\<exists>\<^sub>Ab m'. R a b * list_assn R l m' * \<up>(m=b#m'))"
   apply (cases m)
-  apply sep_auto
-  apply (sep_auto intro!: ent_iffI)
-  done
+  by (auto intro!: assn_ext ) 
+
 lemma list_assn_aux_cons_conv2:
   "list_assn R l (b#m) = (\<exists>\<^sub>Aa l'. R a b * list_assn R l' m * \<up>(l=a#l'))"
   apply (cases l)
-  apply sep_auto
-  apply (sep_auto intro!: ent_iffI)
-  done
+  by (auto intro!: assn_ext)  
+
 lemmas list_assn_aux_cons_conv = list_assn_aux_cons_conv1 list_assn_aux_cons_conv2
 
 lemma list_assn_aux_append_conv1:
   "list_assn R (l1@l2) m = (\<exists>\<^sub>Am1 m2. list_assn R l1 m1 * list_assn R l2 m2 * \<up>(m=m1@m2))"
   apply (induction l1 arbitrary: m)
-  apply (sep_auto intro!: ent_iffI)
-  apply (sep_auto intro!: ent_iffI simp: list_assn_aux_cons_conv)
+  apply (auto intro!: ent_iffI ent_ex_postI ent_ex_preI)[1]
+  apply (auto intro!: ent_iffI ent_ex_preI simp: list_assn_aux_cons_conv)
+  subgoal for a l1 b m1 m2
+    apply(rule ent_ex_postI[where x="b#m1"])
+    apply(rule ent_ex_postI[where x="m2"])
+    apply(rule ent_ex_postI[where x="b"])
+    apply(rule ent_ex_postI[where x="m1"]) apply simp
+    apply(simp only: mult.assoc) by (rule entails_triv)
+  subgoal for a l1 m2 b m'
+    apply(rule ent_ex_postI[where x="b"])
+    apply(rule ent_ex_postI[where x="m' @ m2"])
+    apply(rule ent_ex_postI[where x="m'"])
+    apply(rule ent_ex_postI[where x="m2"]) apply simp
+    apply(simp only: mult.assoc) by (rule entails_triv)
   done
+
 lemma list_assn_aux_append_conv2:
   "list_assn R l (m1@m2) = (\<exists>\<^sub>Al1 l2. list_assn R l1 m1 * list_assn R l2 m2 * \<up>(l=l1@l2))"
   apply (induction m1 arbitrary: l)
-  apply (sep_auto intro!: ent_iffI)
-  apply (sep_auto intro!: ent_iffI simp: list_assn_aux_cons_conv)
+  apply (auto intro!: ent_iffI ent_ex_postI ent_ex_preI)[1]
+  apply (auto intro!: ent_iffI ent_ex_preI simp: list_assn_aux_cons_conv)
+  subgoal for a l1 b m1 m2
+    apply(rule ent_ex_postI[where x="b#m1"])
+    apply(rule ent_ex_postI[where x="m2"])
+    apply(rule ent_ex_postI[where x="b"])
+    apply(rule ent_ex_postI[where x="m1"]) apply simp
+    apply(simp only: mult.assoc) by (rule entails_triv)
+  subgoal for a l1 m2 b m'
+    apply(rule ent_ex_postI[where x="b"])
+    apply(rule ent_ex_postI[where x="m' @ m2"])
+    apply(rule ent_ex_postI[where x="m'"])
+    apply(rule ent_ex_postI[where x="m2"]) apply simp
+    apply(simp only: mult.assoc) by (rule entails_triv)
   done
+
 lemmas list_assn_aux_append_conv = list_assn_aux_append_conv1 list_assn_aux_append_conv2  
 
 declare param_upt[sepref_import_param]
@@ -1328,10 +1377,12 @@ lemmas invalid_sum_merge[sepref_frame_merge_rules] = gen_merge_cons[OF entt_inva
 
 sepref_register Inr Inl  
 
-lemma [sepref_fr_rules]: "(return o Inl,RETURN o Inl) \<in> A\<^sup>d \<rightarrow>\<^sub>a sum_assn A B"
-  by sepref_to_hoare sep_auto
-lemma [sepref_fr_rules]: "(return o Inr,RETURN o Inr) \<in> B\<^sup>d \<rightarrow>\<^sub>a sum_assn A B"
-  by sepref_to_hoare sep_auto
+lemma [sepref_fr_rules]: "(ureturn o Inl,RETURNT o Inl) \<in> A\<^sup>d \<rightarrow>\<^sub>a sum_assn A B"
+  apply rule
+  by(auto simp: hn_refine_def execute_ureturn zero_enat_def relH_def invalid_assn_def intro: mod_star_trueI)
+lemma [sepref_fr_rules]: "(ureturn o Inr,RETURNT o Inr) \<in> B\<^sup>d \<rightarrow>\<^sub>a sum_assn A B"
+  apply rule
+  by(auto simp: hn_refine_def execute_ureturn zero_enat_def relH_def invalid_assn_def intro: mod_star_trueI)
 
 sepref_register case_sum
 
@@ -1391,26 +1442,26 @@ lemma sum_cases_hnr:
     apply1 (rule entt_trans[OF _ MERGE])
     applyS (simp add: entt_disjI1' entt_disjI2')
   done    
-done  
+  done 
 
 text \<open>After some more preprocessing (adding extra frame-rules for non-atomic postconditions, 
   and splitting the merge-terms into binary merges), this rule can be registered\<close>
 lemmas [sepref_comb_rules] = sum_cases_hnr[sepref_prep_comb_rule]
 
 sepref_register isl projl projr
-lemma isl_hnr[sepref_fr_rules]: "(return o isl,RETURN o isl) \<in> (sum_assn A B)\<^sup>k \<rightarrow>\<^sub>a bool_assn"
+lemma isl_hnr[sepref_fr_rules]: "(ureturn o isl,RETURNT o isl) \<in> (sum_assn A B)\<^sup>k \<rightarrow>\<^sub>a bool_assn"
   apply sepref_to_hoare
-  subgoal for a b by (cases a; cases b; sep_auto)
+  subgoal for a b by (cases a; cases b; auto simp: hn_refine_def execute_ureturn zero_enat_def relH_def intro: mod_star_trueI)
   done
 
-lemma projl_hnr[sepref_fr_rules]: "(return o projl,RETURN o projl) \<in> [isl]\<^sub>a (sum_assn A B)\<^sup>d \<rightarrow> A"
+lemma projl_hnr[sepref_fr_rules]: "(ureturn o projl,RETURNT o projl) \<in> [isl]\<^sub>a (sum_assn A B)\<^sup>d \<rightarrow> A"
   apply sepref_to_hoare
-  subgoal for a b by (cases a; cases b; sep_auto)
+  subgoal for a b by (cases a; cases b; auto simp: hn_refine_def execute_ureturn zero_enat_def relH_def intro: mod_star_trueI)
   done
 
-lemma projr_hnr[sepref_fr_rules]: "(return o projr,RETURN o projr) \<in> [Not o isl]\<^sub>a (sum_assn A B)\<^sup>d \<rightarrow> B"
+lemma projr_hnr[sepref_fr_rules]: "(ureturn o projr,RETURNT o projr) \<in> [Not o isl]\<^sub>a (sum_assn A B)\<^sup>d \<rightarrow> B"
   apply sepref_to_hoare
-  subgoal for a b by (cases a; cases b; sep_auto)
+  subgoal for a b by (cases a; cases b; auto simp: hn_refine_def execute_ureturn zero_enat_def relH_def intro: mod_star_trueI)
   done
   
 subsection \<open>String Literals\<close>  

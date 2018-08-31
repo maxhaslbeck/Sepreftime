@@ -381,32 +381,27 @@ lemma fref_to_pure_hfref':
 lemma isolate_first: "\<And>A B C. \<Gamma> \<Longrightarrow>\<^sub>A \<Gamma>' \<Longrightarrow> A \<Longrightarrow>\<^sub>A B \<Longrightarrow> \<Gamma> * A \<Longrightarrow>\<^sub>A \<Gamma>' * B"  
   by (simp add: ent_star_mono)  
 
+
   lemma hr_comp_emp[simp]: "hr_comp (\<lambda>a c. emp) R a c = \<up>(\<exists>b. (b,a)\<in>R)"
     unfolding hr_comp_def[abs_def]
     apply (intro ext ent_iffI)
-     apply auto
-    subgoal by (metis entailsI entails_ex pure_assn_rule) 
-    subgoal apply(rule entailsI)    
-      by (smt mod_ex_dist)
-    done
-  thm prod.splits
+    by (auto intro: ent_ex_postI ent_ex_preI) 
+
+
   lemma hr_comp_prod_conv[simp]:
     "hr_comp (prod_assn Ra Rb) (Ra' \<times>\<^sub>r Rb') 
     = prod_assn (hr_comp Ra Ra') (hr_comp Rb Rb')"  
     unfolding hr_comp_def[abs_def] unfolding prod_assn_def[abs_def]
     apply (intro ext ent_iffI)
-     apply (auto intro!: ent_ex_preI  simp: pure_conj[symmetric] simp del: pure_conj)
+     apply (auto intro!: ent_ex_preI)
     subgoal apply(intro ent_ex_postI)
       apply (simp only: mult.assoc)
         apply (rule match_first)
-        apply rotater apply (rule match_first) 
-      by(simp add: assn_times_comm  pure_conj[symmetric] del: pure_conj) 
+        apply (rule match_rest) 
+      by simp
     subgoal for a b aa ba bb bc
       apply(intro ent_ex_postI[where x="(bc,bb)"])
-      apply (auto simp: mult.assoc)
-      apply (rule match_first)  
-      apply rotatel apply (rule match_first)
-      by(simp add: assn_times_comm  pure_conj[symmetric] del: pure_conj)  
+      by (auto simp: mult.assoc)  
     done
  
 lemma pure_entails: "(P\<Longrightarrow>Q) \<Longrightarrow> \<up> P \<Longrightarrow>\<^sub>A \<up> Q"  
@@ -419,10 +414,7 @@ lemma ex_pure: "(\<exists>\<^sub>Ab. \<up> (B b)) = \<up> (\<exists>b. B b)"
     apply (intro ext)
     apply (rule ent_iffI)
     unfolding hr_comp_def[abs_def] 
-     apply (auto  intro!: ent_ex_preI  simp: pure_def   simp: pure_conj[symmetric] simp del: pure_conj)
-    subgoal by (metis entail_equiv_forward entails_pure' relcomp.relcompI) 
-    subgoal apply(simp only: ex_pure) apply(intro pure_entails)
-      by blast
+     apply (auto  intro!: ent_ex_preI simp: ex_pure pure_def)
     done                        
 
   lemma hr_comp_is_pure[safe_constraint_rules]: "is_pure A \<Longrightarrow> is_pure (hr_comp A B)"
@@ -454,9 +446,7 @@ lemma entails_pure''': "(emp \<Longrightarrow>\<^sub>A \<up> B) = B"
     apply (simp add: ret_le_down_conv) apply auto
     apply (rule ent_ex_postI)
     apply (rule ent_ex_postI)
-    apply (simp only: mult.assoc)
-    apply(simp  add: pure_conj[symmetric] del: pure_conj)
-    apply (rule match_rest) by(simp only: entails_pure''') 
+    apply (rule match_rest) by auto 
 
   lemma hr_comp_precise[constraint_rules]:
     assumes [safe_constraint_rules]: "precise R"
@@ -481,9 +471,7 @@ lemma entails_pure''': "(emp \<Longrightarrow>\<^sub>A \<up> B) = B"
       apply (clarsimp intro!: ent_ex_preI entails_pure'' simp:  pure_conj[symmetric] del: pure_conj)
       apply (rule ent_ex_postI)
       apply (rule ent_ex_postI)
-      apply (simp only: mult.assoc)
-      apply(simp  add: pure_conj[symmetric] del: pure_conj)
-      apply (rule match_rest) by(simp only: entails_pure''')  
+      apply (rule match_rest) by auto 
     done
 
 
@@ -555,9 +543,8 @@ lemma entails_pure''': "(emp \<Longrightarrow>\<^sub>A \<up> B) = B"
       apply(simp add: ex_distrib_star[symmetric])
       apply(rule ent_ex_postI)
       apply(rule ent_ex_postI)
-      apply(simp only: mult.assoc ) apply(rule match_first) apply rotater
-      apply(rule match_first) apply(rule match_first) apply rotater apply(rule match_rest)
-      apply (simp only: entails_pure''' pure_conj[symmetric])
+      apply(simp only: mult.assoc ) apply(rule match_first) 
+      apply(rule match_first) apply(rule match_first)  apply(rule match_rest) 
       using b1 R'' by auto
 
     thm hn_rel_compI[OF anofail' R']
@@ -704,12 +691,9 @@ lemma entails_pure''': "(emp \<Longrightarrow>\<^sub>A \<up> B) = B"
   lemma fe: "B \<Longrightarrow> A \<Longrightarrow>\<^sub>A C \<Longrightarrow>  A \<Longrightarrow>\<^sub>A C * \<up>B" 
     by simp
 
-  thm move_back_pure
   lemma hrp_comp_cong: "hrp_imp A A' \<Longrightarrow> B=B' \<Longrightarrow> hrp_imp (hrp_comp A B) (hrp_comp A' B')"
-    apply (auto intro!: ent_ex_preI entails_pure'' simp:  hrp_imp_def hrp_comp_def hr_comp_def entailst_def)
-    apply(rule ent_ex_postI)  apply(simp add: move_back_pure') apply(rule fe) apply auto
-    apply(rule ent_ex_postI)  apply(simp add: move_back_pure') apply(rule fe) apply auto
-    done
+    by (auto intro!: ent_ex_postI ent_ex_preI entails_pure'' 
+          simp:  hrp_imp_def hrp_comp_def hr_comp_def entailst_def) 
 
   lemma hrp_prod_cong: "hrp_imp A A' \<Longrightarrow> hrp_imp B B' \<Longrightarrow> hrp_imp (A*\<^sub>aB) (A'*\<^sub>aB')"
     by (auto simp: hrp_imp_def prod_assn_def intro: entt_star_mono)
