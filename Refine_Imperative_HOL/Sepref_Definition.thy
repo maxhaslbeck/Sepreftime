@@ -1,11 +1,11 @@
 section \<open>Sepref-Definition Command\<close>
 theory Sepref_Definition
-imports Sepref_Rules "Lib/Pf_Mono_Prover" "Lib/Term_Synth"
+imports Sepref_Rules "Lib/Pf_Mono_Prover" "Lib/Term_Synth" Refine_Automation
 keywords "sepref_definition" :: thy_goal
       and "sepref_thm" :: thy_goal
 begin
 subsection {* Setup of Extraction-Tools *}
-(*  declare [[cd_patterns "hn_refine _ ?f _ _ _"]] *)
+  declare [[cd_patterns "hn_refine _ ?f _ _ _"]]  
 
   lemma heap_fixp_codegen:
     assumes DEF: "f \<equiv> heap.fixp_fun cB"
@@ -17,7 +17,7 @@ subsection {* Setup of Extraction-Tools *}
     apply fact
     done
 
-(*
+ 
   ML \<open>
     structure Sepref_Extraction = struct
       val heap_extraction: Refine_Automation.extraction = {
@@ -35,7 +35,7 @@ subsection {* Setup of Extraction-Tools *}
     end
     \<close>
 
-  setup Sepref_Extraction.setup *)
+  setup Sepref_Extraction.setup 
 
 
   subsection \<open>Synthesis setup for sepref-definition goals\<close>
@@ -71,7 +71,7 @@ subsection {* Setup of Extraction-Tools *}
     by (simp add: SYNTH_def)
 
 term starts_with
-(*
+ 
 ML \<open>
   structure Sepref_Definition = struct
     fun make_hnr_goal t ctxt = let
@@ -180,5 +180,5 @@ ML \<open>
 
   end
 \<close>
-*)
+ 
 end

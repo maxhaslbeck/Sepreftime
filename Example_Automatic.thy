@@ -195,7 +195,83 @@ schematic_goal "hn_refine \<Gamma> (?C::?'a Heap) ?\<Gamma>' ?R (rd_impl1 as)" u
 
      apply sepref_dbg_opt_init
                                               
-  apply sepref_dbg_trans_step+ 
+  apply sepref_dbg_trans_step                
+  apply sepref_dbg_trans_step                
+  apply sepref_dbg_trans_step                
+  apply sepref_dbg_trans_step                
+  apply sepref_dbg_trans_step                
+  apply sepref_dbg_trans_step                
+  apply sepref_dbg_trans_step                   
+  apply sepref_dbg_trans_step                
+  apply sepref_dbg_trans_step                
+  apply sepref_dbg_trans_step                
+  apply sepref_dbg_trans_step                
+  apply sepref_dbg_trans_step                
+  apply sepref_dbg_trans_step                
+  apply sepref_dbg_trans_step                   
+  apply sepref_dbg_trans_step                
+  apply sepref_dbg_trans_step                
+  apply sepref_dbg_trans_step                
+  apply sepref_dbg_trans_step                
+  apply sepref_dbg_trans_step                
+  apply sepref_dbg_trans_step                
+  apply sepref_dbg_trans_step                   
+  apply sepref_dbg_trans_step                
+  apply sepref_dbg_trans_step                
+  apply sepref_dbg_trans_step                
+  apply sepref_dbg_trans_step                
+  apply sepref_dbg_trans_step                
+  apply sepref_dbg_trans_step                
+  apply sepref_dbg_trans_step                   
+  apply sepref_dbg_trans_step                
+  apply sepref_dbg_trans_step                
+  apply sepref_dbg_trans_step                
+  apply sepref_dbg_trans_step                
+  apply sepref_dbg_trans_step                
+  apply sepref_dbg_trans_step                
+  apply sepref_dbg_trans_step                    
+  apply sepref_dbg_trans_step                
+  apply sepref_dbg_trans_step                
+  apply sepref_dbg_trans_step                
+  apply sepref_dbg_trans_step                
+  apply sepref_dbg_trans_step                
+  apply sepref_dbg_trans_step                
+  apply sepref_dbg_trans_step   (* if *)                
+  apply sepref_dbg_trans_step                
+  apply sepref_dbg_trans_step                
+  apply sepref_dbg_trans_step                
+  apply sepref_dbg_trans_step                
+  apply sepref_dbg_trans_step                
+  apply sepref_dbg_trans_step                
+  apply sepref_dbg_trans_step                   
+  apply sepref_dbg_trans_step                
+  apply sepref_dbg_trans_step                
+  apply sepref_dbg_trans_step                
+  apply sepref_dbg_trans_step                
+  apply sepref_dbg_trans_step                
+  apply sepref_dbg_trans_step                
+  apply sepref_dbg_trans_step                   
+  apply sepref_dbg_trans_step                
+  apply sepref_dbg_trans_step                
+  apply sepref_dbg_trans_step                
+  apply sepref_dbg_trans_step                
+  apply sepref_dbg_trans_step                
+  apply sepref_dbg_trans_step                
+  apply sepref_dbg_trans_step                   
+  apply sepref_dbg_trans_step                
+  apply sepref_dbg_trans_step                
+  apply sepref_dbg_trans_step                
+  apply sepref_dbg_trans_step                
+  apply sepref_dbg_trans_step                
+  apply sepref_dbg_trans_step                
+  apply sepref_dbg_trans_step                   
+  apply sepref_dbg_trans_step                
+  apply sepref_dbg_trans_step                
+  apply sepref_dbg_trans_step                
+  apply sepref_dbg_trans_step                
+  apply sepref_dbg_trans_step                
+  apply sepref_dbg_trans_step                
+      apply sepref_dbg_trans_step  
 
   apply sepref_dbg_opt
   apply sepref_dbg_cons_solve \<comment> \<open>Frame rule, recovering the invalidated list 

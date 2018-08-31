@@ -1,6 +1,6 @@
 section \<open>Sepref Tool\<close>
 theory Sepref_Tool
-imports Sepref_Translate (* Sepref_Definition *) Sepref_Combinator_Setup Sepref_Intf_Util
+imports Sepref_Translate  Sepref_Definition   Sepref_Combinator_Setup Sepref_Intf_Util
 begin
 
 text \<open>In this theory, we set up the sepref tool.\<close>
