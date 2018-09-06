@@ -32,7 +32,7 @@ fun fib where
 
 fun fib_time :: "nat \<Rightarrow> nat" where
   "fib_time 0 = 1"
-|  "fib_time (Suc 0) = 1"
+| "fib_time (Suc 0) = 1"
 | "fib_time (Suc (Suc n)) = fib_time n + fib_time (Suc n) + 1"
 
 definition "fib_SPEC n \<equiv> SPECT [fib n \<mapsto> fib_time n]"
@@ -164,19 +164,6 @@ schematic_goal synth_myfun: "hn_refine emp (?C::nat Heap) ?\<Gamma>' ?R (myfun n
 thm synth_myfun
 concrete_definition myfun_impl uses synth_myfun is "hn_refine _ (?c n) _ _ _"
 
-lemma post_rulet:
-  "<P> f <Q>\<^sub>t \<Longrightarrow> \<forall>x. Q x \<Longrightarrow>\<^sub>A R x * true \<Longrightarrow> <P> f <R>\<^sub>t"
-  apply(rule post_rule[where Q="\<lambda>x. Q x * true"])
-  apply auto apply(rule ent_true_drop(1)) by simp
-
-lemma extract_cost_ub':
-  assumes "hn_refine \<Gamma> c \<Gamma>' R (REST M)" "(\<And>c. c\<in>ran M \<Longrightarrow> c \<le> Cost_ub)"
-   and pre: "P \<Longrightarrow>\<^sub>A \<Gamma> * timeCredit_assn Cost_ub"
-   and post: "\<forall>r. \<Gamma>' * (\<exists>\<^sub>Ara. R ra r * \<up>(ra \<in> dom M)) \<Longrightarrow>\<^sub>A Q r * true"
- shows "<P> c <Q>\<^sub>t"
-  apply(rule pre_rule[OF pre])
-  apply(rule post_rulet[OF _ post]) 
-  apply(rule extract_cost_ub) by fact+
 
 thm myfun_impl_def
 thm extract_cost_ub[OF   hnr_refine[OF spec synth_myfun, unfolded fib_SPEC_def]]

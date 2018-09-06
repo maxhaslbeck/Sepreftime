@@ -25,7 +25,7 @@ sepref_decl_op set_subset: "(\<subset>)" :: "\<langle>A\<rangle>set_rel \<righta
 
 (* TODO: We may want different operations here: pick with predicate returning option,
   pick with remove, ... *)    
-sepref_decl_op set_pick: "RES" :: "[\<lambda>s. s\<noteq>{}]\<^sub>f \<langle>K\<rangle>set_rel \<rightarrow> K" by auto
+sepref_decl_op set_pick: "REST" :: "[\<lambda>s. s\<noteq>{}]\<^sub>f \<langle>K\<rangle>set_rel \<rightarrow> K" by auto
 
 end
 

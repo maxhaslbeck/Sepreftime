@@ -91,7 +91,7 @@ lemma hn_refine_tl[sepref_fr_rules]: " hn_refine (hn_val Id s' s)
      by (auto simp: top_assn_rule zero_enat_def relH_def  elim: pureD )      
  
 
-   
+(* synthesize *)
 
 context 
   fixes as::"nat list"
@@ -99,7 +99,7 @@ context
   notes [sepref_import_param] = IdI[of as] 
 begin
 
-schematic_goal "hn_refine \<Gamma> (?C::?'a Heap) ?\<Gamma>' ?R (rd_impl1 as)" using [[goals_limit = 3]]
+schematic_goal synth_rd: "hn_refine emp (?C::?'a Heap) ?\<Gamma>' ?R (rd_impl1 as)" using [[goals_limit = 3]]
   unfolding rd_impl1_def
 
   apply sepref_dbg_preproc
@@ -119,6 +119,10 @@ schematic_goal "hn_refine \<Gamma> (?C::?'a Heap) ?\<Gamma>' ?R (rd_impl1 as)" u
   done
 
  
+concrete_definition rd_impl uses synth_rd is "hn_refine _ (?c ) _ _ _"
+
+thm rd_impl_def
+term rd_impl
 
 end
 

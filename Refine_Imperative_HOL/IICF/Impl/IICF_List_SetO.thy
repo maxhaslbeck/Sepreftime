@@ -9,8 +9,9 @@ begin
   lemma lso_is_pure[safe_constraint_rules]: "is_pure A \<Longrightarrow> is_pure (lso_assn A)"
     unfolding lso_assn_def by safe_constraint
 
-  lemma lso_empty_aref: "(uncurry0 (RETURN []), uncurry0 (RETURN op_set_empty)) 
-    \<in> unit_rel  \<rightarrow>\<^sub>f \<langle>br set (\<lambda>_. True)\<rangle>nres_rel"
+  lemma lso_empty_aref: "(uncurry0 (RETURNT []), uncurry0 (RETURNT op_set_empty)) 
+    \<in> unit_rel  \<rightarrow>\<^sub>f \<langle>br set (\<lambda>_. True)\<rangle>nrest_rel"
+    apply rule
     by (auto simp: in_br_conv intro!: frefI nres_relI)
 
   lemma lso_ins_aref: "(uncurry (RETURN oo ((#) )), uncurry (RETURN oo op_set_insert)) 

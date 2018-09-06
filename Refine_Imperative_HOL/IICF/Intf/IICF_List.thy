@@ -133,7 +133,7 @@ lemma list_rel_pres_length[fcomp_prenorm_simps]: "(x',x)\<in>\<langle>A\<rangle>
 
 locale list_custom_empty = 
   fixes rel empty and op_custom_empty :: "'a list"
-  assumes customize_hnr_aux: "(uncurry0 empty,uncurry0 (RETURN (op_list_empty::'a list))) \<in> unit_assn\<^sup>k \<rightarrow>\<^sub>a rel"
+  assumes customize_hnr_aux: "(uncurry0 empty,uncurry0 (RETURNT (op_list_empty::'a list))) \<in> unit_assn\<^sup>k \<rightarrow>\<^sub>a rel"
   assumes op_custom_empty_def: "op_custom_empty = op_list_empty"
 begin
   sepref_register op_custom_empty :: "'c list"
@@ -141,7 +141,7 @@ begin
   lemma fold_custom_empty:
     "[] = op_custom_empty"
     "op_list_empty = op_custom_empty"
-    "mop_list_empty = RETURN op_custom_empty"
+    "mop_list_empty = RETURNT op_custom_empty"
     unfolding op_custom_empty_def by simp_all
 
   lemmas custom_hnr[sepref_fr_rules] = customize_hnr_aux[folded op_custom_empty_def]
@@ -153,7 +153,7 @@ lemma gen_mop_list_swap: "mop_list_swap l i j = do {
     xj \<leftarrow> mop_list_get l j;
     l \<leftarrow> mop_list_set l i xj;
     l \<leftarrow> mop_list_set l j xi;
-    RETURN l
+    RETURNT l
   }"
   unfolding mop_list_swap_def
   by (auto simp: pw_eq_iff refine_pw_simps swap_def)

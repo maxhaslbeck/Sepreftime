@@ -22,17 +22,24 @@ begin
 
 context 
   notes [fcomp_norm_unfold] = array_assn_def[symmetric]
-  notes [intro!] = hfrefI hn_refineI[THEN hn_refine_preI]
+  notes [intro!] = hfrefI (* hn_refineI[THEN hn_refine_preI] *)
   notes [simp] = pure_def hn_ctxt_def is_array_def invalid_assn_def
 begin  
+thm op_list_empty_def
 
-  lemma array_empty_hnr_aux: "(uncurry0 heap_array_empty,uncurry0 (RETURN op_list_empty)) \<in> unit_assn\<^sup>k \<rightarrow>\<^sub>a is_array"
-    by sep_auto
+thm op_list_empty_def  mop_list_empty_def pre_list_empty_def
+
+lemma array_empty_hnr_aux: "(uncurry0 heap_array_empty,uncurry0 (RETURNT op_list_empty)) \<in> unit_assn\<^sup>k \<rightarrow>\<^sub>a is_array"
+  apply rule 
+  apply (auto simp: hn_refine_def execute_of_list  )sorry
+
+
   sepref_decl_impl (no_register) array_empty: array_empty_hnr_aux .
 
   lemma array_replicate_hnr_aux: 
     "(uncurry Array.new, uncurry (RETURN oo op_list_replicate)) 
       \<in> nat_assn\<^sup>k *\<^sub>a id_assn\<^sup>k \<rightarrow>\<^sub>a is_array"
+    apply rule
     by (sep_auto)
   sepref_decl_impl (no_register) array_replicate: array_replicate_hnr_aux .
    
