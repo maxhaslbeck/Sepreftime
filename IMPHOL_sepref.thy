@@ -233,6 +233,146 @@ proof -
 qed
 *)
 
+lemma ineq[rewrite]: "([xa \<mapsto> enat (Suc 0)] \<le> (\<lambda>n. Some 1)) = True"
+  by(simp add: le_fun_def one_enat_def)
+
+notepad
+begin
+  fix q and v::nat
+  have 1: "Suc 0 = 1" by auto
+  have "hn_refineT (q \<mapsto>\<^sub>r v) (Ref.lookup q) true (\<lambda>x' r. \<up>(r=x')) (REST (\<lambda>n::nat. Some 1))"
+    unfolding hn_refineT_def 
+    apply simp apply(rule exI[where x=1])
+    apply (simp add: ineq)
+    apply (simp only: 1) apply auto2 sorry
+
+    
+  fix p
+
+  
+  fix as :: "nat list"
+  have "hn_refineT (p \<mapsto>\<^sub>a as * \<up>(as \<noteq> [])) (Array.nth p 0) true (\<lambda>x' r. \<up>(r=x')) (REST (\<lambda>n::nat. Some 1))"
+    unfolding hn_refineT_def 
+    apply simp apply(rule exI[where x=1])
+    apply (simp add: ineq) apply auto2 sorry
+
+  have "\<And>x. RETURNT x \<le> SPECT (\<lambda>n. Some 1)" by (auto simp: pw_le_iff one_enat_def)
+
+  have "\<And>xa x'. xa \<mapsto>\<^sub>a replicate x' 0 * $ 2 * true \<Longrightarrow>\<^sub>A
+                        \<exists>\<^sub>Ax bs. xa \<mapsto>\<^sub>a bs * true * \<up> (length bs = x) *
+                                 \<up> ([x \<mapsto> enat (x' + 3)] \<le> (\<lambda>x. Some (enat x + 3)))"
+    apply auto2 sorry (* auto2 bug? *)
+
+  have "\<And>x'. enat (x' + 3) \<le> enat x' + 3" sledgehammer
+    by (simp add: numeral_eq_enat)
+
+  have "\<And>xa x'. xa \<mapsto>\<^sub>a replicate x' 0 * $ 2 * true \<Longrightarrow>\<^sub>A
+                        \<exists>\<^sub>Ax bs. xa \<mapsto>\<^sub>a bs * true * \<up> (length bs = x) *
+                                 \<up> ([x \<mapsto> enat (x' + 3)] \<le> (\<lambda>x. Some (enat x + 3)))"
+    apply (simp add: le_fun_def)
+    subgoal for p x'
+    apply(rule ent_ex_postI[where x=x'])
+      apply(rule ent_ex_postI[where x="replicate x' 0"])
+      apply (simp add: numeral_eq_enat) 
+      by auto2 done
+
+
+  have "\<And>xa x' x. x = x' \<Longrightarrow> (xa \<mapsto>\<^sub>a replicate x' 0 * $ 2 * true \<Longrightarrow>\<^sub>A
+                        \<exists>\<^sub>Axb bs. xa \<mapsto>\<^sub>a bs * true * \<up> (length bs = xb) *
+                                  \<up> ([xb \<mapsto> enat (x' + 3)]
+                                     \<le> (\<lambda>xa. if xa = x then Some (enat xa + 3) else None)))"
+    apply (simp add: le_fun_def)
+    subgoal for p x' x
+    apply(rule ent_ex_postI[where x=x'])
+      apply(rule ent_ex_postI[where x="replicate x' 0"])
+      apply (simp add: numeral_eq_enat) 
+      by auto2 done
+
+  have 
+    "\<And>x x'. RETURNT  x \<le> (REST (\<lambda>n::nat. Some 1))
+           \<Longrightarrow> hn_refineT (true * hn_ctxt (\<lambda>r x. \<up>(r=x)) x x')  (Array.new x' (0::nat)) true (\<lambda>x' p. \<exists>\<^sub>Abs. p\<mapsto>\<^sub>abs * \<up>(length bs = x'))
+                  ( (\<lambda>x. REST (\<lambda>n. if n=x then Some (n+3) else None)) x)"
+    apply (auto simp: pw_le_iff one_enat_def)
+    unfolding hn_refineT_def apply simp
+    subgoal for x x' apply(rule exI[where x="x'+3"])
+      apply (simp add: hn_ctxt_def) apply auto2 sorry
+    done
+
+  have "(bindT (REST (\<lambda>n::nat. Some 1))(\<lambda>x. REST (\<lambda>n. if n=x then Some (n+3) else None))) =
+      SPECT (\<lambda>x. Some \<infinity>)" unfolding bindT_def apply auto
+    unfolding Sup_nrest_def apply auto unfolding Sup_fun_def apply(rule ext)
+    unfolding SUP_eq_Some_iff apply auto
+    subgoal sorry
+      unfolding Sup_enat_def  apply auto
+      sorry
+
+
+
+  have "hn_refineT (q \<mapsto>\<^sub>r v) (!q\<bind>(\<lambda>n. Array.new n (0::nat))) true (\<lambda>x' p. \<exists>\<^sub>Abs. p\<mapsto>\<^sub>abs * \<up>(length bs = x'))
+         (bindT (REST (\<lambda>n::nat. Some 1))(\<lambda>x. REST (\<lambda>n. if n=x then Some (n+3) else None)))"
+
+    apply simp
+    sorry
+
+end
+
+definition finit :: "'a nrest \<Rightarrow> bool" where "finit M \<longleftrightarrow> (case M of FAILi \<Rightarrow> True | SPECT m \<Rightarrow> Sup {m x |x. True} < Some \<infinity>)"
+
+lemma "finit (m \<bind> f) \<Longrightarrow> finit m \<and> (\<forall>x. (\<exists>t. inresT m x t) \<longrightarrow> finit (f x))" 
+  sorry
+
+lemma assumes "finit m" 
+  "(\<forall>x. (\<exists>t. inresT m x t) \<longrightarrow> finit (f x))"
+shows "finit (m \<bind> f) " (* gilt nicht *) oops
+
+lemma "RETURNT x \<le> m \<Longrightarrow> m = SPECT M  \<Longrightarrow> M x \<ge> Some 0"
+  unfolding RETURNT_def apply (simp add: le_fun_def) by metis 
+
+lemma hnr_bind:
+  assumes D1: "hn_refineT \<Gamma>  m' \<Gamma>1 Rh m"
+  assumes D2: 
+    "\<And>x x'. RETURNT  x \<le> m \<Longrightarrow> hn_refineT (\<Gamma>1 * hn_ctxt Rh x x')  (f' x') (\<Gamma>2 x x') R (f x)"
+  assumes IMP: "\<And>x x'. \<Gamma>2 x x' \<Longrightarrow>\<^sub>t \<Gamma>' * hn_ctxt Rx x x'" 
+  shows "hn_refineT \<Gamma> (m'\<bind>f') \<Gamma>' R (m\<bind>f)"  
+  using assms
+  unfolding hn_refineT_def
+  apply (clarsimp simp add: pw_bindT_nofailT)
+proof -
+  fix T1
+  assume A1: "(\<And>x x'. RETURNT x \<le> m \<Longrightarrow>
+                 nofailT (f x) \<longrightarrow> (\<exists>T. <\<Gamma>1 * hn_ctxt Rh x x' * $ T> f' x' <\<lambda>r. \<Gamma>2 x x' * (\<exists>\<^sub>Axa. R xa r * \<up> (SPECT [xa \<mapsto> enat T] \<le> f x))>\<^sub>t))"
+  assume A2: "(\<And>x x'. \<Gamma>2 x x' \<Longrightarrow>\<^sub>t \<Gamma>' * hn_ctxt Rx x x')"
+  assume A3: "nofailT m"
+  assume A4: "\<forall>x. (\<exists>t. inresT m x t) \<longrightarrow> nofailT (f x)"
+  assume A5: "<\<Gamma> * $ T1> m' <\<lambda>r. \<Gamma>1 * (\<exists>\<^sub>Ax. Rh x r * \<up> (SPECT [x \<mapsto> enat T1] \<le> m))>\<^sub>t"
+  then have "G" unfolding hoare_triple_def sorry
+  then obtain x where "<\<Gamma> * $ T1> m' <\<lambda>r. \<Gamma>1 * Rh x r * \<up> (SPECT [x \<mapsto> enat T1] \<le> m)>\<^sub>t"
+    sorry
+  then obtain x' where "h \<Turnstile> Rh x x'" and xSPECT: "SPECT [x \<mapsto> enat T1] \<le> m"  sorry
+
+  
+  
+  define TT where "TT = Sup { 
+
+  from xSPECT A3 A4 have "nofailT (f x)" "RETURNT x \<le> m"   by (auto simp: pw_le_iff split: if_splits)
+
+  with A1 obtain T2 where "<\<Gamma>1 * hn_ctxt Rh x x' * $ T2> f' x' <\<lambda>r. \<Gamma>2 x x' * (\<exists>\<^sub>Axa. R xa r * \<up> (SPECT [xa \<mapsto> enat T2] \<le> f x))>\<^sub>t"
+    by blast
+
+  show "\<exists>T. <\<Gamma> * $ T> m' \<bind> f' <\<lambda>r. \<Gamma>' * (\<exists>\<^sub>Ax. R x r * \<up> (SPECT [x \<mapsto> enat T] \<le> m \<bind> f))>\<^sub>t"
+    apply(rule exI[where x="T1+T2"])
+    unfolding hoare_triple_def
+    apply(safe)
+
+    apply(rule SepAuto.bind_rule)
+     apply(subst time_credit_add)
+  apply(subst assn_times_assoc[symmetric])
+     apply(rule frame_rule)
+    apply(rule A5)
+    sorry
+qed
+
+
 lemma hnr_bind:
   assumes D1: "hn_refineT \<Gamma>  m' \<Gamma>1 Rh m"
   assumes D2: 
