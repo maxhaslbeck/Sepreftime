@@ -1,13 +1,47 @@
 theory Set_Impl2
   imports "SepLogicTime_RBTreeBasic.RBTree_Impl"  DataRefinement
-      "Refine_Imperative_HOL/Sepref_Additional"
+      "Refine_Imperative_HOL/Sepref" 
 begin
 
 
 hide_const R B
 
 
+
+
+
 subsection "library for some set implementation"
+
+
+subsubsection "interface"
+
+
+context
+  fixes n::nat
+begin
+  definition "mop_empty_set = SPECT [ {} \<mapsto> enat n ]"
+
+  sepref_register "mop_empty_set" 
+  print_theorems 
+end
+
+context
+  fixes t:: "'a set \<Rightarrow> nat" 
+begin
+  definition "mop_insert_set x S = SPECT [ insert x S \<mapsto> enat (t S) ]"
+  sepref_register "mop_insert_set" 
+  print_theorems 
+end
+
+
+context
+  fixes t:: "'a set \<Rightarrow> nat" 
+begin
+  definition "mop_mem_set x S = SPECT [ x \<in> S \<mapsto> enat (t S) ]"
+  sepref_register "mop_mem_set" 
+  print_theorems 
+end
+
 
 term rbt_map_assn
 thm rbt_search rbt_insert_rule
@@ -54,6 +88,16 @@ theorem rbt_search_abs [hoare_triple]:
   "<rbt_set_assn S b * $(rbt_search_time_logN (card S + 1))> rbt_search x b <\<lambda>r. rbt_set_assn S b * \<up>(r = Some () \<longleftrightarrow> x \<in> S)>\<^sub>t"
   by auto2
 
+
+definition rbt_mem :: "nat \<Rightarrow> (nat, unit) rbt_node ref option \<Rightarrow> bool Heap" where [rewrite]:
+  "rbt_mem x p = do {
+      f \<leftarrow> rbt_search x p;
+      return (f = Some ()) }"
+
+     
+theorem rbt_mem_rule [hoare_triple]:
+  "<rbt_set_assn S b * $(rbt_search_time_logN (card S + 1) + 1)> rbt_mem x b <\<lambda>r. rbt_set_assn S b * \<up>(r = (x \<in> S))>\<^sub>t"
+  by auto2
 
 definition "set_empty = tree_empty"
 
@@ -141,10 +185,10 @@ definition set_ins_t :: "nat\<Rightarrow>nat" where "set_ins_t n = rbt_insert_lo
 definition set_ins_SPEC where
   "set_ins_SPEC x S \<equiv> SPECT [insert x S \<mapsto> set_ins_t (card S)]"
 
-
+(*
 lemma set_ins_hnr:
   "hn_refine (rbt_map_assn M p) (rbt_insert x () p) emp rbt_map_assn (\<Down>Z (set_ins_SPEC x S))"
-  sorry
+  sorry *)
 
 lemma ent_ex: "(\<And>x. P x \<Longrightarrow>\<^sub>A Q) \<Longrightarrow> (\<exists>\<^sub>Ax. P x) \<Longrightarrow>\<^sub>A Q"
   by (meson entails_ex) 
@@ -154,10 +198,10 @@ lemma isolate_first: "\<And>A B C. \<Gamma> \<Longrightarrow>\<^sub>A \<Gamma>' 
   by (simp add: ent_star_mono)  
 
 lemma inZ_conv: "(M, S) \<in> Z \<longleftrightarrow> (S = keys_of M)" unfolding Z_def by auto
-
+(*
 lemma set_ins_hnr':
   "hn_refine (rbt_map_assn' S p * hn_val Id x x') (rbt_insert x' () p) (hn_val Id x x') rbt_map_assn' (set_ins_SPEC x S)"
-  sorry
+  sorry *)
 
 lemma set_ins_hnr_abs:
   "hn_refine (rbt_set_assn S p * hn_val Id x x') (rbt_set_insert x' p) (hn_val Id x x') rbt_set_assn (set_ins_SPEC x S)"
@@ -184,17 +228,18 @@ definition set_mem_SPEC :: "'a \<Rightarrow> 'a set \<Rightarrow> bool nrest" wh
 
 definition Y :: "(unit option \<times> bool) set" where
     "Y = {(c,a)|c a. c = Some () \<longleftrightarrow> a}"
-
+(*
 lemma set_mem_hnr:
   "hn_refine (rbt_map_assn M p) (rbt_search x p) (rbt_map_assn M p) (pure Id) (\<Down>Y (set_mem_SPEC x S))"
-  sorry
+  sorry *)
 
 definition Y' :: "bool \<Rightarrow> unit option \<Rightarrow> assn" where
   "Y' b v = \<up>(  v = Some () \<longleftrightarrow> b )"
- 
+
+(*
 lemma set_mem_hnr':
   "hn_refine (rbt_map_assn' S p * hn_val Id x x') (rbt_search (x'::nat) p) (rbt_map_assn' S p * hn_val Id x x') Y' ( (set_mem_SPEC x S))"
-  sorry 
+  sorry  *)
 
 lemma set_mem_hnr_abs:
   "hn_refine (rbt_set_assn S p * hn_val Id x x') (rbt_search (x'::nat) p) (rbt_set_assn S p * hn_val Id x x') Y' ( (set_mem_SPEC x S))"
@@ -221,6 +266,60 @@ thm set_ins_hnr_abs set_ins_SPEC_def
 (* membership test *)
 thm set_mem_hnr_abs set_mem_SPEC_def
 
+subsubsection "implement the interface"
+
+lemma mop_empty_set_rule[sepref_fr_rules]:
+  "1\<le>n \<Longrightarrow> hn_refine (emp) set_empty emp rbt_set_assn (PR_CONST (mop_empty_set n))"
+  unfolding autoref_tag_defs mop_empty_set_def  
+  apply (rule extract_cost_otherway[OF _ set_empty_rule, where Cost_lb=1 and F=emp])
+  apply simp  
+  subgoal 
+    apply(rule ent_true_drop(2))
+    by (auto intro!: inst_ex_assn fl entails_triv simp:   rbt_map_assn'_def )  
+   by (auto intro: entails_triv simp: set_init_t_def)
+                                               
+ term rbt_set_assn
+ term "PR_CONST (mop_insert_set t) x S"
+lemma mop_insert_set_rule[sepref_fr_rules]:
+  "rbt_insert_logN (card S + 1) \<le> t S \<Longrightarrow> 
+      hn_refine (hn_val Id x x' * hn_ctxt rbt_set_assn S p)
+       (rbt_set_insert x' p)
+       (hn_val Id x x' * hn_invalid rbt_set_assn S p) rbt_set_assn ( PR_CONST (mop_insert_set t) $ x $ S)"
+  unfolding mop_insert_set_def autoref_tag_defs
+  apply (rule extract_cost_otherway[OF _  rbt_insert_rule_abs, where F="hn_val Id x x' * hn_invalid rbt_set_assn S p" ])
+  unfolding mult.assoc
+    apply(rotatel)
+    apply rotater  apply rotater  apply rotater   apply taker apply(rule isolate_first)
+  apply (simp add: gr_def hn_ctxt_def)  apply(rule invalidate_clone)
+  unfolding hn_ctxt_def
+    apply(rule match_first)  apply (rule entails_triv)
+
+   apply rotatel apply rotatel apply swapl apply takel apply swapr apply taker 
+   apply(rule isolate_first) 
+  unfolding gr_def apply(simp only: ex_distrib_star' pure_def)
+    apply(rule inst_ex_assn) apply simp apply safe prefer 4 
+     apply(rule entails_triv) 
+  by (auto) 
 
 
+
+thm rbt_search
+
+
+
+lemma mop_mem_set_rule[sepref_fr_rules]:
+  "rbt_search_time_logN (card S + 1) + 1 \<le> t S \<Longrightarrow>
+    hn_refine (hn_val Id x x' * hn_ctxt rbt_set_assn S p)
+     (rbt_mem (x'::nat) p)
+     (hn_ctxt (pure Id) x x' * hn_ctxt rbt_set_assn S p) id_assn ( PR_CONST (mop_mem_set t) $  x $ S)"
+  unfolding autoref_tag_defs mop_mem_set_def
+  apply (rule extract_cost_otherway[OF _  rbt_mem_rule]) unfolding mult.assoc
+  unfolding hn_ctxt_def
+    apply rotatel apply(rule match_first) apply(rule match_first)       
+   apply (rule entails_triv)
+  apply rotater
+   apply(rule match_first) apply (simp add: pure_def)   apply safe
+    apply(rule inst_ex_assn[where x="x \<in> S"])  by auto 
+
+                                                  
 end
