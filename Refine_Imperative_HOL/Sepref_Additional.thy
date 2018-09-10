@@ -151,6 +151,21 @@ proof (goal_cases)
     subgoal by fact
      apply fact apply fact done
 qed 
-     
+
+
+lemma post_rulet:
+  "<P> f <Q>\<^sub>t \<Longrightarrow> \<forall>x. Q x \<Longrightarrow>\<^sub>A R x * true \<Longrightarrow> <P> f <R>\<^sub>t"
+  apply(rule post_rule[where Q="\<lambda>x. Q x * true"])
+  apply auto apply(rule ent_true_drop(1)) by simp
+
+lemma extract_cost_ub':
+  assumes "hn_refine \<Gamma> c \<Gamma>' R (REST M)" "(\<And>c. c\<in>ran M \<Longrightarrow> c \<le> Cost_ub)"
+   and pre: "P \<Longrightarrow>\<^sub>A \<Gamma> * timeCredit_assn Cost_ub"
+   and post: "\<forall>r. \<Gamma>' * (\<exists>\<^sub>Ara. R ra r * \<up>(ra \<in> dom M)) \<Longrightarrow>\<^sub>A Q r * true"
+ shows "<P> c <Q>\<^sub>t"
+  apply(rule pre_rule[OF pre])
+  apply(rule post_rulet[OF _ post]) 
+  apply(rule extract_cost_ub) by fact+
+
 
 end
