@@ -45,7 +45,7 @@ lemma ent_true[simp]: "P \<Longrightarrow>\<^sub>A true"
 
 
 lemma ent_star_mono: "\<lbrakk> P \<Longrightarrow>\<^sub>A P'; Q \<Longrightarrow>\<^sub>A Q'\<rbrakk> \<Longrightarrow> P*Q \<Longrightarrow>\<^sub>A P'*Q'" 
-  using entail_trans2 entails_frame by blast
+  using  entails_trans2 entails_frame  by blast
 
 
 lemma merge_true_star_ctx: "true * (true * P) = true * P"

@@ -720,11 +720,11 @@ proof (goal_cases)
       from IMP have "\<Gamma>2 ra r * R ra' r' * true \<Longrightarrow>\<^sub>A \<Gamma>' * R ra' r' * true"   
       proof -
         have "\<forall>a aa ab ac. (ac * ab \<Longrightarrow>\<^sub>A a * true) \<or> \<not> (ac \<Longrightarrow>\<^sub>A aa * a)"
-          by (metis (full_types) assn_times_assoc entail_trans2 entails_frame entails_true mult.left_commute)
+          by (metis (full_types) assn_times_assoc entails_trans2 entails_frame entails_true mult.left_commute)
         then have "\<forall>a aa ab. ab * (aa * a) \<Longrightarrow>\<^sub>A aa * true"
           by (metis (no_types) assn_times_assoc entails_frame entails_true)
         then show ?thesis
-          by (metis (no_types) IMP assn_times_assoc entail_trans2 entails_frame)
+          by (metis (no_types) IMP assn_times_assoc entails_trans2 entails_frame)
       qed  
 
       with ende  show "pHeap h'' (new_addrs h as h'') (n + (Ca + Ca') - (t + t')) \<Turnstile> \<Gamma>' * R ra' r' * true"

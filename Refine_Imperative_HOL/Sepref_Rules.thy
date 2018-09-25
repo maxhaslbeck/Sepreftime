@@ -362,7 +362,7 @@ lemma fref_to_pure_hfref':
     unfolding hr_comp_def[abs_def] pure_def
     apply (intro ext ent_iffI)    
      apply (smt BNF_Greatest_Fixpoint.IdD SepLogic_Misc.mod_pure_star_dist entails_def entails_ex move_back_pure)
-    by (smt IdI entail_equiv_backward entails_ex pure_conj)
+    by (smt IdI entails_equiv_backward entails_ex pure_conj)
     
 
   lemma hr_comp_Id2[simp]: "hr_comp R Id = R"  

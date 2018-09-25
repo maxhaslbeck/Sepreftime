@@ -1,6 +1,6 @@
 theory Example_Automatic
   imports "Refine_Imperative_HOL/Sepref" "SepLogicTime_RBTreeBasic.RBTree_Impl"
-    Set_Impl2  
+    Set_Impl2 Example_DynamicArray
 begin
 
 
@@ -10,28 +10,130 @@ lemma set_mem_hnr_abs[sepref_fr_rules]:
      (rbt_search (x'::nat) p)
      (hn_ctxt rbt_set_assn S p * hn_val Id x x') Y' ( (set_mem_SPEC $ x $ S))"
   sorry *)
- 
+        
+term remdups
+
 definition rd_impl1 :: "nat list \<Rightarrow> (nat list) nrest" where
-  "rd_impl1 as = do {
-          ys \<leftarrow> RETURNT [];
-          S \<leftarrow> mop_empty_set 1;
-          zs \<leftarrow> RETURNT as;
-          (zs,ys,S) \<leftarrow> whileT (\<lambda>(xs,ys,S). length xs > 0)
-            (\<lambda>(xs,ys,S). do {                          
-                          ASSERT (length xs > 0);
-                          ASSERT (length xs + length ys \<le> length as);
-                          ASSERT (card S \<le> length ys);
-                          x \<leftarrow> RETURNT (hd xs);
-                          xs \<leftarrow> RETURNT (tl xs);
-                          b \<leftarrow> mop_mem_set (\<lambda>S. rbt_search_time_logN (length as + 1) + 1) x S;
-                          (if b
-  then  RETURNT (xs,ys,S)
-  else do { S \<leftarrow> mop_insert_set (\<lambda>S. rbt_insert_logN (length as + 1)) x S;
-            ys \<leftarrow> RETURNT (x#ys);  
-            RETURNT (xs,ys,S)
-  } ) }) (zs,ys,S);
-          RETURNT ys
-      }"
+"rd_impl1 as = do {
+  ys \<leftarrow> mop_empty_list 12;
+  S \<leftarrow> mop_empty_set 1;
+  zs \<leftarrow> RETURNT as;
+  (zs,ys,S) \<leftarrow> whileT (\<lambda>(xs,ys,S). length xs > 0) (\<lambda>(xs,ys,S). do {                          
+    ASSERT (length xs > 0);
+    ASSERT (length xs + length ys \<le> length as);
+    ASSERT (card S \<le> length ys);
+    x \<leftarrow> RETURNT (hd xs);
+    xs \<leftarrow> RETURNT (tl xs);
+    b \<leftarrow> mop_mem_set (\<lambda>S. rbt_search_time_logN (length as + 1) + 1) x S;
+    if b then
+      RETURNT (xs,ys,S)
+    else do {
+      S \<leftarrow> mop_insert_set (\<lambda>S. rbt_insert_logN (length as + 1)) x S;
+      ys \<leftarrow> mop_push_list (\<lambda>_. 23) x ys;  
+      RETURNT (xs,ys,S)
+    } 
+  }) (zs,ys,S);
+  RETURNT ys
+  }"
+
+term emb
+
+definition body_time :: "nat \<Rightarrow> nat" where 
+  "body_time n = 60 + rbt_search_time_logN (n+1) + rbt_insert_logN (n+1)"
+
+definition "remdups_time (n::nat) = n * body_time n + 20"
+
+
+lemma REST_single_rule[vcg_simp_rules]: "Some t \<le> TTT Q (REST [x\<mapsto>t']) \<longleftrightarrow> Some (t+t') \<le> (Q x)"
+  by (simp add: T_REST aux1')
+
+thm T_pw refine_pw_simps
+
+thm pw_le_iff
+
+lemma [vcg_simp_rules]: "Some t \<le> TTT Q (ASSERT \<Phi>) \<longleftrightarrow> \<Phi> \<and> Some t \<le> Q ()"
+  apply (cases \<Phi>)
+   apply vcg'
+  done
+
+named_theorems progress_rules
+
+method progress methods solver = 
+  (rule asm_rl[of "progress _"] , (simp split: prod.splits | intro allI impI conjI | determ \<open>rule progress_rules\<close> | rule disjI1; progress \<open>solver\<close>; fail | rule disjI2; progress \<open>solver\<close>; fail | solver)+) []
+method progress' methods solver = 
+  (rule asm_rl[of "progress _"] , (simp split: prod.splits | intro allI impI conjI | determ \<open>rule progress_rules\<close> | rule disjI1 disjI2; progress'\<open>solver\<close> | solver)+) []
+
+
+method vcg' methods solver uses rules = ((rule rules vcg_rules[THEN T_conseq6] | progress\<open>auto\<close> | clarsimp split: if_splits simp: vcg_simp_rules | intro allI impI conjI | (solver; fail) )+)
+
+
+thm vcg_rules
+
+thm RETURNT_def
+
+lemma Some_le_mm3_Some_conv[vcg_simp_rules]: "Some t \<le> mm3 t' (Some t'') \<longleftrightarrow> (t'' \<le> t' \<and> t \<le> enat (t' - t''))"
+  by (simp add: mm3_def)
+
+
+lemma Some_le_emb'_conv[vcg_simp_rules]: "Some t \<le> emb' Q ft x \<longleftrightarrow> Q x \<and> t \<le> ft x"
+  by (auto simp: emb'_def)
+
+
+lemma not_cons_is_Nil_conv[simp]: "(\<forall>y ys. l \<noteq> y # ys) \<longleftrightarrow> l=[]" by (cases l) auto
+
+lemma mm3_Some0_eq[simp]: "mm3 t (Some 0) = Some t"
+  by (auto simp: mm3_def)
+
+
+lemma progress_REST_iff: "progress (REST [x \<mapsto> t]) \<longleftrightarrow> t\<noteq>0"
+  by (auto simp: progress_def)
+
+lemmas [progress_rules] = progress_REST_iff[THEN iffD2]
+
+
+
+
+lemma progress_ASSERT_bind[progress_rules]: "\<lbrakk>\<Phi> \<Longrightarrow> progress (f ()) \<rbrakk> \<Longrightarrow> progress (ASSERT \<Phi>\<bind>f)"
+  apply (cases \<Phi>)
+  apply (auto simp: progress_def)
+  done
+
+lemma progress_bind[progress_rules]: "progress m \<or> (\<forall>x. progress (f x)) \<Longrightarrow> progress (m\<bind>f)"
+  apply (auto simp: progress_def)
+  sorry
+
+
+lemma enat_neq_Z_iff[simp]: "enat x \<noteq> 0 \<longleftrightarrow> x\<noteq>0"
+  by (auto simp: zero_enat_def)
+
+lemma rd_impl1_correct: "rd_impl1 as \<le> REST (emb (\<lambda>ys. set as = set ys \<and> distinct ys)
+                   ( remdups_time (length as) ))"
+  unfolding rd_impl1_def mop_empty_list_def mop_empty_set_def mop_mem_set_def mop_insert_set_def mop_push_list_def
+  (*apply(subst whileTI_def[symmetric, where I="I"
+                                    and R="R"])*)
+  apply(rule T_specifies_I)
+  apply (vcg' \<open>simp\<close>)
+
+  apply (rule T_conseq4)
+   apply (rule whileT_rule'''[OF refl, where I="(\<lambda>(xs,ys,S). if (\<exists>zs. as = zs@xs \<and> S = set ys \<and> distinct ys \<and> set zs = set ys) 
+                then Some (length xs * body_time (length as)) else None)"])
+  supply [simp] = neq_Nil_conv distinct_length_le card_length
+     apply (vcg' \<open>auto simp: body_time_def remdups_time_def \<close> rules: TrueI)
+  done
+ 
+
+
+
+find_theorems "Some _ \<le> TTT _ (REST _)"
+
+
+thm whileT_rule''
+
+lemma "remdups_time \<in> \<Theta>(\<lambda>n. n * ln n)"
+  unfolding remdups_time_def body_time_def
+  by auto2 
+
+
 
 (* library *) 
  
@@ -70,6 +172,20 @@ lemma hn_refine_tl[sepref_fr_rules]: " hn_refine (hn_val Id s' s)
 
 
 
+lemma ran_emb': "c \<in> ran (emb' Q t) \<longleftrightarrow> (\<exists>s'. Q s' \<and> t s' = c)"
+  by(auto simp: emb'_def ran_def)
+
+lemma ran_emb_conv: "Ex Q \<Longrightarrow>  ran (emb Q t) = {t}"
+  by (auto simp: ran_emb')
+
+lemma in_ran_emb_special_case: "c\<in>ran (emb Q t) \<Longrightarrow> c\<le>t"
+  apply (cases "Ex Q")
+   apply (auto simp: ran_emb_conv)
+  apply (auto simp: emb'_def)
+  done
+
+lemma dom_emb'_eq[simp]: "dom (emb' Q f) = Collect Q"
+  by(auto simp: emb'_def split: if_splits)
 
 (* synthesize *) 
 
@@ -82,15 +198,24 @@ begin
 declare rbt_search_time_logN_mono [intro]
 declare rbt_insert_logN_mono [intro]
 
-sepref_definition test is "uncurry0 (rd_impl1 as)" :: "unit_assn\<^sup>k \<rightarrow>\<^sub>a list_assn nat_assn"
+
+
+
+sepref_definition remdups_impl is "uncurry0 (rd_impl1 as)" :: "unit_assn\<^sup>k \<rightarrow>\<^sub>a dyn_array"
   unfolding rd_impl1_def
-  apply sepref 
+  apply sepref_dbg_keep 
   done
 print_theorems
-term test
-thm test_def 
-thm test.refine[to_hnr] 
+term remdups_impl
+thm remdups_impl_def 
+thm remdups_impl.refine[to_hnr]
+thm  hnr_refine[OF rd_impl1_correct  remdups_impl.refine[to_hnr],to_hfref] 
+thm extract_cost_ub[OF hnr_refine[OF rd_impl1_correct  remdups_impl.refine[to_hnr]], where Cost_ub="remdups_time (length as)", simplified in_ran_emb_special_case,   simplified ]
 
+
+lemma "<$ (remdups_time (length as))> remdups_impl <\<lambda>r. \<exists>\<^sub>Ara. dyn_array ra r * \<up> (set as = set ra \<and> distinct ra)>\<^sub>t"
+  using  extract_cost_ub[OF hnr_refine[OF rd_impl1_correct  remdups_impl.refine[to_hnr]], where Cost_ub="remdups_time (length as)", simplified in_ran_emb_special_case,   simplified ]
+  by auto
 (*
 
 schematic_goal synth_rd: "hn_refine emp (?C::?'a Heap) ?\<Gamma>' ?R (rd_impl1 as)" using [[goals_limit = 3]]

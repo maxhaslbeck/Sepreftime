@@ -16,7 +16,6 @@ begin
   print_theorems 
 end
 
-
 lemma new[sepref_fr_rules]: "12 \<le> n \<Longrightarrow> 
       hn_refine emp dyn_array_new emp dyn_array (PR_CONST (mop_empty_list n))"
   unfolding mop_empty_list_def autoref_tag_defs
@@ -26,9 +25,9 @@ lemma new[sepref_fr_rules]: "12 \<le> n \<Longrightarrow>
 
 
 context
-  fixes n::nat
+  fixes t::"'a list \<Rightarrow>nat"
 begin
-  definition "mop_push_list  x xs = SPECT [ ( xs @ [x] ) \<mapsto> enat n ]"
+  definition "mop_push_list  x xs = SPECT [ ( xs @ [x] ) \<mapsto> enat (t xs) ]"
   
   sepref_register "mop_push_list" 
   print_theorems
@@ -39,9 +38,9 @@ end
 
 (* concrete and abstract operations have to have the same order of parameters *)
                          
-lemma push[sepref_fr_rules]:  "23  \<le> n ==> hn_refine (hn_ctxt dyn_array xs' p * hn_ctxt (pure Id) x' x) (push_array x p)
+lemma push[sepref_fr_rules]:  "23  \<le> t xs' ==> hn_refine (hn_ctxt dyn_array xs' p * hn_ctxt (pure Id) x' x) (push_array x p)
          (hn_invalid dyn_array xs' p * hn_ctxt (pure Id) x' x)  
-             dyn_array (PR_CONST (mop_push_list n) $  x' $   xs')" 
+             dyn_array (PR_CONST (mop_push_list t) $  x' $   xs')" 
   unfolding mop_push_list_def autoref_tag_defs
   apply (rule extract_cost_otherway[OF _ push_array_rule, where F="hn_val Id x' x * hn_invalid dyn_array xs' p" ])
     apply(simp add: mult.assoc) apply rotater apply rotater apply rotater apply (taker) apply (rule isolate_first)
@@ -80,12 +79,12 @@ thm new[to_hfref]
 
 subsection "synthesize some programs"
 
-sepref_definition test is "uncurry0 (do { xs \<leftarrow>mop_empty_list 7;  mop_push_list 10 (0::nat) xs })" :: "unit_assn\<^sup>k \<rightarrow>\<^sub>a dyn_array"
+sepref_definition test is "uncurry0 (do { xs \<leftarrow>mop_empty_list 7;  mop_push_list (\<lambda>_. 10) (0::nat) xs })" :: "unit_assn\<^sup>k \<rightarrow>\<^sub>a dyn_array"
   apply sepref_dbg_keep                   
   apply sepref_dbg_trans_keep                  
         apply sepref_dbg_trans_step_keep oops
 
-sepref_definition test is "uncurry0 (do { xs \<leftarrow>mop_empty_list 12;  mop_push_list 23 (0::nat) xs })" :: "unit_assn\<^sup>k \<rightarrow>\<^sub>a dyn_array"
+sepref_definition test is "uncurry0 (do { xs \<leftarrow>mop_empty_list 12;  mop_push_list (\<lambda>_. 23) (0::nat) xs })" :: "unit_assn\<^sup>k \<rightarrow>\<^sub>a dyn_array"
   apply sepref_dbg_keep   done
  
 
@@ -101,6 +100,8 @@ lemma [simp]: "dyn_array_assn R [] r = dyn_array [] r"
   subgoal by (simp add: entails_def)
   subgoal apply(rule ent_ex_postI[where x="[]"]) by simp
   done
+
+thm new
 
 
 

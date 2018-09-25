@@ -57,10 +57,10 @@ definition set_init_t :: "nat" where "set_init_t = 1"
 definition set_init_SPEC :: "nat set nrest" where
   "set_init_SPEC \<equiv> SPECT [{} \<mapsto> set_init_t ]"
 
-
+(*
 lemma set_init_hnr:
   "hn_refine (emp) tree_empty emp rbt_map_assn (\<Down>Z (set_init_SPEC))"
-  sorry
+  sorry *)
 
 definition rbt_map_assn' where "rbt_map_assn' a c =
         (\<exists>\<^sub>AM. rbt_map_assn M c * \<up>((M,a)\<in>Z))"
@@ -270,6 +270,7 @@ subsubsection "implement the interface"
 
 lemma mop_empty_set_rule[sepref_fr_rules]:
   "1\<le>n \<Longrightarrow> hn_refine (emp) set_empty emp rbt_set_assn (PR_CONST (mop_empty_set n))"
+
   unfolding autoref_tag_defs mop_empty_set_def  
   apply (rule extract_cost_otherway[OF _ set_empty_rule, where Cost_lb=1 and F=emp])
   apply simp  
@@ -277,14 +278,14 @@ lemma mop_empty_set_rule[sepref_fr_rules]:
     apply(rule ent_true_drop(2))
     by (auto intro!: inst_ex_assn fl entails_triv simp:   rbt_map_assn'_def )  
    by (auto intro: entails_triv simp: set_init_t_def)
-                                               
- term rbt_set_assn
- term "PR_CONST (mop_insert_set t) x S"
+
+
 lemma mop_insert_set_rule[sepref_fr_rules]:
   "rbt_insert_logN (card S + 1) \<le> t S \<Longrightarrow> 
       hn_refine (hn_val Id x x' * hn_ctxt rbt_set_assn S p)
        (rbt_set_insert x' p)
        (hn_val Id x x' * hn_invalid rbt_set_assn S p) rbt_set_assn ( PR_CONST (mop_insert_set t) $ x $ S)"
+
   unfolding mop_insert_set_def autoref_tag_defs
   apply (rule extract_cost_otherway[OF _  rbt_insert_rule_abs, where F="hn_val Id x x' * hn_invalid rbt_set_assn S p" ])
   unfolding mult.assoc
@@ -303,15 +304,12 @@ lemma mop_insert_set_rule[sepref_fr_rules]:
 
 
 
-thm rbt_search
-
-
-
 lemma mop_mem_set_rule[sepref_fr_rules]:
   "rbt_search_time_logN (card S + 1) + 1 \<le> t S \<Longrightarrow>
     hn_refine (hn_val Id x x' * hn_ctxt rbt_set_assn S p)
      (rbt_mem (x'::nat) p)
      (hn_ctxt (pure Id) x x' * hn_ctxt rbt_set_assn S p) id_assn ( PR_CONST (mop_mem_set t) $  x $ S)"
+
   unfolding autoref_tag_defs mop_mem_set_def
   apply (rule extract_cost_otherway[OF _  rbt_mem_rule]) unfolding mult.assoc
   unfolding hn_ctxt_def

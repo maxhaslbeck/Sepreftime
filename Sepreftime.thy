@@ -1481,9 +1481,10 @@ qed
 
 
 
+named_theorems vcg_simp_rules
+lemmas [vcg_simp_rules] = T_bindT T_RETURNT
 
-
-method vcg' uses rls = ((rule rls vcg_rules[THEN T_conseq6] | clarsimp split: if_splits simp: T_bindT T_RETURNT)+)
+method vcg' uses rls = ((rule rls vcg_rules[THEN T_conseq6] | clarsimp split: if_splits simp: vcg_simp_rules)+)
 
 lemma
   assumes "whileT b c s = r"
@@ -1530,15 +1531,19 @@ lemma [simp]: "mm3 t0 None = None" unfolding mm3_def by auto
 lemma T_FAILT[simp]: "T Q FAILT = None"
   unfolding T_def mii_alt by simp
 
+definition "progress m \<equiv> \<forall>s' M. m = SPECT M \<longrightarrow> M s' \<noteq> None \<longrightarrow> M s' > Some 0"
+lemma progressD: "progress m \<Longrightarrow> m=SPECT M \<Longrightarrow> M s' \<noteq> None \<Longrightarrow> M s' > Some 0"
+  by (auto simp: progress_def)
+
 lemma
   fixes I :: "'a \<Rightarrow> nat option"
   assumes "whileT b c s0 = r"
-  assumes progress: "\<And>s s' M. c s = SPECT M \<Longrightarrow> M s' \<noteq> None \<Longrightarrow> M s' > Some 0" 
+  assumes progress: "\<And>s. progress (c s)" 
   assumes IS[vcg_rules]: "\<And>s t t'. I s = Some t \<Longrightarrow>  b s  \<Longrightarrow> 
            T (\<lambda>s'. mm3 t (I s') ) (c s) \<ge> Some 0"
     (*  "T (\<lambda>x. T I (c x)) (SPECT (\<lambda>x. if b x then I x else None)) \<ge> Some 0" *) 
   assumes [simp]: "I s0 = Some t0" 
-    (*  assumes wf: "wf R" *)
+    (*  assumes wf: "wf R" *)                         
   shows whileT_rule''': "T (\<lambda>x. if b x then None else mm3 t0 (I x)) r \<ge> Some 0"  
   apply(rule T_conseq4)
    apply(rule whileT_rule''[where I="\<lambda>s. mm3 t0 (I s)"
@@ -1550,7 +1555,7 @@ lemma
       using IS[of s ti]  
       apply (cases "c s"; simp) 
       subgoal for M
-        using progress[of s M] 
+        using progress[of s, THEN progressD, of M]
         apply(auto simp: T_pw) 
         apply(auto simp: mm3_Some_conv mii_alt mm2_def mm3_def split: option.splits if_splits)
             apply fastforce 
@@ -1665,7 +1670,7 @@ lemma
   apply(rule T_conseq4)
    apply(rule whileT_rule'''[where I="\<lambda>s. if s\<le>n then Some (s) else None" ])
       apply simp
-  subgoal unfolding c by (auto split: if_splits simp add:  )
+  subgoal unfolding c unfolding progress_def by (auto split: if_splits simp add:  )
   subgoal unfolding c apply(auto simp: T_REST split: if_splits) 
     by(auto simp: mm2_def mm3_def one_enat_def)
   using n by (auto simp: mm3_Some_conv split: if_splits) 
