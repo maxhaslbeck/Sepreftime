@@ -114,21 +114,6 @@ lemma hn_refine_tl[sepref_fr_rules]: " hn_refine (hn_val Id s' s)
 
 
 
-lemma ran_emb': "c \<in> ran (emb' Q t) \<longleftrightarrow> (\<exists>s'. Q s' \<and> t s' = c)"
-  by(auto simp: emb'_def ran_def)
-
-lemma ran_emb_conv: "Ex Q \<Longrightarrow>  ran (emb Q t) = {t}"
-  by (auto simp: ran_emb')
-
-lemma in_ran_emb_special_case: "c\<in>ran (emb Q t) \<Longrightarrow> c\<le>t"
-  apply (cases "Ex Q")
-   apply (auto simp: ran_emb_conv)
-  apply (auto simp: emb'_def)
-  done
-
-lemma dom_emb'_eq[simp]: "dom (emb' Q f) = Collect Q"
-  by(auto simp: emb'_def split: if_splits)
-
 (* synthesize *) 
 
 context 
