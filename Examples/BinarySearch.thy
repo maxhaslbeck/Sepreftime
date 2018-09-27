@@ -2,6 +2,52 @@ theory BinarySearch
   imports "../Refine_Imperative_HOL/Sepref" "../RefineMonadicVCG" "SepLogicTime_RBTreeBasic.Asymptotics_1D"
 begin
 
+(* TODO: move *)
+
+lemma RETURN_le_RETURN_iff[simp]: "RETURNT x \<le> RETURNT y \<longleftrightarrow> x=y"
+  apply auto
+  by (simp add: pw_le_iff)
+
+lemma [sepref_import_param]: 
+  "((=),(=))\<in>Id\<rightarrow>Id\<rightarrow>Id" 
+  "((<),(<))\<in>Id\<rightarrow>Id\<rightarrow>Id" 
+  by simp_all
+
+
+
+lemma gen_code_thm_RECT:
+  fixes x
+  assumes D: "f \<equiv> RECT B"
+  assumes M: "mono2 B"
+  shows "f x \<equiv> B f x"
+  unfolding D
+  apply (subst RECT_unfold)
+  by (rule M)
+
+setup {*
+  Refine_Automation.add_extraction "nrest" {
+    pattern = Logic.varify_global @{term "RECT x"},
+    gen_thm = @{thm gen_code_thm_RECT},
+    gen_tac = Refine_Mono_Prover.mono_tac
+  }
+*}
+
+text {*
+  Method @{text "vc_solve (no_pre) clasimp_modifiers
+    rec (add/del): ... solve (add/del): ..."}
+  Named theorems @{text vcs_rec} and @{text vcs_solve}.
+
+  This method is specialized to
+  solve verification conditions. It first clarsimps all goals, then
+  it tries to apply a set of safe introduction rules (@{text "vcs_rec"}, @{text "rec add"}).
+  Finally, it applies introduction rules (@{text "vcs_solve"}, @{text "solve add"}) and tries
+  to discharge all emerging subgoals by auto. If this does not succeed, it
+  backtracks over the application of the solve-rule.
+*}
+
+
+
+
 
 
 subsubsection "List interface"
@@ -23,6 +69,8 @@ term Array.nth
 
 definition "array_assn xs p = p \<mapsto>\<^sub>a xs"
 
+lemmas [safe_constraint_rules] = CN_FALSEI[of is_pure "array_assn" for A]
+
 lemma inst_ex_assn: "A \<Longrightarrow>\<^sub>A B x \<Longrightarrow> A \<Longrightarrow>\<^sub>A (\<exists>\<^sub>Ax. B x)"
   using entails_ex_post by blast 
 
@@ -41,9 +89,11 @@ lemma mop_lookup_list_as_array_rule[sepref_fr_rules]:
 
 thm mop_lookup_list_as_array_rule[to_hfref]
 
+
+section "Binary Search"
+
 definition avg :: "nat \<Rightarrow> nat \<Rightarrow> nat" where
   "avg l r = (l + r) div 2"
-
 
 function binarysearch_time :: "nat \<Rightarrow> nat" where
   "n < 2 \<Longrightarrow> binarysearch_time n = 2 + listlookup_time"
@@ -63,7 +113,6 @@ lemma binarysearch_time'_Theta: "(\<lambda>n. binarysearch_time' n) \<in> \<Thet
   prefer 2 apply auto2
   by (auto simp: binarysearch_time'_def)
 
-
 lemma binarysearch_mono:
   "m \<le> n \<Longrightarrow> binarysearch_time m \<le> binarysearch_time n" 
 proof (induction n arbitrary: m rule: less_induct)
@@ -82,26 +131,8 @@ definition binarysearch_SPEC :: "nat \<Rightarrow> nat \<Rightarrow> 'a list \<R
   "binarysearch_SPEC l r xs x
    = SPECT (emb (\<lambda>s. s \<longleftrightarrow> (\<exists>i. l \<le> i \<and> i < r \<and> xs ! i = x)) (binarysearch_time (r-l)) )"
 
-
-function binarysearch_fun :: "nat \<Rightarrow> nat \<Rightarrow> 'a::linorder \<Rightarrow> 'a list \<Rightarrow> bool nrest" where
-  "binarysearch_fun l r x xs =
-   do {
-    if l \<ge> r then RETURNT False
-    else if l + 1 \<ge> r then RETURNT (xs ! l = x)
-    else let m = avg l r in
-      if xs ! m = x then RETURNT True
-      else if xs ! m < x then binarysearch_fun (m + 1) r x xs
-      else binarysearch_fun l m x xs }"
-by pat_completeness auto
-termination by (relation "Wellfounded.measure (\<lambda>(l,r,a,f). r-l)") (auto simp: avg_def)
- 
-lemma "sorted xs \<Longrightarrow> l \<le> r \<Longrightarrow> r \<le> length xs \<Longrightarrow>
-   binarysearch_fun l r x xs \<le> binarysearch_SPEC l r xs x"
-  apply(induction rule: binarysearch_fun.induct)
-  oops
-
-definition "binarysearch l r x xs =
-    RECT (\<lambda>fw (l,r,x,xs).
+definition "binarysearch l r x xs \<equiv>
+    RECT (\<lambda>fw (l,r).
       if l \<ge> r then RETURNT False
     else if l + 1 \<ge> r then do {
               ASSERT (l < length xs);
@@ -112,36 +143,18 @@ definition "binarysearch l r x xs =
         ASSERT (m < length xs);
         xm \<leftarrow> mop_lookup_list listlookup_time xs m;
       (if xm = x then RETURNT True
-      else if xm < x then fw (m + 1, r, x, xs)
-      else fw (l, m, x, xs))
+      else if xm < x then fw (m + 1, r)
+      else fw (l, m))
       }
-  ) (l,r,x,xs)"
+  ) (l,r)"
 
-lemma binarysearch_simps: "binarysearch l r x xs = do {
-    if l \<ge> r then RETURNT False
-    else if l + 1 \<ge> r then
-         do {
-              ASSERT (l < length xs);
-             xsi \<leftarrow> mop_lookup_list listlookup_time xs l;
-                                RETURNT (xsi = x) }
-    else  do {
-        m \<leftarrow> RETURNT (avg l r);
-        ASSERT (m < length xs);
-        xm \<leftarrow> mop_lookup_list listlookup_time xs m;
-      (if xm = x then RETURNT True
-      else if xm < x then binarysearch (m + 1) r x xs
-      else binarysearch l m x xs)
-      } }"
-  unfolding binarysearch_def by (subst RECT_unfold, refine_mono, auto)
+prepare_code_thms binarysearch_def
+print_theorems
+thm binarysearch.code(1,2) 
 
-
-lemma Some_eq_emb'_conv: "emb' Q tf s = Some t \<longleftrightarrow> (Q s \<and> t = tf s)"
-  unfolding emb'_def by(auto split: if_splits)
  
 lemma avg_diff1: "(l::nat) \<le> r \<Longrightarrow> r - (avg l r + 1) \<le> (r - l) div 2" by (simp add: avg_def)
-lemma avg_diff1': "(l::nat) \<le> r \<Longrightarrow> r - Suc (avg l r) \<le> (r - l) div 2" by (simp add: avg_def)
 lemma avg_diff2: "(l::nat) \<le> r \<Longrightarrow> avg l r - l \<le> (r - l) div 2" by  (simp add: avg_def)
-
 
 lemma avg_between [backward] :
   "l + 1 < r \<Longrightarrow> r > avg l r"
@@ -151,10 +164,10 @@ lemma binarysearch_correct: "sorted xs \<Longrightarrow> l \<le> r \<Longrightar
    binarysearch l r x xs \<le> binarysearch_SPEC l r xs x"
   unfolding binarysearch_SPEC_def 
   apply(rule T_specifies_I)
+    apply(subst binarysearch.code(1))
 proof(induct "r-l" arbitrary: l r rule: less_induct)
   case less
-  from less(2-4) show ?case
-    apply(subst binarysearch_simps) unfolding mop_lookup_list_def
+  from less(2-4) show ?case apply(subst binarysearch.code(2))  unfolding mop_lookup_list_def
     apply (vcg'\<open>simp\<close>)
             apply (metis le_neq_implies_less le_refl not_less_eq) 
     apply(simp add: avg_def)
@@ -164,7 +177,7 @@ proof(induct "r-l" arbitrary: l r rule: less_induct)
       apply(simp only: Some_le_emb'_conv Some_eq_emb'_conv)
       apply (rule allI conjI)
       subgoal by auto2    (* <<<<<<<<<<<<<<<<<<<<<<<<<<<  :) *)
-      subgoal  using binarysearch_mono[OF avg_diff1'] 
+      subgoal  using binarysearch_mono[OF avg_diff1] 
         by (simp add: le_SucI)
       done
     subgoal 
@@ -185,59 +198,29 @@ proof(induct "r-l" arbitrary: l r rule: less_induct)
       done
     done
 qed
-
-   
-
-context 
-  fixes l::"nat"
-  notes [[sepref_register_adhoc l]]
-  notes [sepref_import_param] = IdI[of l] 
-  fixes r::"nat"
-  notes [[sepref_register_adhoc r]]
-  notes [sepref_import_param] = IdI[of r] 
-  fixes x::"nat"
-  notes [[sepref_register_adhoc x]]
-  notes [sepref_import_param] = IdI[of x] 
-begin 
-
-declare listlookup_time_def [simp]
-
-sepref_definition binarysearch_impl is "(binarysearch l r x)" :: "array_assn\<^sup>k \<rightarrow>\<^sub>a bool_assn"
-  unfolding binarysearch_def avg_def 
-  using [[goals_limit = 3]] 
-
-  apply sepref_dbg_preproc
-  apply sepref_dbg_cons_init
-  apply sepref_dbg_id 
-     apply sepref_dbg_monadify
-
-     apply sepref_dbg_opt_init
-
-  thm sepref_fr_rules     
-  thm sepref_comb_rules          
-
-  apply sepref_dbg_trans_step+ 
-
-
-  apply sepref_dbg_opt
-  apply sepref_dbg_cons_solve \<comment> \<open>Frame rule, recovering the invalidated list 
-    or pure elements, propagating recovery over the list structure\<close>
-  apply sepref_dbg_cons_solve \<comment> \<open>Trivial frame rule\<close>
-  apply sepref_dbg_constraints 
-  sorry
  
+sepref_definition binarysearch_impl is 
+  "uncurry3 binarysearch" :: "nat_assn\<^sup>k *\<^sub>a nat_assn\<^sup>k *\<^sub>a id_assn\<^sup>k *\<^sub>a array_assn\<^sup>k \<rightarrow>\<^sub>a bool_assn"
+  unfolding binarysearch_def avg_def  listlookup_time_def
+  using [[goals_limit = 3]] 
+  by sepref
 
 thm binarysearch_impl.refine[to_hnr]
 thm hnr_refine[OF binarysearch_correct ] binarysearch_impl.refine[to_hnr, unfolded autoref_tag_defs]
-thm  hnr_refine[OF binarysearch_correct, OF _ _ _ binarysearch_impl.refine[to_hnr, unfolded autoref_tag_defs]] 
+thm  hnr_refine[OF binarysearch_correct, OF _ _ _ binarysearch_impl.refine[to_hnr, unfolded autoref_tag_defs], no_vars] 
 
-lemma binary_search_impl_correct: "sorted xs \<Longrightarrow> l \<le> r \<Longrightarrow> r \<le> length xs \<Longrightarrow> hn_refine (hn_ctxt array_assn xs p) (binarysearch_impl p) (hn_ctxt array_assn xs p) bool_assn (binarysearch_SPEC l r xs x)"
-  using hnr_refine[OF binarysearch_correct, OF _ _ _ binarysearch_impl.refine[to_hnr, unfolded autoref_tag_defs]]  by auto 
+lemma binary_search_impl_correct: 
+  assumes "sorted xs" "l \<le> r" "r \<le> length xs"
+  shows "hn_refine (hn_ctxt array_assn xs bi * hn_val Id x bia * hn_val nat_rel r bib * hn_val nat_rel l ai)
+            (binarysearch_impl ai bib bia bi)
+            (hn_ctxt array_assn xs bi * hn_val Id x bia * hn_val nat_rel r bib * hn_val nat_rel l ai) 
+            bool_assn (binarysearch_SPEC l r xs x)"
+  using assms hnr_refine[OF binarysearch_correct, OF _ _ _ binarysearch_impl.refine[to_hnr, unfolded autoref_tag_defs]] by metis
 
 thm extract_cost_ub'[OF binary_search_impl_correct[unfolded  binarysearch_SPEC_def], where Cost_ub="binarysearch_time (r - l)" ]
 lemma "sorted xs \<Longrightarrow> r \<le> length xs \<Longrightarrow> l \<le> r \<Longrightarrow> 
-     <hn_ctxt array_assn xs p * timeCredit_assn (binarysearch_time (r - l))> 
-        binarysearch_impl p
+     <hn_ctxt array_assn xs p * hn_val Id x bia * hn_val nat_rel r bib * hn_val nat_rel l ai * timeCredit_assn (binarysearch_time (r - l))> 
+        binarysearch_impl ai bib bia p
        <\<lambda>ra. hn_ctxt array_assn xs p * \<up> (ra \<longleftrightarrow> (\<exists>i\<ge>l. i < r \<and> xs ! i = x))>\<^sub>t"
   apply(rule extract_cost_ub'[OF binary_search_impl_correct[unfolded  binarysearch_SPEC_def], where Cost_ub="binarysearch_time (r - l)" ])
        apply auto
