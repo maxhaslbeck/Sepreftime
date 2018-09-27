@@ -13,6 +13,24 @@ context Network
 begin
 
 
+(*
+context
+  fixes find_augmenting_time :: "(nat \<times> nat \<Rightarrow> 'capacity) \<Rightarrow> nat "
+  assumes find_augmenting_time_const: "\<And>a b. find_augmenting_time a = find_augmenting_time b"
+begin
+*)
+(* some measure that decreases after each loop of the edmondsKarp algorithm  
+  ek_analysis_defs.ekMeasure is a possible? *)
+definition R :: "(nat \<times> nat \<Rightarrow> 'capacity) \<Rightarrow> nat" where 
+  "R e = 10"
+
+(* upper bound on the runtime of the algorithm for finding an
+    augmenting path *)
+definition find_augmenting_time :: "(nat \<times> nat \<Rightarrow> 'capacity) \<Rightarrow> nat " where
+  "find_augmenting_time f = 4"
+
+
+
 
 text \<open>Select some value with given property, or \<open>None\<close> if there is none.\<close>  
 definition SELECT :: "('a \<Rightarrow> bool) \<Rightarrow> enat \<Rightarrow> 'a option nrest"
@@ -20,8 +38,6 @@ definition SELECT :: "('a \<Rightarrow> bool) \<Rightarrow> enat \<Rightarrow> '
                else REST [None \<mapsto> tf]"
 
 subsection \<open>Algorithm\<close>
-definition find_augmenting_time :: "(nat \<times> nat \<Rightarrow> 'capacity) \<Rightarrow> nat " where
-  "find_augmenting_time f = 4"
 text \<open>
   We abstractly specify the procedure for finding an augmenting path:
   Assuming a valid flow, the procedure must return an augmenting path 
@@ -97,8 +113,7 @@ lemma (in NFlow) augmenting_path_not_empty:
 
 text \<open>Finally, we can use the verification condition generator to
   show correctness\<close>
-definition R :: "(nat \<times> nat \<Rightarrow> 'capacity) \<Rightarrow> nat" where
-  "R e = 10"
+
 fun Te where "Te (f,brk) = (if brk then 0 else find_augmenting_time f * (1+ R f))"
 
 
