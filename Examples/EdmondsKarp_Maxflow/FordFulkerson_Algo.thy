@@ -1,8 +1,10 @@
 section \<open>The Ford-Fulkerson Method\<close>
 theory FordFulkerson_Algo
 imports 
-  Flow_Networks.Ford_Fulkerson
+  Flow_Networks.Ford_Fulkerson EdmondsKarp_Termination_Abstract
  (*  Maxflow_Lib.Refine_Add_Fofu *)
+  "../../Refine_Imperative_HOL/Sepref"
+  "../../RefineMonadicVCG"
 begin
 text \<open>In this theory, we formalize the abstract Ford-Fulkerson
   method, which is independent of how an augmenting path is chosen\<close>
@@ -10,15 +12,24 @@ text \<open>In this theory, we formalize the abstract Ford-Fulkerson
 context Network 
 begin
 
+
+
+text \<open>Select some value with given property, or \<open>None\<close> if there is none.\<close>  
+definition SELECT :: "('a \<Rightarrow> bool) \<Rightarrow> enat \<Rightarrow> 'a option nrest"
+  where "SELECT P tf \<equiv> if \<exists>x. P x then REST (emb (\<lambda>r. case r of Some p \<Rightarrow> P p | None \<Rightarrow> False) tf)
+               else REST [None \<mapsto> tf]"
+
 subsection \<open>Algorithm\<close>
+definition find_augmenting_time :: "(nat \<times> nat \<Rightarrow> 'capacity) \<Rightarrow> nat " where
+  "find_augmenting_time f = 4"
 text \<open>
   We abstractly specify the procedure for finding an augmenting path:
   Assuming a valid flow, the procedure must return an augmenting path 
   iff there exists one.
   \<close>
 definition "find_augmenting_spec f \<equiv> do {
-    assert (NFlow c s t f);
-    select p. NPreflow.isAugmentingPath c s t f p
+    ASSERT (NFlow c s t f);
+    SELECT (%p. NPreflow.isAugmentingPath c s t f p) (find_augmenting_time f)
   }"
 
 text \<open>Moreover, we specify augmentation of a flow along a path\<close>
@@ -35,25 +46,25 @@ abbreviation "fofu_invar \<equiv> \<lambda>(f,brk).
 text \<open>Finally, we obtain the Ford-Fulkerson algorithm.
   Note that we annotate some assertions to ease later refinement\<close>
 definition "fofu \<equiv> do {
-  let f\<^sub>0 = (\<lambda>_. 0);
+  f\<^sub>0 \<leftarrow> RETURNT (\<lambda>_. 0);
 
-  (f,_) \<leftarrow> while\<^bsup>fofu_invar\<^esup>
+  (f,_) \<leftarrow> whileT(*\<^bsup>fofu_invar\<^esup>*)
     (\<lambda>(f,brk). \<not>brk) 
     (\<lambda>(f,_). do {
       p \<leftarrow> find_augmenting_spec f;
       case p of 
-        None \<Rightarrow> return (f,True)
+        None \<Rightarrow> RETURNT (f,True)
       | Some p \<Rightarrow> do {
-          assert (p\<noteq>[]);
-          assert (NPreflow.isAugmentingPath c s t f p);
-          let f = NFlow.augment_with_path c f p;
-          assert (NFlow c s t f);
-          return (f, False)
+          ASSERT (p\<noteq>[]);
+          ASSERT (NPreflow.isAugmentingPath c s t f p);
+          f \<leftarrow> RETURNT ( NFlow.augment_with_path c f p );
+          ASSERT (NFlow c s t f);
+          RETURNT (f, False)
         }  
     })
     (f\<^sub>0,False);
-  assert (NFlow c s t f);
-  return f 
+  ASSERT (NFlow c s t f);
+  RETURNT f 
 }"
 
 subsection \<open>Partial Correctness\<close>
@@ -83,20 +94,81 @@ lemma (in NFlow) augmenting_path_not_empty:
   unfolding isAugmentingPath_def using s_not_t by auto
 
 
+
 text \<open>Finally, we can use the verification condition generator to
   show correctness\<close>
-theorem fofu_partial_correct: "fofu \<le> (spec f. isMaxFlow f)"
-  unfolding fofu_def find_augmenting_spec_def 
-  apply (refine_vcg)
-  apply (vc_solve simp: 
-    zero_flow 
-    NFlow.augment_pres_nflow 
-    NFlow.augmenting_path_not_empty
-    NFlow.noAugPath_iff_maxFlow[symmetric]
-    NFlow.augment_with_path_def
-  )
-  done
+definition R :: "(nat \<times> nat \<Rightarrow> 'capacity) \<Rightarrow> nat" where
+  "R e = 10"
+fun Te where "Te (f,brk) = (if brk then 0 else find_augmenting_time f * (1+ R f))"
 
+
+definition "maxFlow_time = enat (find_augmenting_time (\<lambda>_. 0) * (1+R (\<lambda>_. 0)))"
+
+lemma TTT_SELECT: 
+  assumes  
+    "\<forall>x. \<not> P x \<Longrightarrow> Some tt \<le> TTT Q (SPECT [None \<mapsto> tf])"
+  and p: "(\<And>x. P x \<Longrightarrow> Some tt \<le> TTT Q (SPECT [Some x \<mapsto> tf]))"
+   shows "Some tt \<le> TTT Q (SELECT P tf)"
+proof(cases "\<exists>x. P x")
+  case True
+  from p[unfolded T_pw mii_alt] have
+    p': "\<And>y x. P y \<Longrightarrow> Some tt \<le> mm2 (Q x)([Some y \<mapsto> tf] x)"
+    by auto
+
+  from True 
+  show ?thesis 
+    unfolding SELECT_def apply (auto simp: emb'_def split: if_splits)
+    apply(auto simp: T_pw) subgoal for x xa apply(cases xa)
+      apply (simp add: mii_alt)
+      apply (simp add: mii_alt) apply safe subgoal for a
+        using p'[of a xa] by auto
+      done
+    done
+next
+  case False
+  then show ?thesis 
+    unfolding SELECT_def apply (auto simp: emb'_def split: if_splits) using assms by auto
+qed 
+
+
+thm NFlow.shortest_path_decr_ek_measure
+
+lemma R_decreases: "NFlow c s t a \<Longrightarrow> NPreflow.isAugmentingPath c s t a x \<Longrightarrow> R (NFlow.augment_with_path c a x) < R a"
+  sorry 
+
+lemma progress_SELECT_iff: "progress (SELECT P T) \<longleftrightarrow> T > 0"
+  unfolding progress_def SELECT_def emb'_def by (auto split: option.splits)
+
+lemmas [progress_rules] = progress_SELECT_iff[THEN iffD2]
+
+theorem fofu_partial_correct: "fofu \<le> SPECT (emb (\<lambda>f. isMaxFlow f) (maxFlow_time))"
+  unfolding fofu_def find_augmenting_spec_def 
+  apply(rule T_specifies_I)
+  apply (vcg'\<open>-\<close>)    
+
+  apply (rule T_conseq4)
+   apply (rule whileT_rule'''[OF refl, where I="(\<lambda>e. if fofu_invar e
+                then Some (Te e) else None)"])
+  subgoal (*progress*) by (progress'\<open>auto simp: find_augmenting_time_def zero_enat_def\<close>)   
+    apply (vcg'\<open>-\<close>)  apply(rule TTT_SELECT)   
+  subgoal (* no augmenting path *)    
+    by (vcg'\<open>-\<close>)
+  subgoal for f brk p (* found augmenting path *)    
+    apply (vcg'\<open>-\<close>)
+    subgoal unfolding NFlow.augment_with_path_def
+      using  NFlow.augment_pres_nflow by metis
+    subgoal using NFlow.augmenting_path_not_empty by metis
+    subgoal  unfolding find_augmenting_time_def  
+      by (simp add: R_decreases less_imp_le_nat)
+    subgoal unfolding find_augmenting_time_def   using R_decreases[of "f" "p"] by simp 
+  done
+  apply (auto simp: zero_flow)
+  apply (vcg'\<open>-\<close>)
+  subgoal using 
+    NFlow.noAugPath_iff_maxFlow[symmetric] by blast
+  subgoal unfolding maxFlow_time_def by auto
+  done 
+(*
 subsection \<open>Algorithm without Assertions\<close>
 text \<open>For presentation purposes, we extract a version of the algorithm
   without assertions, and using a bit more concise notation\<close>
@@ -127,9 +199,9 @@ text_raw \<open>}%EndSnippet\<close>
 
 text \<open> {} \<close>
 
-end \<comment> \<open>Anonymous context\<close> 
+end \<comment> \<open>Anonymous context\<close> *)
 end \<comment> \<open>Network\<close> 
-
+(*
 text \<open> {} \<close>
 text_raw \<open>\DefineSnippet{ford_fulkerson_correct}{\<close>       
 theorem (in Network) "ford_fulkerson_method \<le> (spec f. isMaxFlow f)"
@@ -147,5 +219,5 @@ proof -
   also note fofu_partial_correct  
   finally show ?thesis .
 qed  
-
+*)
 end \<comment> \<open>Theory\<close>
