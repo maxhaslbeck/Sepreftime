@@ -22,14 +22,20 @@ begin
 (* some measure that decreases after each loop of the edmondsKarp algorithm  
   ek_analysis_defs.ekMeasure is a possible? *)
 definition R :: "(nat \<times> nat \<Rightarrow> 'capacity) \<Rightarrow> nat" where 
-  "R e = 10"
+  "R cf = ek_analysis_defs.ekMeasure (residualGraph c cf) s t"
 
 (* upper bound on the runtime of the algorithm for finding an
     augmenting path *)
 definition find_augmenting_time :: "(nat \<times> nat \<Rightarrow> 'capacity) \<Rightarrow> nat " where
-  "find_augmenting_time f = 4"
+  "find_augmenting_time f = 10"
 
+definition "special_info f p \<equiv> Graph.isShortestPath (cf_of f) s p t"
 
+lemma ff: "NFlow c s t a \<Longrightarrow>
+ \<forall>x. NPreflow.isAugmentingPath c s t a x \<longrightarrow> \<not> special_info a x
+   \<Longrightarrow> NPreflow.isAugmentingPath c s t a x \<Longrightarrow> False"  
+  using NFlow.augmenting_path_imp_shortest NFlow.shortest_is_augmenting special_info_def by blast
+  
 
 
 text \<open>Select some value with given property, or \<open>None\<close> if there is none.\<close>  
@@ -45,11 +51,28 @@ text \<open>
   \<close>
 definition "find_augmenting_spec f \<equiv> do {
     ASSERT (NFlow c s t f);
-    SELECT (%p. NPreflow.isAugmentingPath c s t f p) (find_augmenting_time f)
+    SELECT (%p. NPreflow.isAugmentingPath c s t f p \<and> special_info f p) (find_augmenting_time f)
   }"
 
 text \<open>Moreover, we specify augmentation of a flow along a path\<close>
 definition (in NFlow) "augment_with_path p \<equiv> augment (augmentingFlow p)"
+ 
+
+lemma R_decreases:
+  assumes "NFlow c s t a"
+      "NPreflow.isAugmentingPath c s t a x"
+      "special_info a x"
+  shows "R (NFlow.augment_with_path c a x) < R a"
+proof -
+  have 2: "Graph.isShortestPath (cf_of a) s x t"
+    using assms(3) special_info_def by simp
+
+  show "R (NFlow.augment_with_path c a x) < R a"
+  unfolding R_def  
+  using NFlow.shortest_path_decr_ek_measure[OF assms(1) 2] 
+    NFlow.augment_with_path_def[OF assms(1) ] by auto
+qed
+    
 
 text \<open>
   We also specify the loop invariant, and annotate it to the loop.
@@ -117,7 +140,7 @@ text \<open>Finally, we can use the verification condition generator to
 fun Te where "Te (f,brk) = (if brk then 0 else find_augmenting_time f * (1+ R f))"
 
 
-definition "maxFlow_time = enat (find_augmenting_time (\<lambda>_. 0) * (1+R (\<lambda>_. 0)))"
+definition "maxFlow_time = enat (find_augmenting_time (\<lambda>_. 0) * (R (\<lambda>_. 0)))"
 
 lemma TTT_SELECT: 
   assumes  
@@ -148,8 +171,6 @@ qed
 
 thm NFlow.shortest_path_decr_ek_measure
 
-lemma R_decreases: "NFlow c s t a \<Longrightarrow> NPreflow.isAugmentingPath c s t a x \<Longrightarrow> R (NFlow.augment_with_path c a x) < R a"
-  sorry 
 
 lemma progress_SELECT_iff: "progress (SELECT P T) \<longleftrightarrow> T > 0"
   unfolding progress_def SELECT_def emb'_def by (auto split: option.splits)
@@ -167,7 +188,8 @@ theorem fofu_partial_correct: "fofu \<le> SPECT (emb (\<lambda>f. isMaxFlow f) (
   subgoal (*progress*) by (progress'\<open>auto simp: find_augmenting_time_def zero_enat_def\<close>)   
     apply (vcg'\<open>-\<close>)  apply(rule TTT_SELECT)   
   subgoal (* no augmenting path *)    
-    by (vcg'\<open>-\<close>)
+    apply (vcg'\<open>-\<close>) 
+    using ff by blast
   subgoal for f brk p (* found augmenting path *)    
     apply (vcg'\<open>-\<close>)
     subgoal unfolding NFlow.augment_with_path_def
