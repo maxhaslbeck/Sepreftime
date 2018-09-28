@@ -3,6 +3,8 @@ theory Augmenting_Path_BFS
 imports 
   (* Maxflow_Lib.Refine_Add_Fofu *)
   Graph_Impl
+  "../../Refine_Foreach"
+  "../../RefineMonadicVCG"
 begin
   text \<open>
     In this theory, we present a verified breadth-first search
@@ -99,15 +101,18 @@ begin
   ) add_succ_spec_time) "
 
   definition "mem_time = 10"
+  definition "del_time = 10"
+  definition "succs_time = 10"
 
   definition pre_bfs :: "node \<Rightarrow> node \<Rightarrow> (nat \<times> (node\<rightharpoonup>node)) option nrest"
     where "pre_bfs src dst \<equiv> do {
     (f,PRED,_,_,d) \<leftarrow> whileT (*IT (outer_loop_invar src dst) *)
       (\<lambda>(f,PRED,C,N,d). f=False \<and> C\<noteq>{})
       (\<lambda>(f,PRED,C,N,d). do {
-        v \<leftarrow> SPECT (emb (\<lambda>v. v\<in>C) mem_time); let C = C-{v};
+        v \<leftarrow> SPECT (emb (\<lambda>v. v\<in>C) mem_time);
+        C \<leftarrow> SPECT [C-{v} \<mapsto> del_time];
         ASSERT (v\<in>V);
-        succ \<leftarrow> RETURNT (E``{v});
+        succ \<leftarrow> SPECT [E``{v} \<mapsto> succs_time];
         ASSERT (finite succ);
         (f,PRED,N) \<leftarrow> add_succ_spec dst succ v PRED N;
         if f then
@@ -115,9 +120,9 @@ begin
         else do {
           ASSERT (assn1 src dst (f,PRED,C,N,d));
           if (C={}) then do {
-            let C=N; 
-            let N={}; 
-            let d=d+1;
+            C \<leftarrow> RETURNT N; 
+            N \<leftarrow> RETURNT {}; 
+            d \<leftarrow> RETURNT (d+1);
             RETURNT (f,PRED,C,N,d)
           } else RETURNT (f,PRED,C,N,d)
         }  
@@ -211,7 +216,6 @@ begin
     assumes [simp]: "C={}"
     shows "nf_invar c src dst PRED N {} (Suc d)"  
     apply unfold_locales
-    subgoal sorry  
     using VIS_eq N_eq[simplified] apply (auto simp add: le_Suc_eq) []
     using N_eq apply auto []
     using N_eq[simplified] apply auto []
@@ -348,13 +352,86 @@ begin
   lemma (in nf_invar) finite_succ: "finite (E``{u})"  
     by auto
 
-  definition "pre_bfs_time = 10"
+  definition pre_bfs_time :: enat where
+    "pre_bfs_time = 10"
+
+  thm outer_loop_rel_wf
+
+  definition Te :: "bool \<times> (nat \<Rightarrow> nat option) \<times> nat set \<times> nat set \<times> nat
+   \<Rightarrow> nat" where "Te e = 10"
+
+  lemma Te_start_ub: "enat (Te (False, [src \<mapsto> src], {src}, {}, 0)) \<le> pre_bfs_time"
+    sorry
+      (* (f,PRED,C,N,d) *)
+
+  lemma TeTF_[simp]: "(Te (True, a1, b1, c1, d1) \<le>  Te (False, x, y, z, f)) \<longleftrightarrow> True" sorry 
+
+  thm vcg_rules
+
+
+lemma T_RESTemb_iff: "Some t'
+       \<le> TTT Q (REST (emb' P t)) \<longleftrightarrow> (\<forall>x. P x \<longrightarrow> Some (t' + t x) \<le> Q x ) "
+  by(auto simp: emb'_def T_pw mii_alt aux1)  
+
+
+lemma T_RESTemb: "(\<And>x. P x \<Longrightarrow> Some (t' + t x) \<le> Q x)
+    \<Longrightarrow>  Some t' \<le> TTT Q (REST (emb' P t))  "
+  by (auto simp: T_RESTemb_iff)
+
+(* lemmas [vcg_rules] = T_RESTemb_iff[THEN iffD2] *)
+
+
+lemma hlp: "\<And>a b c::enat. a \<le> c \<Longrightarrow> enat ((a::nat)-b) \<le> c"
+ using diff_le_self dual_order.trans enat_ord_simps(1) by blast
 
   theorem pre_bfs_correct: 
     assumes [simp]: "src\<in>V" "src\<noteq>dst"       
     assumes [simp]: "finite V"
     shows "pre_bfs src dst \<le> SPECT (emb (bfs_spec src dst) pre_bfs_time)"
-    unfolding pre_bfs_def add_succ_spec_def sorry (*
+    unfolding pre_bfs_def add_succ_spec_def
+    apply(rule T_specifies_I)
+  apply (vcg'\<open>-\<close>)    
+  apply (rule T_conseq4)
+   apply (rule whileT_rule'''[OF refl, where I="(\<lambda>e. if outer_loop_invar src dst e
+                then Some (Te e) else None)"])
+    subgoal (* progress *)
+      sorry
+    subgoal
+    apply (vcg'\<open>-\<close> rules: T_RESTemb   )  
+     defer defer 
+      apply (vcg'\<open>-\<close> rules: T_RESTemb  )
+      apply(vc_solve simp: invar_init 
+      nf_invar.invar_exit' 
+      nf_invar.invar_C_ss_V 
+      nf_invar.invar_succ_step
+      nf_invar'.invar_shift
+      nf_invar'.invar_restore        
+      f_invar.invar_found
+      nf_invar.invar_not_found
+      nf_invar.invar_N_ss_Vis
+      nf_invar.finite_succ)
+
+    (*
+    apply (vc_solve 
+      simp: remove_subset outer_loop_rel_def 
+      simp: nf_invar.C_ne_max_dist nf_invar.finite_C) 
+      
+      *)
+                          
+                          
+                          defer
+      sorry
+    apply (auto simp: invar_init)
+     apply (vcg'\<open>auto simp: f_invar.invar_found \<close> rules:   )
+     apply(simp add: mm3_Some_conv)
+      subgoal   apply(rule hlp) using Te_start_ub by simp
+    
+      apply (vcg'\<open>auto simp: nf_invar.invar_not_found\<close> rules:   )
+     apply(simp add: mm3_Some_conv)
+      subgoal   apply(rule hlp) using Te_start_ub by simp
+      done
+        
+        (*
     apply (intro refine_vcg)
     apply (rule outer_loop_rel_wf[where src=src])
     apply (vc_solve simp:
@@ -485,7 +562,7 @@ begin
       done      *) sorry
   end
 
-  (* Snippet for paper *)  
+  (* Snippet for paper 
   context Finite_Graph begin
     interpretation Refine_Monadic_Syntax .
     theorem
@@ -503,10 +580,12 @@ begin
         simp: bfs_spec_def isShortestPath_min_dist_def isSimplePath_def)
       done      
 
-  end  
+  end   *) 
 
   subsection \<open>Inserting inner Loop and Successor Function\<close>
   context Graph begin
+
+  definition "inittime = 10"
 
   definition "inner_loop dst succ u PRED N \<equiv> FOREACHci
     (\<lambda>it (f,PRED',N'). 
@@ -517,25 +596,25 @@ begin
     (succ)
     (\<lambda>(f,PRED,N). \<not>f)
     (\<lambda>v (f,PRED,N). do {
-      if v\<in>dom PRED then RETURN (f,PRED,N)
+      if v\<in>dom PRED then RETURNT (f,PRED,N)
       else do {
         let PRED = PRED(v \<mapsto> u);
         ASSERT (v\<notin>N);
         let N = insert v N;
-        RETURN (v=dst,PRED,N)
+        RETURNT (v=dst,PRED,N)
       }
     }) 
-    (False,PRED,N)"
+    (False,PRED,N) inittime"
 
 
-  lemma inner_loop_refine[refine]: 
+  lemma inner_loop_refine: 
     (*assumes NSS: "N \<subseteq> dom PRED"*)
     assumes [simp]: "finite succ"
     assumes [simplified, simp]: 
       "(succi,succ)\<in>Id" "(ui,u)\<in>Id" "(PREDi,PRED)\<in>Id" "(Ni,N)\<in>Id"
     shows "inner_loop dst succi ui PREDi Ni 
       \<le> \<Down>Id (add_succ_spec dst succ u PRED N)"
-    unfolding inner_loop_def add_succ_spec_def
+    unfolding inner_loop_def add_succ_spec_def (*
     apply refine_vcg
     apply (auto simp: it_step_insert_iff; fail) +
     apply (auto simp: it_step_insert_iff fun_neq_ext_iff map_mmupd_def 
@@ -546,16 +625,16 @@ begin
     apply (auto simp: it_step_insert_iff intro: map_mmupd_update_less 
       split: bool.split; fail)
     done
-
+    *) sorry
 
   definition "inner_loop2 dst succl u PRED N \<equiv> nfoldli
     (succl) (\<lambda>(f,_,_). \<not>f) (\<lambda>v (f,PRED,N). do {
-    if PRED v \<noteq> None then RETURN (f,PRED,N)
+    if PRED v \<noteq> None then RETURNT (f,PRED,N)
     else do {
       let PRED = PRED(v \<mapsto> u);
       ASSERT (v\<notin>N);
       let N = insert v N;
-      RETURN ((v=dst),PRED,N)
+      RETURNT ((v=dst),PRED,N)
     }
   }) (False,PRED,N)"
 
@@ -563,11 +642,11 @@ begin
     assumes SR: "(succl,succ)\<in>\<langle>Id\<rangle>list_set_rel"
     shows "inner_loop2 dst succl u PRED N \<le> \<Down>Id (inner_loop dst succ u PRED N)"
     using assms
-    unfolding inner_loop2_def inner_loop_def
+    unfolding inner_loop2_def inner_loop_def (*
     apply (refine_rcg LFOci_refine SR)
     apply (vc_solve)
     apply auto
-    done
+    done *) sorry
 
   thm conc_trans[OF inner_loop2_refine inner_loop_refine, no_vars]
 
@@ -581,166 +660,109 @@ begin
     apply simp
     apply (rule conc_trans[OF inner_loop2_refine inner_loop_refine, simplified])
     using assms(1-2)
-    apply (simp_all)
+    apply (simp_all) subgoal sorry
     done
 
+context
+  fixes t ::  "'a set \<Rightarrow> nat"
+begin
+  definition "mop_set_pick S = SPECT (\<lambda>x. if x\<in>S then Some (enat (t S)) else None)"
+
+  sepref_register "mop_set_pick" 
+  print_theorems 
+end
 
   type_synonym bfs_state = "bool \<times> (node \<rightharpoonup> node) \<times> node set \<times> node set \<times> nat"  
 
     context
-      fixes succ :: "node \<Rightarrow> node list nres"
+      fixes succ :: "node \<Rightarrow> node list nrest"
     begin
-      definition init_state :: "node \<Rightarrow> bfs_state nres"
+      definition init_state :: "node \<Rightarrow> bfs_state nrest"
       where 
-        "init_state src \<equiv> RETURN (False,[src\<mapsto>src],{src},{},0::nat)"
-  
-      definition pre_bfs2 :: "node \<Rightarrow> node \<Rightarrow> (nat \<times> (node\<rightharpoonup>node)) option nres"
+        "init_state src \<equiv> RETURNT (False,[src\<mapsto>src],{src},{},0::nat)"
+
+      definition "setpickt S = 10"
+
+      definition pre_bfs2 :: "node \<Rightarrow> node \<Rightarrow> (nat \<times> (node\<rightharpoonup>node)) option nrest"
         where "pre_bfs2 src dst \<equiv> do {
         s \<leftarrow> init_state src;
-        (f,PRED,_,_,d) \<leftarrow> WHILET (\<lambda>(f,PRED,C,N,d). f=False \<and> C\<noteq>{})
+        (f,PRED,_,_,d) \<leftarrow> whileT (\<lambda>(f,PRED,C,N,d). f=False \<and> C\<noteq>{})
           (\<lambda>(f,PRED,C,N,d). do {
             ASSERT (C\<noteq>{});
-            v \<leftarrow> op_set_pick C; let C = C-{v};
+            v \<leftarrow> mop_set_pick setpickt C; let C = C-{v};
             ASSERT (v\<in>V);
             sl \<leftarrow> succ v;
             (f,PRED,N) \<leftarrow> inner_loop2 dst sl v PRED N;
             if f then
-              RETURN (f,PRED,C,N,d+1)
+              RETURNT (f,PRED,C,N,d+1)
             else do {
               ASSERT (assn1 src dst (f,PRED,C,N,d));
               if (C={}) then do {
                 let C=N; 
                 let N={}; 
                 let d=d+1;
-                RETURN (f,PRED,C,N,d)
-              } else RETURN (f,PRED,C,N,d)
+                RETURNT (f,PRED,C,N,d)
+              } else RETURNT (f,PRED,C,N,d)
             }  
           })
           s;
-        if f then RETURN (Some (d, PRED)) else RETURN None
+        if f then RETURNT (Some (d, PRED)) else RETURNT None
         }"
     
       lemma pre_bfs2_refine: 
         assumes succ_impl: "\<And>ui u. \<lbrakk>(ui,u)\<in>Id; u\<in>V\<rbrakk> 
           \<Longrightarrow> succ ui \<le> SPEC (\<lambda>l. (l,E``{u}) \<in> \<langle>Id\<rangle>list_set_rel)"
         shows "pre_bfs2 src dst \<le>\<Down>Id (pre_bfs src dst)"
-        unfolding pre_bfs_def pre_bfs2_def init_state_def
+        unfolding pre_bfs_def pre_bfs2_def init_state_def (*
         apply (subst nres_monad1)
         apply (refine_rcg inner_loop2_correct succ_impl)
         apply refine_dref_type
         apply vc_solve (* Takes some time *)
-        done
+        done *) sorry
   
     end    
   
     definition "bfs2 succ src dst \<equiv> do {
       if src=dst then 
-        RETURN (Some [])
+        RETURNT (Some [])
       else do {  
         br \<leftarrow> pre_bfs2 succ src dst;
         case br of
-          None \<Rightarrow> RETURN None
+          None \<Rightarrow> RETURNT None
         | Some (d,PRED) \<Rightarrow> do {
             p \<leftarrow> extract_rpath src dst PRED;
-            RETURN (Some p)
+            RETURNT (Some p)
           }  
       }    
     }"
 
+    definition "succtime = 10"
+
     lemma bfs2_refine:
       assumes succ_impl: "\<And>ui u. \<lbrakk>(ui,u)\<in>Id; u\<in>V\<rbrakk> 
-        \<Longrightarrow> succ ui \<le> SPEC (\<lambda>l. (l,E``{u}) \<in> \<langle>Id\<rangle>list_set_rel)"
+        \<Longrightarrow> succ ui \<le> SPECT (emb (\<lambda>l. (l,E``{u}) \<in> \<langle>Id\<rangle>list_set_rel) succtime)"
       shows "bfs2 succ src dst \<le> \<Down>Id (bfs src dst)"
-      unfolding bfs_def bfs2_def
+      unfolding bfs_def bfs2_def (*
       apply (refine_vcg pre_bfs2_refine)
       apply refine_dref_type
       using assms
       apply (vc_solve)
-      done      
+      done      *) sorry
 
   end  
 
   
   lemma bfs2_refine_succ: 
-    assumes [refine]: "\<And>ui u. \<lbrakk>(ui,u)\<in>Id; u\<in>Graph.V c\<rbrakk> 
+    assumes  "\<And>ui u. \<lbrakk>(ui,u)\<in>Id; u\<in>Graph.V c\<rbrakk> 
       \<Longrightarrow> succi ui \<le> \<Down>Id (succ u)"
     assumes [simplified, simp]: "(si,s)\<in>Id" "(ti,t)\<in>Id" "(ci,c)\<in>Id"
     shows "Graph.bfs2 ci succi si ti \<le> \<Down>Id (Graph.bfs2 c succ s t)"
-    unfolding Graph.bfs2_def Graph.pre_bfs2_def
+    unfolding Graph.bfs2_def Graph.pre_bfs2_def (*
     apply (refine_rcg 
       param_nfoldli[param_fo, THEN nres_relD] nres_relI fun_relI)
     apply refine_dref_type
     apply vc_solve
-    done
+    done *) sorry
 
-subsection \<open>Imperative Implementation\<close>
-
-  context Impl_Succ begin
-    definition op_bfs :: "'ga \<Rightarrow> node \<Rightarrow> node \<Rightarrow> path option nres" 
-      where [simp]: "op_bfs c s t \<equiv> Graph.bfs2 (absG c) (succ c) s t"
-  
-    lemma pat_op_dfs[pat_rules]: 
-      "Graph.bfs2$(absG$c)$(succ$c)$s$t \<equiv> UNPROTECT op_bfs$c$s$t" by simp 
-  
-    sepref_register "PR_CONST op_bfs" 
-      :: "'ig \<Rightarrow> node \<Rightarrow> node \<Rightarrow> path option nres"  
-  
-    type_synonym ibfs_state 
-      = "bool \<times> (node,node) i_map \<times> node set \<times> node set \<times> nat"
-
-    sepref_register Graph.init_state :: "node \<Rightarrow> ibfs_state nres"
-    schematic_goal init_state_impl:
-      fixes src :: nat
-      notes [id_rules] = 
-        itypeI[Pure.of src "TYPE(nat)"]
-      shows "hn_refine (hn_val nat_rel src srci) 
-        (?c::?'c Heap) ?\<Gamma>' ?R (Graph.init_state src)"
-      using [[id_debug, goals_limit = 1]]
-      unfolding Graph.init_state_def
-      apply (rewrite in "[src\<mapsto>src]" iam.fold_custom_empty)
-      apply (subst ls.fold_custom_empty)
-      apply (subst ls.fold_custom_empty)
-      apply (rewrite in "insert src _" fold_set_insert_dj)
-      apply (rewrite in "_(\<hole>\<mapsto>src)" fold_COPY)
-      apply sepref
-      done
-    concrete_definition (in -) init_state_impl uses Impl_Succ.init_state_impl
-    lemmas [sepref_fr_rules] = init_state_impl.refine[OF this_loc,to_hfref]
-
-    schematic_goal bfs_impl:
-      (*notes [sepref_opt_simps del] = imp_nfoldli_def 
-          -- \<open>Prevent the foreach-loop to be unfolded to a fixed-point, 
-              to produce more readable code for presentation purposes.\<close>*)
-      notes [sepref_opt_simps] = heap_WHILET_def
-      fixes s t :: nat
-      notes [id_rules] = 
-        itypeI[Pure.of s "TYPE(nat)"]
-        itypeI[Pure.of t "TYPE(nat)"]
-        itypeI[Pure.of c "TYPE('ig)"]
-        \<comment> \<open>Declare parameters to operation identification\<close>
-      shows "hn_refine (
-        hn_ctxt (isG) c ci 
-      * hn_val nat_rel s si 
-      * hn_val nat_rel t ti) (?c::?'c Heap) ?\<Gamma>' ?R (PR_CONST op_bfs c s t)"
-      unfolding op_bfs_def PR_CONST_def
-      unfolding Graph.bfs2_def Graph.pre_bfs2_def 
-        Graph.inner_loop2_def Graph.extract_rpath_def
-      unfolding nres_monad_laws  
-      apply (rewrite in "nfoldli _ _ \<hole> _" fold_set_insert_dj)
-      apply (subst HOL_list.fold_custom_empty)+
-      apply (rewrite in "let N={} in _" ls.fold_custom_empty)
-      using [[id_debug, goals_limit = 1]]
-      apply sepref
-      done
-    
-    concrete_definition (in -) bfs_impl uses Impl_Succ.bfs_impl
-      \<comment> \<open>Extract generated implementation into constant\<close>
-    prepare_code_thms (in -) bfs_impl_def
-   
-    lemmas bfs_impl_fr_rule = bfs_impl.refine[OF this_loc,to_hfref]  
-  
-  end
-
-  export_code bfs_impl checking SML_imp
 
 end

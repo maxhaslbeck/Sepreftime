@@ -69,6 +69,9 @@ lemma Some_eq_emb'_conv: "emb' Q tf s = Some t \<longleftrightarrow> (Q s \<and>
   unfolding emb'_def by(auto split: if_splits)
 
 
+
+lemma embtimeI: "T \<le> T' \<Longrightarrow> emb P T \<le> emb P T'" unfolding emb'_def by (auto simp: le_fun_def split:  if_splits)
+
 lemma not_cons_is_Nil_conv[simp]: "(\<forall>y ys. l \<noteq> y # ys) \<longleftrightarrow> l=[]" by (cases l) auto
 
 lemma mm3_Some0_eq[simp]: "mm3 t (Some 0) = Some t"

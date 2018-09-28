@@ -47,4 +47,36 @@ text {* Foreach with continuation condition and annotated invariant: *}
 definition FOREACHci ("FOREACH\<^sub>C\<^bsup>_\<^esup>") where "FOREACHci \<equiv> FOREACHoci (\<lambda>_ _. True)"
 
 
+
+(* ... *)
+
+
+  
+text \<open>We define a relation between distinct lists and sets.\<close>  
+definition [to_relAPP]: "list_set_rel R \<equiv> \<langle>R\<rangle>list_rel O br set distinct"
+
+
+(* ... *)
+
+
+
+subsection {* Nres-Fold with Interruption (nfoldli) *}
+text {*
+  A foreach-loop can be conveniently expressed as an operation that converts
+  the set to a list, followed by folding over the list.
+  
+  This representation is handy for automatic refinement, as the complex 
+  foreach-operation is expressed by two relatively simple operations.
+*}
+
+text {* We first define a fold-function in the nrest-monad *}
+fun nfoldli where
+  "nfoldli l c f s = (case l of 
+    [] \<Rightarrow> RETURNT s 
+    | x#ls \<Rightarrow> if c s then do { s\<leftarrow>f x s; nfoldli ls c f s} else RETURNT s
+  )"
+
+
+
+
 end
