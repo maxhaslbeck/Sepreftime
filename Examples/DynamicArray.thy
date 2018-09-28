@@ -1,5 +1,5 @@
-theory Example_DynamicArray    
-  imports "Refine_Imperative_HOL/Sepref" "SepLogicTime_RBTreeBasic.DynamicArray2"
+theory DynamicArray    
+  imports "../Refine_Imperative_HOL/Sepref" "SepLogicTime_RBTreeBasic.DynamicArray2"
 begin
 
 thm dyn_array_new_rule push_array_rule

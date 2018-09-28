@@ -1,6 +1,6 @@
-theory Example_Automatic
-  imports "Refine_Imperative_HOL/Sepref" "SepLogicTime_RBTreeBasic.RBTree_Impl"
-    Set_Impl2 Example_DynamicArray RefineMonadicVCG
+theory Remdups
+  imports "../Refine_Imperative_HOL/Sepref" "SepLogicTime_RBTreeBasic.RBTree_Impl"
+    "../Set_Impl2" DynamicArray "../RefineMonadicVCG"
 begin
 
 
