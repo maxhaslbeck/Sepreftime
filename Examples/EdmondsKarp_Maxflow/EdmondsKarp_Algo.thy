@@ -15,72 +15,61 @@ context Network
 begin
 
 
+ 
 definition "shortestpath_time = enat 10"
-                    
-lemma inresT_SELECT_Some: "inresT (SELECT Q tt) (Some x) t' \<longleftrightarrow> (Q x  \<and> (t' \<le> tt))"
-  by(auto simp: inresT_def SELECT_def emb'_def) 
-
-lemma inresT_SELECT_None: "inresT (SELECT Q tt) None t' \<longleftrightarrow> (\<not>(\<exists>x. Q x) \<and> (t' \<le> tt))"
-  by(auto simp: inresT_def SELECT_def emb'_def) 
-
-lemma inresT_SELECT[refine_pw_simps]:
- "inresT (SELECT Q tt) x t' \<longleftrightarrow> ((case x of None \<Rightarrow> \<not>(\<exists>x. Q x) | Some x \<Rightarrow> Q x)  \<and> (t' \<le> tt))"
-  by(auto simp: inresT_def SELECT_def emb'_def) 
-
-
-lemma nofailT_SELECT[refine_pw_simps]: "nofailT (SELECT Q tt)"
-  by(auto simp: nofailT_def SELECT_def)
-
-lemma s1: "SELECT P T \<le> (SELECT P T') \<longleftrightarrow> T \<le> T'"
-  apply(cases "\<exists>x. P x") 
-   apply(auto simp: pw_le_iff refine_pw_simps split: option.splits)
-  subgoal 
-    by (metis (full_types) enat_ord_code(3) enat_ord_simps(1) lessI not_infinity_eq not_le order_mono_setup.refl) 
-  subgoal 
-    by (metis (full_types) enat_ord_code(3) enat_ord_simps(1) lessI not_enat_eq not_le order_mono_setup.refl) 
-  done
-     
-lemma s2: "SELECT P T \<le> (SELECT P' T) \<longleftrightarrow> (
-    (Ex P' \<longrightarrow> Ex P)  \<and> (\<forall>x. P x \<longrightarrow> P' x)) "
-  apply(auto simp: pw_le_iff refine_pw_simps split: option.splits)
-  subgoal 
-    by (metis enat_ile linear)                                          
-  subgoal 
-    by (metis enat_ile linear) 
-  done
- 
-lemma SELECT_refine:
-  assumes "\<And>x'. P' x' \<Longrightarrow> \<exists>x. P x"
-  assumes "\<And>x. P x \<Longrightarrow>   P' x"
-  assumes "T \<le> T'"
-  shows "SELECT P T \<le> (SELECT P' T')"
-proof -
-  have "SELECT P T \<le> SELECT P T'"
-    using s1 assms(3) by auto
-  also have "\<dots> \<le> SELECT P' T'"
-    unfolding s2 apply safe
-    using assms(1,2) by auto  
-  finally show ?thesis .
-qed
- 
+definition "find_augmenting_time = 10"
 
 
 text \<open>First, we specify the refined procedure for finding augmenting paths\<close>
 definition "find_shortest_augmenting_spec f \<equiv> ASSERT (NFlow c s t f) \<then> 
   SELECT (\<lambda>p. Graph.isShortestPath (residualGraph c f) s p t) (shortestpath_time)"
 
+
+definition edka_measure :: "(nat \<times> nat \<Rightarrow> 'capacity) \<Rightarrow> nat" where
+  "edka_measure cf = ek_analysis_defs.ekMeasure (residualGraph c cf) s t" 
+
+definition info :: "(nat \<times> nat \<Rightarrow> 'capacity) \<Rightarrow> (nat \<times> nat) list \<Rightarrow> bool" where
+  "info f p =  Graph.isShortestPath (residualGraph c f) s p t"
+
+lemma  edka_measure_decreases:
+  assumes "NFlow c s t a"
+      "NPreflow.isAugmentingPath c s t a x"
+      "info  a x"
+  shows "edka_measure (NFlow.augment_with_path c a x) < edka_measure a"
+proof -
+  have 2: "Graph.isShortestPath (cf_of a) s x t"
+    using assms(3) unfolding info_def  by simp
+
+  show "edka_measure (NFlow.augment_with_path c a x) < edka_measure a"
+  unfolding edka_measure_def  
+  using NFlow.shortest_path_decr_ek_measure[OF assms(1) 2] 
+    NFlow.augment_with_path_def[OF assms(1) ] by auto
+qed 
+
+
+lemma augments: "\<And>f p. NFlow c s t f \<Longrightarrow> info f p \<Longrightarrow> NPreflow.isAugmentingPath c s t f p"
+  unfolding info_def using  NFlow.shortest_is_augmenting by blast
+
+print_locale FoFu
+
+interpretation edka: FoFu c s t "edka_measure:: (nat \<times> nat \<Rightarrow> 'capacity) \<Rightarrow> nat" find_augmenting_time "info :: (nat \<times> nat \<Rightarrow> 'capacity) \<Rightarrow> (nat \<times> nat) list \<Rightarrow> bool"
+  apply standard
+  subgoal using NFlow.augmenting_path_imp_shortest info_def by blast 
+  subgoal using edka_measure_decreases info_def augments by simp
+  subgoal unfolding find_augmenting_time_def by simp
+  subgoal using augments by blast
+  done
+
+
 text \<open>We show that our refined procedure is actually a refinement\<close>  
 lemma find_shortest_augmenting_refine: 
-  "(f',f)\<in>Id \<Longrightarrow> find_shortest_augmenting_spec f' \<le> \<Down>(\<langle>Id\<rangle>option_rel) (find_augmenting_spec f)"  
-  unfolding find_shortest_augmenting_spec_def find_augmenting_spec_def
+  "(f',f)\<in>Id \<Longrightarrow> find_shortest_augmenting_spec f' \<le> \<Down>(\<langle>Id\<rangle>option_rel) (edka.find_augmenting_spec f)"  
+  unfolding find_shortest_augmenting_spec_def edka.find_augmenting_spec_def
   apply(rule bindT_refine'[where R'=Id])
    apply auto 
   apply(rule SELECT_refine)
-  subgoal unfolding special_info_def by auto
-  subgoal unfolding special_info_def apply safe
-    using NFlow.shortest_is_augmenting  
-      NFlow.augmenting_path_imp_shortest pw_ASSERT 
-    by blast 
+  subgoal unfolding info_def by auto
+  subgoal unfolding info_def by safe 
   unfolding shortestpath_time_def find_augmenting_time_def by simp
 
 text \<open>Next, we specify the Edmonds-Karp algorithm. 
@@ -110,45 +99,8 @@ definition "edka_partial \<equiv> do {
 }" 
  
 
-lemma case_prod_refine:
-  fixes P Q :: "'a \<Rightarrow> 'b \<Rightarrow> 'c nrest"
-  assumes
-    "\<And>a b. P a b \<le> Q a b"
-  shows
- "(case x of (a,b) \<Rightarrow> P a b) \<le> (case x of (a,b) \<Rightarrow> Q a b)"
-  using assms 
-  by (simp add: split_def)
-
-lemma case_option_refine:
-  fixes P Q :: "'a \<Rightarrow> 'b \<Rightarrow> 'c nrest"
-  assumes
-    "PN \<le> QN"
-    "\<And>a. PS a \<le> QS a"
-  shows
- "(case x of None \<Rightarrow> PN | Some a \<Rightarrow> PS a ) \<le> (case x of None \<Rightarrow> QN | Some a \<Rightarrow> QS a )"
-  using assms 
-  by (auto split: option.splits)
-
-lemma ASSERT_refine: "(Q \<Longrightarrow> P) \<Longrightarrow> ASSERT P \<le> ASSERT Q"
-  by(auto simp: pw_le_iff refine_pw_simps)
-
-lemma ASSERT_leI: "\<Phi> \<Longrightarrow> (\<Phi> \<Longrightarrow> M \<le> M') \<Longrightarrow> ASSERT \<Phi> \<bind> (\<lambda>_. M) \<le> M'"
-  by(auto simp: pw_le_iff refine_pw_simps)
-lemma le_ASSERTI: "(\<Phi> \<Longrightarrow> M \<le> M') \<Longrightarrow> M \<le> ASSERT \<Phi> \<bind> (\<lambda>_. M')"
-  by(auto simp: pw_le_iff refine_pw_simps)
-
-thm refine_mono
-
-lemma inresT_ASSERT: "inresT (ASSERT Q \<bind> (\<lambda>_. M)) x ta = (Q \<longrightarrow> inresT M x ta)"
-  unfolding ASSERT_def iASSERT_def by auto
-
-
-lemma nofailT_ASSERT_bind: "nofailT (ASSERT P \<bind> (\<lambda>_. M)) \<longleftrightarrow> (P \<and> nofailT M)"
-  by(auto simp: pw_bindT_nofailT pw_ASSERT)
-
-
-lemma edka_partial_refine : "edka_partial \<le> \<Down>Id fofu"
-  unfolding edka_partial_def fofu_def 
+lemma edka_partial_refine : "edka_partial \<le> \<Down>Id edka.fofu"
+  unfolding edka_partial_def edka.fofu_def 
   apply(rule bindT_refine'[where R'=Id])
   apply simp
   apply(rule bindT_refine'[where R'="Id"])
@@ -165,17 +117,17 @@ lemma edka_partial_refine : "edka_partial \<le> \<Down>Id fofu"
     apply(rule ASSERT_leI | simp)+
     unfolding find_shortest_augmenting_spec_def
     subgoal apply(simp only: inresT_ASSERT inresT_SELECT_Some)  apply safe
-      unfolding find_augmenting_spec_def (* WHY DO I NEED TO RECOVER ALL THIS INFORMATION FROM THE
+      unfolding edka.find_augmenting_spec_def (* WHY DO I NEED TO RECOVER ALL THIS INFORMATION FROM THE
           inresT and nofailT predicate?! *)      
       by(simp add: nofailT_ASSERT_bind)
     by(rule ASSERT_leI | simp)+     
   done
 
 
-end \<comment> \<open>Network\<close>
+ 
 
 subsubsection \<open>Total Correctness\<close>
-context Network begin
+ 
 text \<open>We specify the total correct version of Edmonds-Karp algorithm.\<close>
 definition "edka \<equiv> do {
   f \<leftarrow> RETURNT (\<lambda>_. 0);
@@ -216,10 +168,10 @@ theorem edka_refine: "edka \<le> \<Down>Id edka_partial"
   by simp 
  
 
-thm edka_refine edka_partial_refine fofu_partial_correct
+thm edka_refine edka_partial_refine edka.fofu_partial_correct
 
-lemma edka_correct_time: "edka \<le> SPECT (emb isMaxFlow maxFlow_time)" 
-  using edka_refine edka_partial_refine fofu_partial_correct 
+lemma edka_correct_time: "edka \<le> SPECT (emb isMaxFlow edka.maxFlow_time)" 
+  using edka_refine edka_partial_refine edka.fofu_partial_correct 
   by simp
 
 
@@ -286,16 +238,15 @@ text \<open>Finally, we present a version of the Edmonds-Karp algorithm
   \<close>
 
 
-lemma maxFlow_time_ub: "maxFlow_time \<le> find_augmenting_time (\<lambda>_. 0) * ((2 * card V * card E + card V) + 1)"
-  unfolding maxFlow_time_def R_def 
-  using ekMeasure_upper_bound 
-  by (meson enat_ord_simps(2) le_iff_add less_le less_le_trans linorder_not_le nat_mult_less_cancel_disj)
+lemma maxFlow_time_ub: "edka.maxFlow_time \<le> find_augmenting_time  * ((2 * card V * card E + card V) + 1)"
+  unfolding edka.maxFlow_time_def edka_measure_def 
+  using ekMeasure_upper_bound by auto
 
 
 lemma SPECT_ub: "T\<le>T' \<Longrightarrow> SPECT (emb' M' T) \<le> SPECT (emb' M' T')"
   unfolding emb'_def by (auto simp: pw_le_iff le_funD order_trans refine_pw_simps)
 
-lemma "edka \<le> (SPECT (emb isMaxFlow (find_augmenting_time (\<lambda>_. 0) * ((2 * card V * card E + card V) + 1))))"
+lemma "edka \<le> (SPECT (emb isMaxFlow (find_augmenting_time * ((2 * card V * card E + card V) + 1))))"
   apply(rule order_trans[OF edka_correct_time]) 
   apply(rule SPECT_ub)
   apply (simp only: le_fun_def)
