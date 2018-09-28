@@ -14,42 +14,6 @@ lemma [sepref_import_param]:
   by simp_all
 
 
-
-lemma gen_code_thm_RECT:
-  fixes x
-  assumes D: "f \<equiv> RECT B"
-  assumes M: "mono2 B"
-  shows "f x \<equiv> B f x"
-  unfolding D
-  apply (subst RECT_unfold)
-  by (rule M)
-
-setup {*
-  Refine_Automation.add_extraction "nrest" {
-    pattern = Logic.varify_global @{term "RECT x"},
-    gen_thm = @{thm gen_code_thm_RECT},
-    gen_tac = Refine_Mono_Prover.mono_tac
-  }
-*}
-
-text {*
-  Method @{text "vc_solve (no_pre) clasimp_modifiers
-    rec (add/del): ... solve (add/del): ..."}
-  Named theorems @{text vcs_rec} and @{text vcs_solve}.
-
-  This method is specialized to
-  solve verification conditions. It first clarsimps all goals, then
-  it tries to apply a set of safe introduction rules (@{text "vcs_rec"}, @{text "rec add"}).
-  Finally, it applies introduction rules (@{text "vcs_solve"}, @{text "solve add"}) and tries
-  to discharge all emerging subgoals by auto. If this does not succeed, it
-  backtracks over the application of the solve-rule.
-*}
-
-
-
-
-
-
 subsubsection "List interface"
 
 

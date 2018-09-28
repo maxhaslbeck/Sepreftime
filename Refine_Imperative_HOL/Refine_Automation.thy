@@ -1,6 +1,6 @@
 section "More Automation"
 theory Refine_Automation
-imports Main Automatic_Refinement.Refine_Util
+imports Main Automatic_Refinement.Refine_Util "../Sepreftime"
 keywords "concrete_definition" :: thy_decl
   and "prepare_code_thms" :: thy_decl
   and "uses"
@@ -489,7 +489,7 @@ ML {*
     )
   end
 *}
-(*
+ 
 text {* 
   Command: 
     @{text "prepare_code_thms (modes) thm"}
@@ -502,12 +502,12 @@ text {*
 lemma gen_code_thm_RECT:
   fixes x
   assumes D: "f \<equiv> RECT B"
-  assumes M: "trimono B"
+  assumes M: "mono2 B"
   shows "f x \<equiv> B f x"
   unfolding D
   apply (subst RECT_unfold)
   by (rule M)
-
+(*
 lemma gen_code_thm_REC:
   fixes x
   assumes D: "f \<equiv> REC B"
@@ -515,16 +515,10 @@ lemma gen_code_thm_REC:
   shows "f x \<equiv> B f x"
   unfolding D
   apply (subst REC_unfold)
-  by (rule M)
+  by (rule M) *)
 
-setup {*
-  Refine_Automation.add_extraction "nres" {
-    pattern = Logic.varify_global @{term "REC x"},
-    gen_thm = @{thm gen_code_thm_REC},
-    gen_tac = Refine_Mono_Prover.mono_tac
-  }
-  #> 
-  Refine_Automation.add_extraction "nres" {
+setup {* 
+  Refine_Automation.add_extraction "nrest" {
     pattern = Logic.varify_global @{term "RECT x"},
     gen_thm = @{thm gen_code_thm_RECT},
     gen_tac = Refine_Mono_Prover.mono_tac
@@ -550,6 +544,5 @@ method_setup vc_solve =
   (fn (nopre) => fn ctxt => SIMPLE_METHOD (
     CHANGED (ALLGOALS (Refine_Automation.vc_solve_tac ctxt nopre))
   )) *} "Try to solve verification conditions"
-
-*)
+ 
 end
