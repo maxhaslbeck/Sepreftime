@@ -1,63 +1,14 @@
 theory BinarySearch
-  imports "../Refine_Imperative_HOL/Sepref" "../RefineMonadicVCG" "SepLogicTime_RBTreeBasic.Asymptotics_1D"
+  imports "../Refine_Imperative_HOL/Sepref"
+        Array_ListImpl
+     "../RefineMonadicVCG" "SepLogicTime_RBTreeBasic.Asymptotics_1D"
 begin
-
-(* TODO: move *)
-
-lemma RETURN_le_RETURN_iff[simp]: "RETURNT x \<le> RETURNT y \<longleftrightarrow> x=y"
-  apply auto
-  by (simp add: pw_le_iff)
-
-lemma [sepref_import_param]: 
-  "((=),(=))\<in>Id\<rightarrow>Id\<rightarrow>Id" 
-  "((<),(<))\<in>Id\<rightarrow>Id\<rightarrow>Id" 
-  by simp_all
-
-
-subsubsection "List interface"
-
-
-definition "listlookup_time = 3"
-
-context
-  fixes n::nat
-begin
-  definition "mop_lookup_list xs i = SPECT [ xs ! i \<mapsto> enat n ]"
-
-  sepref_register "mop_lookup_list" 
-  print_theorems 
-end
-
-term list_assn
-term Array.nth
-
-definition "array_assn xs p = p \<mapsto>\<^sub>a xs"
-
-lemmas [safe_constraint_rules] = CN_FALSEI[of is_pure "array_assn" for A]
-
-lemma inst_ex_assn: "A \<Longrightarrow>\<^sub>A B x \<Longrightarrow> A \<Longrightarrow>\<^sub>A (\<exists>\<^sub>Ax. B x)"
-  using entails_ex_post by blast 
-
-lemma mop_lookup_list_as_array_rule[sepref_fr_rules]:
-  "1 \<le> n \<Longrightarrow> x < length xs \<Longrightarrow>
-    hn_refine (hn_ctxt array_assn xs p * hn_val Id x x')
-     (Array.nth p (x'::nat))
-     (hn_ctxt array_assn xs p * hn_ctxt (pure Id) x x') id_assn ( PR_CONST (mop_lookup_list n) $  xs $ x)"
-  unfolding autoref_tag_defs mop_lookup_list_def
-  apply (rule extract_cost_otherway[OF _  nth_rule, where F="nat_assn x x'"]) unfolding mult.assoc
-  unfolding hn_ctxt_def array_assn_def
-      apply(rule match_first) apply rotatel apply(rule match_first) apply (simp add: pure_def)  
-   apply(rule match_first) apply (simp add: pure_def)   apply safe 
-    apply(rule inst_ex_assn[where x="xs ! x"]) apply simp apply simp  done
-
-
-thm mop_lookup_list_as_array_rule[to_hfref]
-
-
 section "Binary Search"
 
 definition avg :: "nat \<Rightarrow> nat \<Rightarrow> nat" where
   "avg l r = (l + r) div 2"
+
+definition "listlookup_time = 1"
 
 function binarysearch_time :: "nat \<Rightarrow> nat" where
   "n < 2 \<Longrightarrow> binarysearch_time n = 2 + listlookup_time"

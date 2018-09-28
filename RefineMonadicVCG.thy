@@ -2,6 +2,21 @@ theory RefineMonadicVCG
 imports "Refine_Imperative_HOL/Sepref"
 begin
 
+(* TODO: move *)
+
+lemma RETURN_le_RETURN_iff[simp]: "RETURNT x \<le> RETURNT y \<longleftrightarrow> x=y"
+  apply auto
+  by (simp add: pw_le_iff)
+
+lemma [sepref_import_param]: 
+  "((=),(=))\<in>Id\<rightarrow>Id\<rightarrow>Id" 
+  "((<),(<))\<in>Id\<rightarrow>Id\<rightarrow>Id" 
+  by simp_all
+
+
+
+
+
 
 lemma REST_single_rule[vcg_simp_rules]: "Some t \<le> TTT Q (REST [x\<mapsto>t']) \<longleftrightarrow> Some (t+t') \<le> (Q x)"
   by (simp add: T_REST aux1')

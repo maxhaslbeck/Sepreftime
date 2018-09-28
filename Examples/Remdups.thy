@@ -1,6 +1,6 @@
 theory Remdups
   imports "../Refine_Imperative_HOL/Sepref" "SepLogicTime_RBTreeBasic.RBTree_Impl"
-    "../Set_Impl2" DynamicArray "../RefineMonadicVCG"
+    "../Set_Impl2" DynamicArray_ListImpl "../RefineMonadicVCG"
 begin
 
 

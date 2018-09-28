@@ -1,20 +1,9 @@
-theory DynamicArray    
-  imports "../Refine_Imperative_HOL/Sepref" "SepLogicTime_RBTreeBasic.DynamicArray2"
+theory DynamicArray_ListImpl    
+  imports "List_Interface" "SepLogicTime_RBTreeBasic.DynamicArray2"
 begin
 
-thm dyn_array_new_rule push_array_rule
+section "Implementing List Interface with DynamicArrays"
 
-
-  thm extract_cost_otherway[OF _ dyn_array_new_rule]
-
-context
-  fixes n::nat
-begin
-  definition "mop_empty_list = SPECT [ [] \<mapsto> enat n ]"
-
-  sepref_register "mop_empty_list" 
-  print_theorems 
-end
 
 lemma new[sepref_fr_rules]: "12 \<le> n \<Longrightarrow> 
       hn_refine emp dyn_array_new emp dyn_array (PR_CONST (mop_empty_list n))"
@@ -23,16 +12,6 @@ lemma new[sepref_fr_rules]: "12 \<le> n \<Longrightarrow>
     apply auto
   apply(rule ent_ex_postI[where x="[]"]) by simp
 
-
-context
-  fixes t::"'a list \<Rightarrow>nat"
-begin
-  definition "mop_push_list  x xs = SPECT [ ( xs @ [x] ) \<mapsto> enat (t xs) ]"
-  
-  sepref_register "mop_push_list" 
-  print_theorems
-  thm   mop_push_list.pat
-end
 
 
 
@@ -64,7 +43,7 @@ thm pl_param[to_fref]
 definition "da_assn R \<equiv> hr_comp dyn_array (\<langle>the_pure R\<rangle>list_rel)"
 
 declare da_assn_def[symmetric, fcomp_norm_unfold]
-thm push[FCOMP pl_param]
+(* thm push[FCOMP pl_param] *)
 
 
 
@@ -103,7 +82,7 @@ lemma [simp]: "dyn_array_assn R [] r = dyn_array [] r"
 
 thm new
 
-
+(*
 
 lemma  "hn_refine emp dyn_array_new emp (dyn_array_assn R) (mop_empty_list)"
   unfolding mop_empty_list_def
@@ -119,5 +98,5 @@ lemma   "hn_refine (dyn_array_assn R xs' p * hn_ctxt R x' x) (push_array x p)
   apply (rule extract_cost_otherway[OF _ push_array_rule, where Cost_lb=23 ]) 
   unfolding dyn_array_assn_def  apply (simp add: mult.assoc) apply(rule ent_ex_preI)
   apply(rule match_first) 
-  apply(rule ent_ex_postI[where x="[]"]) sorry
+  apply(rule ent_ex_postI[where x="[]"]) sorry *)
 end

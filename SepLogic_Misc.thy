@@ -2,7 +2,9 @@ theory SepLogic_Misc
 imports "SepLogicTime_RBTreeBasic.SepAuto" DataRefinement
 begin
 
-  
+lemma inst_ex_assn: "A \<Longrightarrow>\<^sub>A B x \<Longrightarrow> A \<Longrightarrow>\<^sub>A (\<exists>\<^sub>Ax. B x)"
+  using entails_ex_post by blast 
+
 
 lemma ent_iffI:
   assumes "A\<Longrightarrow>\<^sub>AB"
