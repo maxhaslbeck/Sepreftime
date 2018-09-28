@@ -567,26 +567,9 @@ lemma hnr_uRETURN_pure:
       using entailsD entails_true by blast   
     subgoal by(simp add:  relH_def)  done
   done
-  
+ 
+
 subsubsection \<open>Assertion\<close> 
-
-definition "iASSERT ret \<Phi> \<equiv> if \<Phi> then ret () else top"
-
-definition ASSERT where "ASSERT \<equiv> iASSERT RETURNT"
-
-lemma ASSERT_True[simp]: "ASSERT True = RETURNT ()" 
-  by (auto simp: ASSERT_def iASSERT_def)
-lemma ASSERT_False[simp]: "ASSERT False = FAILT" 
-  by (auto simp: ASSERT_def iASSERT_def) 
-
-lemma bind_ASSERT_eq_if: "do { ASSERT \<Phi>; m } = (if \<Phi> then m else FAILT)"
-  unfolding ASSERT_def iASSERT_def by simp
-
-lemma pw_ASSERT[refine_pw_simps]:
-  "nofailT (ASSERT \<Phi>) \<longleftrightarrow> \<Phi>"
-  "inresT (ASSERT \<Phi>) x 0"
-  by (cases \<Phi>, simp_all)+
-
 
 lemma param_ASSERT_bind[param]: "\<lbrakk> 
     (\<Phi>,\<Psi>) \<in> bool_rel; 

@@ -229,6 +229,27 @@ lemma   no_FAILTE:
   assumes "g xa \<noteq> FAILT" 
   obtains X where "g xa = REST X" using assms by (cases "g xa") auto
 
+
+lemma case_prod_refine:
+  fixes P Q :: "'a \<Rightarrow> 'b \<Rightarrow> 'c nrest"
+  assumes
+    "\<And>a b. P a b \<le> Q a b"
+  shows
+ "(case x of (a,b) \<Rightarrow> P a b) \<le> (case x of (a,b) \<Rightarrow> Q a b)"
+  using assms 
+  by (simp add: split_def)
+
+lemma case_option_refine: (* obsolete ? *)
+  fixes P Q :: "'a \<Rightarrow> 'b \<Rightarrow> 'c nrest"
+  assumes
+    "PN \<le> QN"
+    "\<And>a. PS a \<le> QS a"
+  shows
+ "(case x of None \<Rightarrow> PN | Some a \<Rightarrow> PS a ) \<le> (case x of None \<Rightarrow> QN | Some a \<Rightarrow> QS a )"
+  using assms 
+  by (auto split: option.splits)
+
+
 section "pointwise reasoning"
 
 named_theorems refine_pw_simps 
@@ -358,6 +379,8 @@ lemma pw_eqI:
   using assms by (simp add: pw_eq_iff)
 
 
+ 
+
 
 section \<open> Monad Operators \<close>
 
@@ -367,6 +390,9 @@ definition bindT :: "'b nrest \<Rightarrow> ('b \<Rightarrow> 'a nrest) \<Righta
   REST X \<Rightarrow> Sup { (case f x of FAILi \<Rightarrow> FAILT 
                 | REST m2 \<Rightarrow> REST (map_option ((+) t1) o (m2) ))
                     |x t1. X x = Some t1}"
+
+adhoc_overloading
+  Monad_Syntax.bind Sepreftime.bindT
 
 
 lemma bindT_FAIL[simp]: "bindT FAILT g = FAILT"
@@ -473,6 +499,112 @@ lemma bindT_flat_mono[refine_mono]:
   "\<lbrakk> flat_ge M M'; \<And>x. flat_ge (f x) (f' x) \<rbrakk> \<Longrightarrow> flat_ge (bindT M f) (bindT M' f')" 
   apply (auto simp: refine_pw_simps pw_flat_ge_iff) []
    by fastforce+         
+
+
+subsection {* Derived Program Constructs *}
+
+subsubsection \<open>Assertion\<close> 
+
+definition "iASSERT ret \<Phi> \<equiv> if \<Phi> then ret () else top"
+
+definition ASSERT where "ASSERT \<equiv> iASSERT RETURNT"
+
+lemma ASSERT_True[simp]: "ASSERT True = RETURNT ()" 
+  by (auto simp: ASSERT_def iASSERT_def)
+lemma ASSERT_False[simp]: "ASSERT False = FAILT" 
+  by (auto simp: ASSERT_def iASSERT_def) 
+
+lemma bind_ASSERT_eq_if: "do { ASSERT \<Phi>; m } = (if \<Phi> then m else FAILT)"
+  unfolding ASSERT_def iASSERT_def by simp
+
+lemma pw_ASSERT[refine_pw_simps]:
+  "nofailT (ASSERT \<Phi>) \<longleftrightarrow> \<Phi>"
+  "inresT (ASSERT \<Phi>) x 0"
+  by (cases \<Phi>, simp_all)+
+
+lemma ASSERT_refine: "(Q \<Longrightarrow> P) \<Longrightarrow> ASSERT P \<le> ASSERT Q"
+  by(auto simp: pw_le_iff refine_pw_simps)
+
+lemma ASSERT_leI: "\<Phi> \<Longrightarrow> (\<Phi> \<Longrightarrow> M \<le> M') \<Longrightarrow> ASSERT \<Phi> \<bind> (\<lambda>_. M) \<le> M'"
+  by(auto simp: pw_le_iff refine_pw_simps)
+
+lemma le_ASSERTI: "(\<Phi> \<Longrightarrow> M \<le> M') \<Longrightarrow> M \<le> ASSERT \<Phi> \<bind> (\<lambda>_. M')"
+  by(auto simp: pw_le_iff refine_pw_simps)
+
+lemma inresT_ASSERT: "inresT (ASSERT Q \<bind> (\<lambda>_. M)) x ta = (Q \<longrightarrow> inresT M x ta)"
+  unfolding ASSERT_def iASSERT_def by auto
+
+
+lemma nofailT_ASSERT_bind: "nofailT (ASSERT P \<bind> (\<lambda>_. M)) \<longleftrightarrow> (P \<and> nofailT M)"
+  by(auto simp: pw_bindT_nofailT pw_ASSERT)
+
+subsection \<open>SELECT\<close>
+
+
+ 
+definition emb' where "\<And>Q T. emb' Q (T::'a \<Rightarrow> enat) = (\<lambda>x. if Q x then Some (T x) else None)"
+
+abbreviation "emb Q t \<equiv> emb' Q (\<lambda>_. t)" 
+
+lemma emb_eq_Some_conv: "\<And>T. emb' Q T x = Some t' \<longleftrightarrow> (t'=T x \<and> Q x)"
+  by (auto simp: emb'_def)
+
+lemma emb_le_Some_conv: "\<And>T. Some t' \<le> emb' Q T x \<longleftrightarrow> ( t'\<le>T x \<and> Q x)"
+  by (auto simp: emb'_def)
+
+
+text \<open>Select some value with given property, or \<open>None\<close> if there is none.\<close>  
+definition SELECT :: "('a \<Rightarrow> bool) \<Rightarrow> enat \<Rightarrow> 'a option nrest"
+  where "SELECT P tf \<equiv> if \<exists>x. P x then REST (emb (\<lambda>r. case r of Some p \<Rightarrow> P p | None \<Rightarrow> False) tf)
+               else REST [None \<mapsto> tf]"
+
+                    
+lemma inresT_SELECT_Some: "inresT (SELECT Q tt) (Some x) t' \<longleftrightarrow> (Q x  \<and> (t' \<le> tt))"
+  by(auto simp: inresT_def SELECT_def emb'_def) 
+
+lemma inresT_SELECT_None: "inresT (SELECT Q tt) None t' \<longleftrightarrow> (\<not>(\<exists>x. Q x) \<and> (t' \<le> tt))"
+  by(auto simp: inresT_def SELECT_def emb'_def) 
+
+lemma inresT_SELECT[refine_pw_simps]:
+ "inresT (SELECT Q tt) x t' \<longleftrightarrow> ((case x of None \<Rightarrow> \<not>(\<exists>x. Q x) | Some x \<Rightarrow> Q x)  \<and> (t' \<le> tt))"
+  by(auto simp: inresT_def SELECT_def emb'_def) 
+
+
+lemma nofailT_SELECT[refine_pw_simps]: "nofailT (SELECT Q tt)"
+  by(auto simp: nofailT_def SELECT_def)
+
+lemma s1: "SELECT P T \<le> (SELECT P T') \<longleftrightarrow> T \<le> T'"
+  apply(cases "\<exists>x. P x") 
+   apply(auto simp: pw_le_iff refine_pw_simps split: option.splits)
+  subgoal 
+    by (metis (full_types) enat_ord_code(3) enat_ord_simps(1) lessI not_infinity_eq not_le order_mono_setup.refl) 
+  subgoal 
+    by (metis (full_types) enat_ord_code(3) enat_ord_simps(1) lessI not_enat_eq not_le order_mono_setup.refl) 
+  done
+     
+lemma s2: "SELECT P T \<le> (SELECT P' T) \<longleftrightarrow> (
+    (Ex P' \<longrightarrow> Ex P)  \<and> (\<forall>x. P x \<longrightarrow> P' x)) "
+  apply(auto simp: pw_le_iff refine_pw_simps split: option.splits)
+  subgoal 
+    by (metis enat_ile linear)                                          
+  subgoal 
+    by (metis enat_ile linear) 
+  done
+ 
+lemma SELECT_refine:
+  assumes "\<And>x'. P' x' \<Longrightarrow> \<exists>x. P x"
+  assumes "\<And>x. P x \<Longrightarrow>   P' x"
+  assumes "T \<le> T'"
+  shows "SELECT P T \<le> (SELECT P' T')"
+proof -
+  have "SELECT P T \<le> SELECT P T'"
+    using s1 assms(3) by auto
+  also have "\<dots> \<le> SELECT P' T'"
+    unfolding s2 apply safe
+    using assms(1,2) by auto  
+  finally show ?thesis .
+qed
+
 
 section \<open>RECT\<close>
 
@@ -1069,7 +1201,35 @@ lemma "T Q (SPECT P) \<ge> Some t \<longleftrightarrow> (\<forall>x t'. P x = So
 
 lemma "T Q (SPECT P) = Some t \<longleftrightarrow> (\<forall>x t'. P x = Some t' \<longrightarrow> (\<exists>t''. Q x = Some t'' \<and> t'' = t + t'))"
   apply (auto simp: T_def ) oops
-   
+
+
+lemma T_SELECT: 
+  assumes  
+    "\<forall>x. \<not> P x \<Longrightarrow> Some tt \<le> T Q (SPECT [None \<mapsto> tf])"
+  and p: "(\<And>x. P x \<Longrightarrow> Some tt \<le> T Q (SPECT [Some x \<mapsto> tf]))"
+   shows "Some tt \<le> T Q (SELECT P tf)"
+proof(cases "\<exists>x. P x")
+  case True
+  from p[unfolded T_pw mii_alt] have
+    p': "\<And>y x. P y \<Longrightarrow> Some tt \<le> mm2 (Q x)([Some y \<mapsto> tf] x)"
+    by auto
+
+  from True 
+  show ?thesis 
+    unfolding SELECT_def apply (auto simp: emb'_def split: if_splits)
+    apply(auto simp: T_pw) subgoal for x xa apply(cases xa)
+      apply (simp add: mii_alt)
+      apply (simp add: mii_alt) apply safe subgoal for a
+        using p'[of a xa] by auto
+      done
+    done
+next
+  case False
+  then show ?thesis 
+    unfolding SELECT_def apply (auto simp: emb'_def split: if_splits) using assms by auto
+qed 
+
+
               
 section "Experimental Hoare reasoning"
 
@@ -1192,17 +1352,6 @@ lemma T_conseq3:
 
 
 definition P where "P f g = bindT f (\<lambda>x. bindT g (\<lambda>y. RETURNT (x+(y::nat))))"
-
- 
-definition emb' where "\<And>Q T. emb' Q (T::'a \<Rightarrow> enat) = (\<lambda>x. if Q x then Some (T x) else None)"
-
-abbreviation "emb Q t \<equiv> emb' Q (\<lambda>_. t)" 
-
-lemma emb_eq_Some_conv: "\<And>T. emb' Q T x = Some t' \<longleftrightarrow> (t'=T x \<and> Q x)"
-  by (auto simp: emb'_def)
-
-lemma emb_le_Some_conv: "\<And>T. Some t' \<le> emb' Q T x \<longleftrightarrow> ( t'\<le>T x \<and> Q x)"
-  by (auto simp: emb'_def)
 
 named_theorems vcg_rules
 
@@ -1791,8 +1940,6 @@ lemma                                       (* hmmm *)
 
 
 
-adhoc_overloading
-  Monad_Syntax.bind Sepreftime.bindT
 lemma   fixes n :: nat
   assumes [vcg_rules]: "T (\<lambda>s. if s \<le> n then Some 1 else None) f \<ge> Some 0"
    and  c[vcg_rules]: "\<And>s. Some 0 \<le> T (\<lambda>s'. if s' < s then Some (enat C) else None) (c s)"
