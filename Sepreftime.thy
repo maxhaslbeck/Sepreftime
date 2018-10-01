@@ -1722,6 +1722,26 @@ lemma
   done
 
 
+definition  whileIET :: "('a \<Rightarrow> bool) \<Rightarrow> ('a \<Rightarrow> nat) \<Rightarrow> ('a \<Rightarrow> bool) \<Rightarrow> ('a \<Rightarrow> 'a nrest) \<Rightarrow> 'a \<Rightarrow> 'a nrest" where
+  "\<And>E c. whileIET I E b c = whileT b c"
+ 
+
+lemma  whileIET_rule[vcg_rules]:
+  fixes E
+  assumes 
+    "(\<And>s t t'.
+    (if I s then Some (E s) else None) = Some t \<Longrightarrow>
+    b s \<Longrightarrow> Some 0 \<le> T (\<lambda>s'. mm3 t (if I s' then Some (E s') else None)) (C s))" 
+  "\<And>s. progress (C s)"
+  "I s0" 
+shows "Some 0 \<le> T (\<lambda>x. if b x then None else mm3 (E s0) (if I x then Some (E x) else None)) (whileIET I E b C s0)"
+  unfolding whileIET_def  
+  apply(rule whileT_rule'''[OF refl, where I="(\<lambda>e. if I e
+                then Some (E e) else None)"])
+  using assms by auto 
+
+
+
 
 lemma 
   assumes IS: "T (\<lambda>s. T (\<lambda>s'. if (s',s)\<in>R then I s' else None) (c s)) (SPECT (\<lambda>x. if b x then I x else None)) \<ge> Some 0" 

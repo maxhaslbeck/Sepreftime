@@ -104,9 +104,29 @@ begin
 definition del_time  :: nat where  "del_time = 10"
   definition succs_time  :: nat where "succs_time = 10"
 
+
+lemma T_conseq6':
+  assumes 
+    "TTT Q' f \<ge> Some t"
+    "\<And>x t'' M. f = SPECT M \<Longrightarrow> M x \<noteq> None \<Longrightarrow>   (Q x) \<ge> Q' x" 
+  shows "TTT Q f \<ge> Some t"
+  apply(rule T_conseq6) apply fact   
+     by (auto dest: assms(2))
+
+thm whileIET_rule[THEN T_conseq6']
+
+  definition "max_dist src \<equiv> Max (min_dist src`V)"
+
+  definition "body_time = mem_time + del_time + succs_time + add_succ_spec_time"
+
+  definition Te :: "node \<Rightarrow> bool \<times> (nat \<Rightarrow> nat option) \<times> nat set \<times> nat set \<times> nat
+   \<Rightarrow> nat" where "Te src = (\<lambda>(f,PRED,C,N,d). if f then 0
+         else (card V * (max_dist src + 1 - d) + card C) * (body_time) )"
+
+
   definition pre_bfs :: "node \<Rightarrow> node \<Rightarrow> (nat \<times> (node\<rightharpoonup>node)) option nrest"
     where "pre_bfs src dst \<equiv> do {
-    (f,PRED,_,_,d) \<leftarrow> whileT (*IT (outer_loop_invar src dst) *)
+    (f,PRED,_,_,d) \<leftarrow> whileIET (outer_loop_invar src dst) (Te src)
       (\<lambda>(f,PRED,C,N,d). f=False \<and> C\<noteq>{})
       (\<lambda>(f,PRED,C,N,d). do {
         v \<leftarrow> SPECT (emb (\<lambda>v. v\<in>C) mem_time);
@@ -316,7 +336,6 @@ definition del_time  :: nat where  "del_time = 10"
 
 
 
-  definition "max_dist src \<equiv> Max (min_dist src`V)"
 
   definition "outer_loop_rel src \<equiv> 
     inv_image (
@@ -355,16 +374,12 @@ definition del_time  :: nat where  "del_time = 10"
 
   thm outer_loop_rel_wf
 
-definition "body_time = mem_time + del_time + succs_time + add_succ_spec_time"
 
   definition pre_bfs_time   where
     "pre_bfs_time src = (1 + card V + card V * max_dist src) * body_time"
 
-  definition Te :: "node \<Rightarrow> bool \<times> (nat \<Rightarrow> nat option) \<times> nat set \<times> nat set \<times> nat
-   \<Rightarrow> nat" where "Te src = (\<lambda>(f,PRED,C,N,d). if f then 0
-         else (card V * (max_dist src + 1 - d) + card C) * (body_time) )"
 
-lemma Te_start_ub: "enat (Te src (False, [src \<mapsto> src], {src}, {}, 0)) \<le> pre_bfs_time src"
+lemma Te_start_ub: "(Te src (False, [src \<mapsto> src], {src}, {}, 0)) \<le> pre_bfs_time src"
   by (simp add: Te_def pre_bfs_time_def)
      
       (* (f,PRED,C,N,d) *)
@@ -393,42 +408,36 @@ lemma hlp: "\<And>a b c::enat. a \<le> c \<Longrightarrow> enat ((a::nat)-b) \<l
 lemma hlp_nat: "\<And>a b c::nat. a \<le> c \<Longrightarrow> ((a)-b) \<le> c"
  using diff_le_self dual_order.trans enat_ord_simps(1) by blast
 
+ 
 
-lemma C_ss_V: "nf_invar c src dst a C ab b \<Longrightarrow> C \<subseteq> V" 
-  by (simp add: nf_invar.invar_C_ss_V subsetI)
-
-lemma cardC: "nf_invar c src dst a C ab b \<Longrightarrow> card C \<le> card V"
-  using C_ss_V  
-  by (meson card_mono nf_invar'_def nf_invar.axioms(1) valid_PRED_def)  
+lemma (in nf_invar) cardC: "card C \<le> card V"
+  by(auto simp: invar_C_ss_V intro!: card_mono)  
 
 lemma (in nf_invar) cardN'_: "x\<in>C \<Longrightarrow> (N \<union> (E `` {x} - dom PRED)) \<subseteq>  V"
   by (smt Diff_iff Graph.connected_inV_iff Graph.succ_ss_V Int_iff N_eq SRC_IN_V UnE mem_Collect_eq pre_bfs_invar.Vd_def subsetCE subsetI)
-
-lemma "nf_invar c src dst PRED C N b \<Longrightarrow> finite V" sledgehammer
-  using nf_invar'_def nf_invar.axioms(1) valid_PRED.FIN_V by blast
+ 
 
 lemma (in nf_invar) cardN':  "x\<in>C \<Longrightarrow> card (N \<union> (E `` {x} - dom PRED)) \<le> card V"
   apply(rule card_mono[OF FIN_V cardN'_]) by simp 
 
 
 
-lemma "\<And>a b c. c \<le> (a::nat) \<Longrightarrow> a * b - c * b = (a - c) * b"
-   
-  by (simp add: diff_mult_distrib)  
-thm subsetCE
+lemma (in nf_invar) Te_decr_succ_step: "C \<noteq> {} \<Longrightarrow> 
+    x \<in> C \<Longrightarrow>   
+    Te src(False, map_mmupd PRED (E `` {x} - dom PRED) x, N \<union> (E `` {x} - dom PRED), {}, Suc d)
+    \<le> Te src (False, PRED, C, N, d)"  
+  by(auto dest!: cardN' C_ne_max_dist simp: Te_def Suc_diff_le)
 
-lemma pff: "C \<noteq> {} \<Longrightarrow>
-    nf_invar c src dst PRED C N d \<Longrightarrow>
+lemma (in nf_invar) Te_pays_succ_step: "C \<noteq> {} \<Longrightarrow>
     x \<in> C \<Longrightarrow>   
     mem_time + del_time + succs_time + add_succ_spec_time
     \<le> Te src (False, PRED, C, N, d) -
        Te src
         (False, map_mmupd PRED (E `` {x} - dom PRED) x, N \<union> (E `` {x} - dom PRED), {}, Suc d)"
   unfolding Te_def apply simp 
-  apply(frule nf_invar.C_ne_max_dist) apply simp
+  apply(frule  C_ne_max_dist) 
   apply(simp add: Suc_diff_le) 
-  apply(frule nf_invar.cardN')
-   apply (simp add:  ) apply(subst diff_mult_distrib[symmetric]) apply simp
+  apply(frule  cardN') apply(subst diff_mult_distrib[symmetric]) apply simp
   unfolding body_time_def[symmetric]
 proof (goal_cases)
   case 1
@@ -439,9 +448,16 @@ proof (goal_cases)
   then show ?case by auto
 qed
 
-lemma pff': " 
-    C \<noteq> {} \<Longrightarrow>
-    nf_invar c src dst PRED C N d \<Longrightarrow>
+lemma (in nf_invar) Te_decr_level_step: "C \<noteq> {} \<Longrightarrow> 
+    x \<in> C \<Longrightarrow>   
+    Te src
+           (False, map_mmupd PRED (E `` {x} - dom PRED) x, C - {x},
+            N \<union> (E `` {x} - dom PRED), d)
+    \<le> Te src (False, PRED, C, N, d)"  
+  by(auto dest!: cardN' C_ne_max_dist simp: Te_def Suc_diff_le)
+
+lemma (in nf_invar) Te_pays_level_step: " 
+    C \<noteq> {} \<Longrightarrow> 
     x \<in> C \<Longrightarrow> 
     mem_time + del_time + succs_time + add_succ_spec_time
        \<le> Te src (False, PRED, C, N, d) -
@@ -450,142 +466,66 @@ lemma pff': "
             N \<union> (E `` {x} - dom PRED), d)"
   unfolding Te_def apply simp unfolding body_time_def[symmetric]
   apply (auto simp add: card_minus1 diff_mult_distrib[symmetric] )
-  apply (metis Suc_leI card_0_eq diff_diff_cancel empty_iff less_or_eq_imp_le neq0_conv nf_invar.finite_C)
+  apply (metis Suc_leI card_0_eq diff_diff_cancel empty_iff less_or_eq_imp_le neq0_conv finite_C)
   done
 
-lemma exit: "C \<noteq> {} \<Longrightarrow>
-    nf_invar c src dst PRED C N d \<Longrightarrow>
-    x \<in> C \<Longrightarrow>   
-    Te src
-     (False, map_mmupd PRED (E `` {x} - dom PRED) x, N \<union> (E `` {x} - dom PRED), {}, Suc d)
-    \<le> Te src (False, PRED, C, N, d)" unfolding Te_def apply simp apply(frule cardC)
-        apply(frule nf_invar.C_ne_max_dist) apply simp
-        apply(simp add: Suc_diff_le) 
-        apply(frule nf_invar.cardN')
-        apply (simp add: )
-        by (simp add: )
 
-lemma Cge1: " nf_invar c src dst PRED C N d \<Longrightarrow>
-    x \<in> C \<Longrightarrow> card C \<ge> 1"  
-  using card_0_eq nf_invar.finite_C by force  
+lemma (in nf_invar) Cge1: "x \<in> C \<Longrightarrow> card C \<ge> 1"  
+  using card_0_eq finite_C by force  
 
-lemma pays_exit: "nf_invar c src dst PRED C N d \<Longrightarrow>
+lemma (in nf_invar) Te_pays_exit: "nf_invar c src dst PRED C N d \<Longrightarrow>
     x \<in> C \<Longrightarrow> 
      mem_time + del_time + succs_time + add_succ_spec_time
        \<le> Te src (False, PRED, C, N, d) - Te src (True, PRED', C - {x}, N', Suc d)"
   unfolding Te_def body_time_def[symmetric]  using Cge1
   by force
 
-thm nf_invar.invar_succ_step
+thm vcg_rules
+thm vcg_simp_rules
+declare mm3_Some_conv [vcg_simp_rules]
+
   theorem pre_bfs_correct: 
     assumes [simp]: "src\<in>V" "src\<noteq>dst"       
     assumes [simp]: "finite V"
     shows "pre_bfs src dst \<le> SPECT (emb (bfs_spec src dst) (pre_bfs_time src))"
     unfolding pre_bfs_def add_succ_spec_def
     apply(rule T_specifies_I)
-  apply (vcg'\<open>-\<close>)    
-  apply (rule T_conseq4)
-   apply (rule whileT_rule'''[OF refl, where I="(\<lambda>e. if outer_loop_invar src dst e
-                then Some (Te src e) else None)"])
-    subgoal (* progress *)
-       
-      sorry
-    subgoal
-    apply (vcg'\<open>-\<close> rules: T_RESTemb   )  
-     defer defer 
-      apply (vcg'\<open>-\<close> rules: T_RESTemb  )
-      apply(vc_solve simp:  
-      nf_invar.invar_C_ss_V 
-      nf_invar.invar_succ_step
-      (* invar_init 
-      nf_invar.invar_exit'          -
-        nf_invar'.invar_shift
-      nf_invar'.invar_restore       - 
-      f_invar.invar_found 
-      nf_invar.invar_not_found  
-      nf_invar.finite_succ *)
-      nf_invar.invar_N_ss_Vis)
+    apply (vcg'\<open>-\<close> rules: T_RESTemb   )   
+                        apply(vc_solve simp:  
+            nf_invar.Te_pays_exit
+            nf_invar.Te_decr_succ_step
+            nf_invar.Te_pays_succ_step
+            nf_invar.Te_decr_level_step
+            nf_invar.Te_pays_level_step
+      
+            nf_invar.invar_C_ss_V 
+            nf_invar.invar_succ_step 
+            (* nf_invar.invar_exit'          -
+            nf_invar'.invar_shift
+            nf_invar'.invar_restore       -  
+            nf_invar.finite_succ *)
+            nf_invar.invar_N_ss_Vis)
       subgoal  
-        using nf_invar.invar_exit' by fastforce  
-      subgoal using pays_exit by simp
-      subgoal using exit by simp 
-      subgoal for f PRED C N d x b using pff
-        by simp 
-      subgoal for f PRED C N d x b            
-        by (auto simp add: Te_def nf_invar.finite_C) 
-      subgoal for f PRED C N d x b  using pff'
-        by simp  
-      subgoal for f PRED C N d x b
+        using nf_invar.invar_exit' by fastforce    
+      subgoal  
         by (smt Diff_eq_empty_iff Diff_iff Image_singleton_iff insert_absorb nf_invar'.invar_restore nf_invar.invar_succ_step singleton_insert_inj_eq')
-      subgoal for f PRED C N d x b 
-        unfolding Te_def apply simp unfolding body_time_def[symmetric]
-   
-        apply(frule nf_invar.C_ne_max_dist) apply simp
-        apply(simp add: Suc_diff_le) 
-        apply(frule nf_invar.cardN')
-        by (auto)
-      subgoal for f PRED C N d x b 
-        using pff by simp 
-      subgoal for  f PRED C N d x b   
+ 
+      subgoal     
         by (metis Diff_iff Image_singleton_iff nf_invar'.invar_restore nf_invar'.invar_shift nf_invar.invar_succ_step)  
-      subgoal for  f PRED C N d x b
-        by (auto dest: nf_invar.invar_succ_step nf_invar'.invar_shift) 
-      subgoal for  f PRED C N d x b     
-        by (simp add: nf_invar.finite_C Te_def)
-      subgoal for  f PRED C N d x b 
-        using pff' by simp
-      done
-        
-   (*
-     apply (vcg'\<open>-\<close>)
-    apply(frule f_invar.invar_found)  apply simp
-     apply(simp add: mm3_Some_conv)
-    apply(rule hlp_nat)
-      using Te_start_ub apply simp
-     apply (vcg'\<open>-\<close>) 
-    apply(frule nf_invar.invar_not_found) apply (simp_all add: mm3_Some_conv)
-    apply(rule hlp_nat)
-      using Te_start_ub apply simp
-      done
-    
-        sorry *)
-    (*
+      subgoal  
+        by (auto dest: nf_invar.invar_succ_step nf_invar'.invar_shift)  
+          
+      subgoal (* progress *)
+        sorry
+         (*
     apply (vc_solve 
       simp: remove_subset outer_loop_rel_def 
       simp: nf_invar.C_ne_max_dist nf_invar.finite_C) 
       
-      *)
-        apply (auto simp: invar_init) 
-                        
-     apply (vcg'\<open>auto simp: f_invar.invar_found \<close> rules:   )
-     apply(simp add: mm3_Some_conv)
-      subgoal   apply(rule hlp_nat) using Te_start_ub by simp
-    
-      apply (vcg'\<open>auto simp: nf_invar.invar_not_found\<close> rules:   )
-     apply(simp add: mm3_Some_conv)
-      subgoal   apply(rule hlp_nat) using Te_start_ub by simp
-      done
-        
-        (*
-    apply (intro refine_vcg)
-    apply (rule outer_loop_rel_wf[where src=src])
-    apply (vc_solve simp:
-      invar_init 
-      nf_invar.invar_exit' 
-      nf_invar.invar_C_ss_V 
-      nf_invar.invar_succ_step
-      nf_invar'.invar_shift
-      nf_invar'.invar_restore        
-      f_invar.invar_found
-      nf_invar.invar_not_found
-      nf_invar.invar_N_ss_Vis
-      nf_invar.finite_succ
-      )
-    apply (vc_solve 
-      simp: remove_subset outer_loop_rel_def 
-      simp: nf_invar.C_ne_max_dist nf_invar.finite_C)
-    done *)
-
+      *)                         
+      by (vcg'\<open>auto simp: invar_init nf_invar.invar_not_found Te_start_ub hlp_nat  f_invar.invar_found \<close>   ) 
+     
+         
 
 
   (* Presentation for Paper  
@@ -634,14 +574,27 @@ thm nf_invar.invar_succ_step
           = pre_bfs_invar.ndist c src dst)"
 
 definition append_time :: nat where "append_time = 10"
-definition extract_pred_time :: nat where "extract_pred_time = 10"
+definition extract_pred_time :: nat where "extract_pred_time = 10" 
+
+
+    definition (in valid_PRED) "extract_rpath_time = ndist dst * (extract_pred_time + append_time)"
+
+
+    definition (in valid_PRED) "Ter  = (\<lambda>(d,_). ndist d * (extract_pred_time + append_time))"
+
+    definition "mop_append x xs = SPECT [ (x#xs) \<mapsto> append_time]"
+    lemma progress_mop_append[progress_rules]: "progress (mop_append x xs)"
+      unfolding mop_append_def by (progress\<open>simp add: append_time_def zero_enat_def\<close>) 
+
+    lemma mop_append: "t \<le> TTT Q (SPECT [ (x#xs) \<mapsto> append_time]) \<Longrightarrow> t
+           \<le> TTT Q (mop_append x xs)" unfolding mop_append_def by simp
 
     definition "extract_rpath src dst PRED \<equiv> do {
-      (_,p) \<leftarrow> whileT        
+      (_,p) \<leftarrow> whileIET (extract_rpath_inv src dst PRED) (valid_PRED.Ter c src)         
         (\<lambda>(v,p). v\<noteq>src) (\<lambda>(v,p). do {
         ASSERT (v\<in>dom PRED);
         u \<leftarrow> SPECT [  (the (PRED v)) \<mapsto> extract_pred_time];
-        p \<leftarrow> SPECT [ ((u,v)#p) \<mapsto> append_time];
+        p \<leftarrow> mop_append (u,v) p;
         v \<leftarrow> RETURNT u;
         RETURNT (v,p)
       }) (dst,[]);
@@ -651,32 +604,17 @@ definition extract_pred_time :: nat where "extract_pred_time = 10"
   end  
 
   context valid_PRED begin
-
-    definition "extract_rpath_time = ndist dst * (extract_pred_time + append_time)"
-
-    term ndist
-
-    definition "Ter  = (\<lambda>(d,_). ndist d * (extract_pred_time + append_time))"
-
+  
     lemma extract_rpath_correct:
       assumes "dst\<in>dom PRED"
       shows "extract_rpath src dst PRED 
         \<le> SPECT (emb (\<lambda>p. isSimplePath src p dst \<and> length p = ndist dst) extract_rpath_time)"
-      using assms unfolding extract_rpath_def isSimplePath_def apply simp
-      apply(rule T_specifies_I)
-  apply (vcg'\<open>-\<close>)    
-  apply (rule T_conseq4)
-   apply (rule whileT_rule'''[OF refl, where I="(\<lambda>e. if extract_rpath_inv src dst PRED e
-                then Some (Ter e) else None)"])
-    subgoal (* progress *)       
-      sorry 
-    apply (vcg'\<open>(auto simp: extract_rpath_time_def extract_rpath_inv_def  PRED_closed[THEN domD] PRED_E PRED_dist Ter_def)\<close>) 
+      using assms unfolding extract_rpath_def isSimplePath_def  
+      apply simp
+      apply(rule T_specifies_I) 
+      apply (vcg'\<open>(auto simp: extract_rpath_time_def extract_rpath_inv_def
+                               PRED_closed[THEN domD] PRED_E PRED_dist Ter_def)\<close> rules: mop_append)  
     done
- (*
-      apply (refine_vcg wf_measure[where f="\<lambda>(d,_). ndist d"])
-      apply (vc_solve simp: PRED_closed[THEN domD] PRED_E PRED_dist)
-      apply auto
-      done *) 
 
   end
 
@@ -698,12 +636,6 @@ definition extract_pred_time :: nat where "extract_pred_time = 10"
 
     definition bfs_time   where "bfs_time src dst = pre_bfs_time src + valid_PRED.extract_rpath_time c src dst"
 
-lemma T_case_option:
-  assumes  "Some t \<le> TTT Q A"
-    "\<And>b. Some t \<le> TTT Q (B b)"
-  shows "Some t \<le> TTT Q (case x of None \<Rightarrow> A  | Some b \<Rightarrow> B b)"
-   using assms by(auto simp:  split: option.splits) 
-
     lemma bfs_correct:
       assumes "src\<in>V" "finite V" 
       shows "bfs src dst 
@@ -712,21 +644,12 @@ lemma T_case_option:
         | Some p \<Rightarrow> isShortestPath src p dst) (bfs_time src dst))"
       unfolding bfs_def
       apply(rule T_specifies_I) 
-      apply(vcg'\<open>auto simp: assms split: option.splits simp add: isShortestPath_def\<close> rules: pre_bfs_correct[THEN T_specifies_rev , THEN T_conseq4]) 
-         apply (auto simp: assms split: option.splits)  
-      apply(vcg'\<open>-\<close>) apply(simp_all add: Some_eq_emb'_conv bfs_spec_def bfs_time_def)
-      apply(vcg'\<open>-\<close> rules: valid_PRED.extract_rpath_correct[THEN T_specifies_rev, THEN T_conseq4])
-      by (auto simp: Some_le_emb'_conv Some_eq_emb'_conv isShortestPath_min_dist_def isSimplePath_def)
-      
- (*
-      apply (refine_vcg
-        pre_bfs_correct[THEN order_trans]
-        valid_PRED.extract_rpath_correct[THEN order_trans]
-        )
-      using assms
-      apply (vc_solve 
-        simp: bfs_spec_def isShortestPath_min_dist_def isSimplePath_def)
-      done      *)  
+      by(vcg'\<open>auto simp add: assms bfs_time_def
+              isShortestPath_min_dist_def isShortestPath_def
+              bfs_spec_def isSimplePath_def\<close>
+            rules: pre_bfs_correct[THEN T_specifies_rev , THEN T_conseq4]
+                    valid_PRED.extract_rpath_correct[THEN T_specifies_rev, THEN T_conseq4]) 
+          
   end
 
   (* Snippet for paper 
@@ -827,7 +750,7 @@ lemma T_case_option:
     apply simp
     apply (rule conc_trans[OF inner_loop2_refine inner_loop_refine, simplified])
     using assms(1-2)
-    apply (simp_all) subgoal sorry
+    apply (simp_all) subgoal unfolding list_set_rel_def sorry
     done
 
 context

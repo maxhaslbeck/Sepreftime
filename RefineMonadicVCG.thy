@@ -25,7 +25,7 @@ thm T_pw refine_pw_simps
 
 thm pw_le_iff
 
-lemma [vcg_simp_rules]: "Some t \<le> TTT Q (ASSERT \<Phi>) \<longleftrightarrow> \<Phi> \<and> Some t \<le> Q ()"
+lemma T_ASSERT[vcg_simp_rules]: "Some t \<le> TTT Q (ASSERT \<Phi>) \<longleftrightarrow> Some t \<le> Q () \<and> \<Phi>"
   apply (cases \<Phi>)
    apply vcg'
   done
@@ -66,7 +66,7 @@ method progress' methods solver =
 
 subsection \<open>VCG for monadic programs\<close>
 
-method vcg' methods solver uses rules = ((rule rules vcg_rules[THEN T_conseq6] | progress\<open>auto\<close> | clarsimp split: if_splits simp: vcg_simp_rules | intro allI impI conjI | (solver; fail) )+)
+method vcg' methods solver uses rules = ((rule rules vcg_rules[THEN T_conseq6] | progress\<open>auto\<close> | clarsimp split: option.splits if_splits simp: vcg_simp_rules | intro allI impI conjI | (solver; fail) )+)
 
 
 thm vcg_rules
@@ -80,7 +80,7 @@ lemma Some_le_mm3_Some_conv[vcg_simp_rules]: "Some t \<le> mm3 t' (Some t'') \<l
 lemma Some_le_emb'_conv[vcg_simp_rules]: "Some t \<le> emb' Q ft x \<longleftrightarrow> Q x \<and> t \<le> ft x"
   by (auto simp: emb'_def)
 
-lemma Some_eq_emb'_conv: "emb' Q tf s = Some t \<longleftrightarrow> (Q s \<and> t = tf s)"
+lemma Some_eq_emb'_conv[vcg_simp_rules]: "emb' Q tf s = Some t \<longleftrightarrow> (Q s \<and> t = tf s)"
   unfolding emb'_def by(auto split: if_splits)
 
 
