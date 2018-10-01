@@ -13,12 +13,19 @@ lemma set_mem_hnr_abs[sepref_fr_rules]:
         
 term remdups
 
+definition "rd_inv as \<equiv> (\<lambda>(xs,ys,S). (\<exists>zs. as = zs@xs \<and> S = set ys \<and> distinct ys \<and> set zs = set ys))"
+
+definition body_time :: "nat \<Rightarrow> nat" where 
+  "body_time n = 60 + rbt_search_time_logN (n+1) + rbt_insert_logN (n+1)"
+
+definition "rd_ta as = (\<lambda>(xs,ys,S). length xs * body_time (length as))"
+
 definition rd_impl1 :: "nat list \<Rightarrow> (nat list) nrest" where
 "rd_impl1 as = do {
   ys \<leftarrow> mop_empty_list 12;
   S \<leftarrow> mop_empty_set 1;
   zs \<leftarrow> RETURNT as;
-  (zs,ys,S) \<leftarrow> whileT (\<lambda>(xs,ys,S). length xs > 0) (\<lambda>(xs,ys,S). do {                          
+  (zs,ys,S) \<leftarrow> whileIET (rd_inv as) (rd_ta as) (\<lambda>(xs,ys,S). length xs > 0) (\<lambda>(xs,ys,S). do {                          
     ASSERT (length xs > 0);
     ASSERT (length xs + length ys \<le> length as);
     ASSERT (card S \<le> length ys);
@@ -38,8 +45,6 @@ definition rd_impl1 :: "nat list \<Rightarrow> (nat list) nrest" where
 
 term emb
 
-definition body_time :: "nat \<Rightarrow> nat" where 
-  "body_time n = 60 + rbt_search_time_logN (n+1) + rbt_insert_logN (n+1)"
 
 definition "remdups_time (n::nat) = n * body_time n + 20"
 
@@ -51,14 +56,9 @@ lemma enat_neq_Z_iff[simp]: "enat x \<noteq> 0 \<longleftrightarrow> x\<noteq>0"
 lemma rd_impl1_correct: "rd_impl1 as \<le> REST (emb (\<lambda>ys. set as = set ys \<and> distinct ys)
                    ( remdups_time (length as) ))"
   unfolding rd_impl1_def mop_empty_list_def mop_empty_set_def mop_mem_set_def mop_insert_set_def mop_push_list_def
-  (*apply(subst whileTI_def[symmetric, where I="I"
-                                    and R="R"])*)
+      rd_ta_def rd_inv_def
   apply(rule T_specifies_I)
-  apply (vcg' \<open>simp\<close>)
-
-  apply (rule T_conseq4)
-   apply (rule whileT_rule'''[OF refl, where I="(\<lambda>(xs,ys,S). if (\<exists>zs. as = zs@xs \<and> S = set ys \<and> distinct ys \<and> set zs = set ys) 
-                then Some (length xs * body_time (length as)) else None)"])
+  apply (vcg' \<open>simp\<close> rules: whileIET_rule[THEN T_conseq4]  ) 
   supply [simp] = neq_Nil_conv distinct_length_le card_length
      apply (vcg' \<open>auto simp: body_time_def remdups_time_def \<close> rules: TrueI)
   done
@@ -129,7 +129,7 @@ declare rbt_insert_logN_mono [intro]
 
 
 sepref_definition remdups_impl is "uncurry0 (rd_impl1 as)" :: "unit_assn\<^sup>k \<rightarrow>\<^sub>a dyn_array"
-  unfolding rd_impl1_def
+  unfolding rd_impl1_def whileIET_def
   apply sepref_dbg_keep 
   done
 print_theorems

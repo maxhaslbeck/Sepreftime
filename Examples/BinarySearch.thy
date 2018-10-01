@@ -85,8 +85,7 @@ proof(induct "r-l" arbitrary: l r rule: less_induct)
   from less(2-4) show ?case apply(subst binarysearch.code(2))  unfolding mop_lookup_list_def
     apply (vcg'\<open>simp\<close>)
             apply (metis le_neq_implies_less le_refl not_less_eq) 
-    apply(simp add: avg_def)
-    apply(rule T_conseq4)  
+    subgoal apply(rule T_conseq4)  
          apply(rule less(1)) apply (simp add: avg_def;fail)+
     subgoal 
       apply(simp only: Some_le_emb'_conv Some_eq_emb'_conv)
@@ -95,13 +94,14 @@ proof(induct "r-l" arbitrary: l r rule: less_induct)
       subgoal  using binarysearch_mono[OF avg_diff1] 
         by (simp add: le_SucI)
       done
+    done
+    apply(simp add: avg_def)
     subgoal 
       using le_less_Suc_eq by fastforce 
-    apply(simp add: avg_def)
     subgoal by auto2    (* <<<<<<<<<<<<<<<<<<<<<<<<<<<  :) *)
+    apply(simp add: avg_def)
     subgoal 
       using le_less_Suc_eq by fastforce 
-    apply(simp add: avg_def)
     apply(rule T_conseq4) 
          apply(rule less(1)) apply (simp add: avg_def;fail)+
     subgoal 
@@ -111,6 +111,7 @@ proof(induct "r-l" arbitrary: l r rule: less_induct)
       subgoal  using binarysearch_mono[OF avg_diff2] 
         by (simp add: le_SucI)
       done
+    apply(simp add: avg_def)
     done
 qed
  

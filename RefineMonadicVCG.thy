@@ -109,6 +109,8 @@ lemma dom_emb'_eq[simp]: "dom (emb' Q f) = Collect Q"
   by(auto simp: emb'_def split: if_splits)
 
 
+lemma emb_le_emb: "emb' P T \<le> emb' P' T' \<longleftrightarrow> (\<forall>x. P x \<longrightarrow> P' x \<and>  T x \<le> T' x)"
+  unfolding emb'_def by (auto simp: le_fun_def split: if_splits)
 
 
 
