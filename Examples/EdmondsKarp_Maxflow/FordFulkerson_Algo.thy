@@ -133,11 +133,11 @@ theorem (in FoFu)  fofu_partial_correct: "fofu \<le> SPECT (emb (\<lambda>f. isM
     apply (vcg'\<open>-\<close>)
     subgoal unfolding NFlow.augment_with_path_def
       using  NFlow.augment_pres_nflow augments by metis
-    subgoal using NFlow.augmenting_path_not_empty augments  by metis
-    subgoal  using  augments by simp 
     subgoal 
       by (simp add: R_decreases less_imp_le_nat)
     subgoal by (metis R_decreases diff_mult_distrib2 prod_ineqs2 zero_less_diff)
+    subgoal  using  augments by simp 
+    subgoal using NFlow.augmenting_path_not_empty augments  by metis
   done
   apply (auto simp: zero_flow)
   apply (vcg'\<open>-\<close>)

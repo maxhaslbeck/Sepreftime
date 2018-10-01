@@ -83,27 +83,32 @@ begin
     (* TODO: This actually rephrases the spec to make it look more similar to 
       what BFS does later. This rephrasing does not belong here, but where we 
       implement it with BFS. *)
-    definition "find_shortest_augmenting_spec_cf_time = 10"
-  
+    definition "find_shortest_augmenting_spec_cf_time = pre_bfs_time + valid_PRED.extract_rpath_time c"
+lemma [simp]: "find_shortest_augmenting_spec_cf_time > 0" unfolding find_shortest_augmenting_spec_cf_time_def pre_bfs_time_def
+  by(simp add: body_time_def mem_time_def)
+
     definition "find_shortest_augmenting_spec_cf cf \<equiv> 
       ASSERT (RGraph c s t cf) \<then>
       SPECT (emb (\<lambda>
         None \<Rightarrow> \<not>Graph.connected cf s t 
       | Some p \<Rightarrow> Graph.isShortestPath cf s p t) find_shortest_augmenting_spec_cf_time)"
+ 
+
 
     lemma (in RGraph) find_shortest_augmenting_spec_cf_refine: 
        "find_shortest_augmenting_spec_cf cf 
-      \<le> find_shortest_augmenting_spec (flow_of_cf cf)"
+      \<le> EdKa.find_shortest_augmenting_spec c s t find_shortest_augmenting_spec_cf_time (flow_of_cf cf)"
       unfolding f_def[symmetric]
-      unfolding find_shortest_augmenting_spec_cf_def 
-        and find_shortest_augmenting_spec_def
-        and find_shortest_augmenting_spec_cf_time_def shortestpath_time_def
+      unfolding find_shortest_augmenting_spec_cf_def  apply(subst EdKa.find_shortest_augmenting_spec_def)
+      using Network_axioms apply(simp add: EdKa_def EdKa_axioms_def)
+      unfolding 
+          find_shortest_augmenting_spec_cf_time_def  
       by (auto 
         simp: pw_le_iff refine_pw_simps Some_eq_emb'_conv numeral_eq_enat
         simp: this_loc rg_is_cf
         simp: f.isAugmentingPath_def Graph.connected_def Graph.isSimplePath_def 
         dest: cf.shortestPath_is_path
-        split: option.split)  
+        split: option.split)   
       
     text \<open>This leads to the following refined algorithm\<close>  
     definition "edka2 \<equiv> do {
@@ -130,14 +135,36 @@ begin
       RETURNT f
     }"
 
-    lemma edka2_refine: "edka2 \<le> \<Down>Id edka"
+    interpretation edk: EdKa c s t find_shortest_augmenting_spec_cf_time
+      apply standard by simp
+    thm RGraph.find_shortest_augmenting_spec_cf_refine
+
+lemma WHILET_refine:
+  assumes R0: "(x,x')\<in>R"
+  assumes COND_REF: "\<And>x x'. \<lbrakk> (x,x')\<in>R \<rbrakk> \<Longrightarrow> b x = b' x'"
+  assumes STEP_REF: 
+    "\<And>x x'. \<lbrakk> (x,x')\<in>R; b x; b' x' \<rbrakk> \<Longrightarrow> f x \<le> \<Down>R (f' x')"
+  shows "whileT b f x \<le>\<Down>R (whileT b' f' x')"
+  sorry
+
+    lemma  edka2_refine: "edka2 \<le> \<Down>Id edk.edka"
     proof -
       (* have [refine_dref_RELATES]: "RELATES cfi_rel" by (simp add: RELATES_def) *)
 
       show ?thesis
-        unfolding edka2_def edka_def (*
-        (*apply (rewrite in "let f' = NFlow.augmentingFlow c _ _ in _" Let_def)
-        apply (rewrite in "let f = flow_of_cf _ in _" Let_def)*)
+        unfolding edka2_def edk.edka_def   (*
+         apply (rewrite in "let f' = NFlow.augmentingFlow c _ _ in _" Let_def)
+        apply (rewrite in "let f = flow_of_cf _ in _" Let_def) *)
+        apply (rule bindT_refine[where R'=cfi_rel] ) 
+        subgoal unfolding cfi_rel_alt 
+          apply(rule RETURNT_refine) by (auto simp add: residualGraph_zero_flow zero_flow)  
+          apply(rule bindT_refine[where R'="cfi_rel \<times>\<^sub>r bool_rel"])
+         apply(rule WHILET_refine)     apply simp
+        subgoal by auto
+         apply auto  apply(rule ASSERT_leI)
+        subgoal unfolding cfi_rel_alt apply (auto simp add: NFlow.is_RGraph) sorry
+         apply (rule bindT_refine[where R'=Id]) apply simp
+        apply(rule )
         apply (refine_rcg)
         apply refine_dref_type
         apply vc_solve

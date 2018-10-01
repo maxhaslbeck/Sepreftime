@@ -11,13 +11,10 @@ text \<open>
 
 subsection \<open>Algorithm\<close>
 
-context Network 
+locale EdKa = Network c s t for c :: "'capacity::linordered_idom graph" and s t +
+  fixes shortestpath_time :: nat 
+  assumes augment_progress: "0 < shortestpath_time"
 begin
-
-
- 
-definition "shortestpath_time = enat 10"
-definition "find_augmenting_time = 10"
 
 
 text \<open>First, we specify the refined procedure for finding augmenting paths\<close>
@@ -52,11 +49,11 @@ lemma augments: "\<And>f p. NFlow c s t f \<Longrightarrow> info f p \<Longright
 
 print_locale FoFu
 
-interpretation edka: FoFu c s t "edka_measure:: (nat \<times> nat \<Rightarrow> 'capacity) \<Rightarrow> nat" find_augmenting_time "info :: (nat \<times> nat \<Rightarrow> 'capacity) \<Rightarrow> (nat \<times> nat) list \<Rightarrow> bool"
+interpretation edka: FoFu c s t "edka_measure:: (nat \<times> nat \<Rightarrow> 'capacity) \<Rightarrow> nat" shortestpath_time "info :: (nat \<times> nat \<Rightarrow> 'capacity) \<Rightarrow> (nat \<times> nat) list \<Rightarrow> bool"
   apply standard
   subgoal using NFlow.augmenting_path_imp_shortest info_def by blast 
   subgoal using edka_measure_decreases info_def augments by simp
-  subgoal unfolding find_augmenting_time_def by simp
+  subgoal using augment_progress by simp
   subgoal using augments by blast
   done
 
@@ -69,8 +66,8 @@ lemma find_shortest_augmenting_refine:
    apply auto 
   apply(rule SELECT_refine)
   subgoal unfolding info_def by auto
-  subgoal unfolding info_def by safe 
-  unfolding shortestpath_time_def find_augmenting_time_def by simp
+  subgoal unfolding info_def by safe  
+  by simp
 
 text \<open>Next, we specify the Edmonds-Karp algorithm. 
   Our first specification still uses partial correctness, 
@@ -238,7 +235,7 @@ text \<open>Finally, we present a version of the Edmonds-Karp algorithm
   \<close>
 
 
-lemma maxFlow_time_ub: "edka.maxFlow_time \<le> find_augmenting_time  * ((2 * card V * card E + card V) + 1)"
+lemma maxFlow_time_ub: "edka.maxFlow_time \<le> shortestpath_time  * ((2 * card V * card E + card V) + 1)"
   unfolding edka.maxFlow_time_def edka_measure_def 
   using ekMeasure_upper_bound by auto
 
@@ -246,12 +243,12 @@ lemma maxFlow_time_ub: "edka.maxFlow_time \<le> find_augmenting_time  * ((2 * ca
 lemma SPECT_ub: "T\<le>T' \<Longrightarrow> SPECT (emb' M' T) \<le> SPECT (emb' M' T')"
   unfolding emb'_def by (auto simp: pw_le_iff le_funD order_trans refine_pw_simps)
 
-lemma "edka \<le> (SPECT (emb isMaxFlow (find_augmenting_time * ((2 * card V * card E + card V) + 1))))"
+lemma "edka \<le> (SPECT (emb isMaxFlow (shortestpath_time * ((2 * card V * card E + card V) + 1))))"
   apply(rule order_trans[OF edka_correct_time]) 
   apply(rule SPECT_ub)
   apply (simp only: le_fun_def)
     using  maxFlow_time_ub by simp  
  
 
-end \<comment> \<open>Network\<close>
+end \<comment> \<open>EdKa\<close>
 end \<comment> \<open>Theory\<close>

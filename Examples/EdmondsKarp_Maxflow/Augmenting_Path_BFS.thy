@@ -121,7 +121,9 @@ lemma T_conseq6':
 
    thm whileIET_rule[THEN T_conseq6']
 
-  definition "max_dist src \<equiv> Max (min_dist src`V)"
+definition "max_dist src \<equiv> Max (min_dist src`V)"
+
+lemma max_dist_ub: "src\<in>V \<Longrightarrow> max_dist src \<le> card V" sorry
 
   definition body_time :: nat where
     "body_time = mem_time + del_time + succs_time + add_succ_spec_time (card V)"
@@ -382,12 +384,16 @@ lemma T_conseq6':
   thm outer_loop_rel_wf
 
 
-  definition pre_bfs_time   where
-    "pre_bfs_time src = (1 + card V + card V * max_dist src) * body_time"
+  definition pre_bfs_time'   where
+    "pre_bfs_time' src = (1 + card V + card V * max_dist src) * body_time"
+  definition pre_bfs_time  where
+    "pre_bfs_time = (1 + card V + card V * card V) * body_time"
 
+lemma Te_start_ub: "src \<in> V \<Longrightarrow> (Te src (False, [src \<mapsto> src], {src}, {}, 0)) \<le> pre_bfs_time"
+  apply (auto simp add: Te_def pre_bfs_time_def) apply(rule max_dist_ub) by simp
 
-lemma Te_start_ub: "(Te src (False, [src \<mapsto> src], {src}, {}, 0)) \<le> pre_bfs_time src"
-  by (simp add: Te_def pre_bfs_time_def)
+lemma Te_start_ub': "(Te src (False, [src \<mapsto> src], {src}, {}, 0)) \<le> pre_bfs_time' src"
+  by (simp add: Te_def pre_bfs_time'_def)
      
       (* (f,PRED,C,N,d) *)
   
@@ -483,11 +489,12 @@ lemma (in nf_invar) Te_pays_exit: " x \<in> C \<Longrightarrow>
 thm vcg_rules
 thm vcg_simp_rules
 declare mm3_Some_conv [vcg_simp_rules]
-
+thm progress_rules 
+lemma progress_SPECT_emb[progress_rules]: "t > 0 \<Longrightarrow> progress (SPECT (emb P t))" by(auto simp: progress_def emb'_def)
   theorem pre_bfs_correct: 
     assumes [simp]: "src\<in>V" "src\<noteq>dst"       
     assumes [simp]: "finite V"
-    shows "pre_bfs src dst \<le> SPECT (emb (bfs_spec src dst) (pre_bfs_time src))"
+    shows "pre_bfs src dst \<le> SPECT (emb (bfs_spec src dst) (pre_bfs_time))"
     unfolding pre_bfs_def add_succ_spec_def
     apply(rule T_specifies_I)
     apply (vcg'\<open>-\<close> rules: T_RESTemb   )   
@@ -515,8 +522,8 @@ declare mm3_Some_conv [vcg_simp_rules]
       subgoal  
         by (auto dest: nf_invar.invar_succ_step nf_invar'.invar_shift)  
           
-      subgoal (* progress *)
-        sorry
+      subgoal (* progress *) by(progress\<open>simp add: zero_enat_def mem_time_def\<close>)
+         
          (*
     apply (vc_solve 
       simp: remove_subset outer_loop_rel_def 
@@ -577,8 +584,28 @@ definition append_time :: nat where "append_time = 10"
 definition extract_pred_time :: nat where "extract_pred_time = 10" 
 
 
-    definition (in valid_PRED) "extract_rpath_time = ndist dst * (extract_pred_time + append_time)"
+    definition (in valid_PRED) "extract_rpath_time' = ndist dst * (extract_pred_time + append_time)"
+    definition (in valid_PRED) "extract_rpath_time = (card V) * (extract_pred_time + append_time)"
 
+lemma (in valid_PRED) ndist_le_V:  assumes [simp]: "finite V" and conn: "connected src dst"
+  shows "ndist dst \<le> card V"
+proof -
+  from conn obtain p where isP: "isPath src p dst" and dist: "distinct (pathVertices src p)"
+    unfolding connected_def  apply auto apply(frule isSPath_pathLE) unfolding isSimplePath_def  by blast
+
+  have "ndist dst \<le> length p"
+    unfolding min_dist_def  dist_def apply(rule Least_le) apply(rule exI[where x=p])
+    using isP by simp
+  also have "\<dots> \<le> length (pathVertices src p)" by(simp add: length_pathVertices_eq)
+  also from dist have "\<dots> = card (set (pathVertices src p))"
+    by(simp add: distinct_card) 
+  also have "\<dots> \<le> card V"
+    apply(rule card_mono) apply simp
+    using  pathVertices_edgeset[OF _ isP] by auto
+
+  finally  
+  show "ndist dst \<le> card V" .
+  qed
 
     definition (in valid_PRED) "Ter  = (\<lambda>(d,_). ndist d * (extract_pred_time + append_time))"
 
@@ -605,17 +632,25 @@ definition extract_pred_time :: nat where "extract_pred_time = 10"
 
   context valid_PRED begin
   
+    lemma extract_rpath_correct':
+      assumes "dst\<in>dom PRED"
+      shows "extract_rpath src dst PRED 
+        \<le> SPECT (emb (\<lambda>p. isSimplePath src p dst \<and> length p = ndist dst) extract_rpath_time')"
+      using assms unfolding extract_rpath_def isSimplePath_def  
+      apply simp
+      apply(rule T_specifies_I) 
+      apply (vcg'\<open>(auto simp: extract_rpath_time'_def extract_rpath_inv_def
+                               PRED_closed[THEN domD] PRED_E PRED_dist Ter_def)\<close> rules: mop_append)  
+      done
     lemma extract_rpath_correct:
       assumes "dst\<in>dom PRED"
       shows "extract_rpath src dst PRED 
         \<le> SPECT (emb (\<lambda>p. isSimplePath src p dst \<and> length p = ndist dst) extract_rpath_time)"
-      using assms unfolding extract_rpath_def isSimplePath_def  
-      apply simp
-      apply(rule T_specifies_I) 
-      apply (vcg'\<open>(auto simp: extract_rpath_time_def extract_rpath_inv_def
-                               PRED_closed[THEN domD] PRED_E PRED_dist Ter_def)\<close> rules: mop_append)  
-    done
-
+      apply(rule dual_order.trans[OF _ extract_rpath_correct'])
+      apply (auto simp add: emb_le_emb extract_rpath_time_def extract_rpath_time'_def intro!: ndist_le_V)
+        using assms  apply auto  
+        using Graph.isPath_rtc Graph.isSimplePath_def connected_edgeRtc apply blast
+        using Graph.isPath_rtc Graph.isSimplePath_def connected_edgeRtc apply blast done
   end
 
   context Graph begin
@@ -634,7 +669,7 @@ definition extract_pred_time :: nat where "extract_pred_time = 10"
       }    
     }"
 
-    definition bfs_time   where "bfs_time src dst = pre_bfs_time src + valid_PRED.extract_rpath_time c src dst"
+    definition bfs_time   where "bfs_time src dst = pre_bfs_time   + valid_PRED.extract_rpath_time c"
 
     lemma bfs_correct:
       assumes "src\<in>V" "finite V" 
@@ -836,8 +871,6 @@ end
         if f then RETURNT (Some (d, PRED)) else RETURNT None
         }"
 
-lemma emb_le_emb: "emb' P T \<le> emb' P' T' \<longleftrightarrow> (\<forall>x. P x \<longrightarrow> P' x \<and>  T x \<le> T' x)"
-  unfolding emb'_def by (auto simp: le_fun_def split: if_splits)
  
 
 
@@ -907,7 +940,7 @@ lemma emb_le_emb: "emb' P T \<le> emb' P' T' \<longleftrightarrow> (\<forall>x. 
 
   end  
 
-  
+  (*
   lemma bfs2_refine_succ: 
     assumes  "\<And>ui u. \<lbrakk>(ui,u)\<in>Id; u\<in>Graph.V c\<rbrakk> 
       \<Longrightarrow> succi ui \<le> \<Down>Id (succ u)"
@@ -918,7 +951,7 @@ lemma emb_le_emb: "emb' P T \<le> emb' P' T' \<longleftrightarrow> (\<forall>x. 
       param_nfoldli[param_fo, THEN nres_relD] nres_relI fun_relI)
     apply refine_dref_type
     apply vc_solve
-    done *) sorry
+    done *) sorry *)
 
 
 end
