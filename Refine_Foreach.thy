@@ -102,7 +102,21 @@ proof (goal_cases)
   then have "inittime + enat (length xs' * body_time) \<le> inittime + enat (card S * body_time)" by simp
   then show ?case using time_ub  
     using order_trans by blast  
-qed 
+qed  
+
+lemma FOREACHci_rule :
+  assumes IP: 
+    "\<And>x it \<sigma>. \<lbrakk> x\<in>it; it\<subseteq>S; I it \<sigma>; c \<sigma> \<rbrakk> \<Longrightarrow> f x \<sigma> \<le> SPECT (emb (I (it-{x})) (enat body_time))"
+  assumes II1: "\<And>\<sigma>. \<lbrakk>I {} \<sigma>\<rbrakk> \<Longrightarrow> P \<sigma>"
+  assumes II2: "\<And>it \<sigma>. \<lbrakk> it\<noteq>{}; it\<subseteq>S; I it \<sigma>; \<not>c \<sigma> \<rbrakk> \<Longrightarrow> P \<sigma>"
+  assumes FIN: "finite S"
+  assumes I0: "I S \<sigma>0"
+  assumes progress_f: "\<And>a b. progress (f a b)"
+  assumes "inittime + enat (card S * body_time) \<le> enat overall_time"
+  shows "FOREACHci I S c f \<sigma>0 inittime body_time  \<le> SPECT (emb P (enat overall_time))"
+  unfolding FOREACHci_def
+  by (rule FOREACHoci_rule) (simp_all add: assms)
+
 
 (* ... *)
 
@@ -111,6 +125,9 @@ qed
 text \<open>We define a relation between distinct lists and sets.\<close>  
 definition [to_relAPP]: "list_set_rel R \<equiv> \<langle>R\<rangle>list_rel O br set distinct"
 
+
+lemma list_set_rel_finite: "(succl, succ) \<in> \<langle>Id\<rangle>list_set_rel \<Longrightarrow> finite succ"
+  sorry
 
 (* ... *)
 
@@ -131,6 +148,66 @@ fun nfoldli where
     [] \<Rightarrow> RETURNT s 
     | x#ls \<Rightarrow> if c s then do { s\<leftarrow>f x s; nfoldli ls c f s} else RETURNT s
   )"
+
+
+
+definition "LIST_FOREACH' tsl c f \<sigma> \<equiv> do {xs \<leftarrow> tsl; nfoldli xs c f \<sigma>}"
+
+text {* This constant is a placeholder to be converted to
+  custom operations by pattern rules *} 
+definition "it_to_sorted_list R s to_sorted_list_time
+  \<equiv> SPECT (emb (\<lambda>l. distinct l \<and> s = set l \<and> sorted_wrt R l) to_sorted_list_time)"
+
+definition "LIST_FOREACH \<Phi> tsl c f \<sigma>0 bodytime \<equiv> do {
+  xs \<leftarrow> tsl;
+  (_,\<sigma>) \<leftarrow> whileIET (\<lambda>(it, \<sigma>). \<exists>xs'. xs = xs' @ it \<and> \<Phi> (set it) \<sigma>) (\<lambda>(it, \<sigma>). length it * bodytime)
+    (FOREACH_cond c) (FOREACH_body f) (xs, \<sigma>0);
+    RETURNT \<sigma>}"
+
+lemma FOREACHoci_by_LIST_FOREACH:
+  "FOREACHoci R \<Phi> S c f \<sigma>0 to_sorted_list_time bodytime = do {
+    ASSERT (finite S);
+    LIST_FOREACH \<Phi> (it_to_sorted_list R S to_sorted_list_time) c f \<sigma>0 bodytime
+  }"
+  unfolding OP_def FOREACHoci_def LIST_FOREACH_def it_to_sorted_list_def 
+  by simp
+(*
+ 
+lemma LFO_pre_refine: (* TODO: Generalize! *)
+  assumes "(li,l)\<in>\<langle>A\<rangle>list_set_rel"
+  assumes "(ci,c)\<in>R \<rightarrow> bool_rel"
+  assumes "(fi,f)\<in>A\<rightarrow>R\<rightarrow>\<langle>R\<rangle>nrest_rel"
+  assumes "(s0i,s0)\<in>R"
+  shows "LIST_FOREACH' (RETURNT li) ci fi s0i \<le> \<Down>R (FOREACHci I l c f s0 0 body_time)"
+proof -
+  from assms(1) have [simp]: "finite l" by (auto simp: list_set_rel_def br_def)
+  show ?thesis
+    unfolding   FOREACHci_def unfolding FOREACHoci_by_LIST_FOREACH 
+    apply simp
+    apply (rule LIST_FOREACH_autoref[param_fo, THEN nres_relD])
+    using assms
+    apply auto
+    apply (auto simp: it_to_sorted_list_def nres_rel_def pw_le_iff refine_pw_simps
+      list_set_rel_def br_def)
+    done
+qed    
+    *)
+
+lemma LFOci_refine: (* TODO: Generalize! *)
+  assumes "(li,l)\<in>\<langle>A\<rangle>list_set_rel"
+  assumes "\<And>s si. (si,s)\<in>R \<Longrightarrow> ci si \<longleftrightarrow> c s"
+  assumes "\<And>x xi s si. \<lbrakk>(xi,x)\<in>A; (si,s)\<in>R\<rbrakk> \<Longrightarrow> fi xi si \<le> \<Down>R (f x s)"
+  assumes "(s0i,s0)\<in>R"
+  shows "nfoldli li ci fi s0i \<le> \<Down>R (FOREACHci I l c f s0 init_time body_time)"
+(*
+proof -
+  from assms LFO_pre_refine[of li l A ci c R fi f s0i s0] show ?thesis
+    unfolding fun_rel_def nres_rel_def LIST_FOREACH'_def
+    apply (simp add: pw_le_iff refine_pw_simps)
+    apply blast+
+    done
+qed    
+*)sorry
 
 
 
