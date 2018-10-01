@@ -109,4 +109,21 @@ lemma dom_emb'_eq[simp]: "dom (emb' Q f) = Collect Q"
   by(auto simp: emb'_def split: if_splits)
 
 
+
+
+
+  thm vcg_rules
+
+
+lemma T_RESTemb_iff: "Some t'
+       \<le> TTT Q (REST (emb' P t)) \<longleftrightarrow> (\<forall>x. P x \<longrightarrow> Some (t' + t x) \<le> Q x ) "
+  by(auto simp: emb'_def T_pw mii_alt aux1)  
+
+
+lemma T_RESTemb: "(\<And>x. P x \<Longrightarrow> Some (t' + t x) \<le> Q x)
+    \<Longrightarrow>  Some t' \<le> TTT Q (REST (emb' P t))  "
+  by (auto simp: T_RESTemb_iff)
+
+(* lemmas [vcg_rules] = T_RESTemb_iff[THEN iffD2] *)
+
 end
