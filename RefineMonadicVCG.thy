@@ -15,6 +15,8 @@ lemma [sepref_import_param]:
 
 
 
+lemma SPECT_ub: "T\<le>T' \<Longrightarrow> SPECT (emb' M' T) \<le> SPECT (emb' M' T')"
+  unfolding emb'_def by (auto simp: pw_le_iff le_funD order_trans refine_pw_simps)
 
 
 
@@ -29,6 +31,9 @@ lemma T_ASSERT[vcg_simp_rules]: "Some t \<le> TTT Q (ASSERT \<Phi>) \<longleftri
   apply (cases \<Phi>)
    apply vcg'
   done
+lemma T_ASSERT_I: "Some t \<le> Q () \<Longrightarrow> \<Phi> \<Longrightarrow> Some t \<le> TTT Q (ASSERT \<Phi>)"
+  by(simp add: T_ASSERT T_RETURNT) 
+
 
 subsection \<open>Progress rules and solver\<close>
 
@@ -62,11 +67,27 @@ method progress' methods solver =
 
 
 
+lemma assumes "(\<And>s t. P s = Some t \<Longrightarrow> \<exists>s'. Some t \<le> Q s' \<and> (s, s') \<in> R)"
+  shows SPECT_refine: "SPECT P \<le> \<Down> R (SPECT Q)"
+  unfolding conc_fun_def apply (simp add: le_fun_def) apply auto
+  subgoal for x apply(cases "P x = None") apply simp
+    apply auto subgoal for y 
+      apply(frule assms[of x y]) apply auto
+      subgoal for s'
+      apply(rule dual_order.trans[where b="Q s'"])
+         apply(rule Sup_upper) by auto 
+      done
+    done
+  done
 
 
 subsection \<open>VCG for monadic programs\<close>
 
-method vcg' methods solver uses rules = ((rule rules vcg_rules[THEN T_conseq6] | progress\<open>auto\<close> | clarsimp split: option.splits if_splits simp: vcg_simp_rules | intro allI impI conjI | (solver; fail) )+)
+method vcg' methods solver uses rules simpdel = ((rule rules vcg_rules[THEN T_conseq6]
+      | progress\<open>auto\<close>
+      | clarsimp split: option.splits if_splits simp: vcg_simp_rules simp del: simpdel
+      | intro allI impI conjI
+      | (solver; fail) )+)
 
 
 thm vcg_rules

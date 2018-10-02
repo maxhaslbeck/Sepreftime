@@ -150,6 +150,115 @@ fun nfoldli where
   )"
 
 
+definition nfoldliIE :: "('d list \<Rightarrow> 'd list \<Rightarrow> 'a \<Rightarrow>  bool) \<Rightarrow> nat \<Rightarrow> 'd list \<Rightarrow> ('a \<Rightarrow> bool) \<Rightarrow> ('d \<Rightarrow> 'a \<Rightarrow> 'a nrest) \<Rightarrow> 'a \<Rightarrow> 'a nrest" where
+  "nfoldliIE I E l c f s = nfoldli l c f s"
+
+lemma nfoldli_simps[simp]:
+  "nfoldli [] c f s = RETURNT s"
+  "nfoldli (x#ls) c f s = 
+    (if c s then do { s\<leftarrow>f x s; nfoldli ls c f s} else RETURNT s)"
+  apply (subst nfoldli.simps, simp)+
+  done
+
+
+lemma nfoldliIE_rule':
+  assumes IS: "\<And>x l1 l2 \<sigma>. \<lbrakk> l0=l1@x#l2; I l1 (x#l2) \<sigma>; c \<sigma> \<rbrakk> \<Longrightarrow> f x \<sigma> \<le> SPECT (emb (I (l1@[x]) l2) (enat body_time))"
+  assumes FNC: "\<And>l1 l2 \<sigma>. \<lbrakk> l0=l1@l2; I l1 l2 \<sigma>; \<not>c \<sigma> \<rbrakk> \<Longrightarrow> P \<sigma>"  
+  assumes FC: "\<And>\<sigma>. \<lbrakk> I l0 [] \<sigma> \<rbrakk> \<Longrightarrow> P \<sigma>"  
+  shows "lr@l = l0 \<Longrightarrow> I lr l \<sigma> \<Longrightarrow> nfoldliIE I body_time l c f \<sigma> \<le> SPECT (emb P (body_time * length l))"
+proof (induct l arbitrary: lr \<sigma>)
+  case Nil
+  then show ?case by (auto simp: nfoldliIE_def RETURNT_def le_fun_def  Some_le_emb'_conv dest!: FC)
+next
+  case (Cons a l)
+  show ?case
+    apply (auto simp add: nfoldliIE_def)
+    subgoal 
+      apply(rule T_specifies_I)
+      apply (vcg'\<open>-\<close> simpdel: nfoldli_simps nfoldli.simps )
+      apply(rule IS[THEN T_specifies_rev  , THEN T_conseq4])
+      using Cons(2,3) apply (auto  simp del: nfoldli_simps nfoldli.simps)
+      apply(rule Cons(1)[unfolded nfoldliIE_def, THEN T_specifies_rev  , THEN T_conseq4])
+      apply simp
+      apply (simp add: Some_eq_emb'_conv) 
+      apply (simp add: Some_eq_emb'_conv Some_le_emb'_conv) 
+      done
+    subgoal 
+      apply(simp add: RETURNT_def le_fun_def Some_le_emb'_conv)
+      apply(rule FNC) using Cons(2,3) by auto
+    done      
+qed
+
+lemma nfoldliIE_rule:
+  assumes I0: "I [] l0 \<sigma>0"
+  assumes IS: "\<And>x l1 l2 \<sigma>. \<lbrakk> l0=l1@x#l2; I l1 (x#l2) \<sigma>; c \<sigma> \<rbrakk> \<Longrightarrow> f x \<sigma> \<le> SPECT (emb (I (l1@[x]) l2) (enat body_time))"
+  assumes FNC: "\<And>l1 l2 \<sigma>. \<lbrakk> l0=l1@l2; I l1 l2 \<sigma>; \<not>c \<sigma> \<rbrakk> \<Longrightarrow> P \<sigma>"  
+  assumes FC: "\<And>\<sigma>. \<lbrakk> I l0 [] \<sigma> \<rbrakk> \<Longrightarrow> P \<sigma>"  
+  assumes T: "(body_time * length l0) \<le> t"
+  shows "nfoldliIE I body_time l0 c f \<sigma>0 \<le> SPECT (emb P t)"
+proof -
+  have "nfoldliIE I body_time l0 c f \<sigma>0 \<le> SPECT (emb P (body_time * length l0))" 
+     apply(rule nfoldliIE_rule'[where lr="[]"]) using assms by auto
+  also have "\<dots> \<le> SPECT (emb P t)"
+    apply(rule SPECT_ub) using T by (auto simp: le_fun_def)
+  finally show ?thesis .
+qed
+
+text {* We relate our fold-function to the while-loop that we used in
+  the original definition of the foreach-loop *}
+lemma nfoldli_while: "nfoldli l c f \<sigma>
+          \<le>
+         (whileIET I E 
+           (FOREACH_cond c) (FOREACH_body f) (l, \<sigma>) \<bind>
+          (\<lambda>(_, \<sigma>). RETURNT \<sigma>))"
+proof (induct l arbitrary: \<sigma>)
+  case Nil thus ?case (* by (subst WHILEIT_unfold) (auto simp: FOREACH_cond_def) *) sorry
+next
+  case (Cons x ls)
+  show ?case (*
+  proof (cases "c \<sigma>")
+    case False thus ?thesis
+      apply (subst WHILEIT_unfold)
+      unfolding FOREACH_cond_def
+      by simp
+  next
+    case [simp]: True
+    from Cons show ?thesis
+      apply (subst WHILEIT_unfold)
+      unfolding FOREACH_cond_def FOREACH_body_def
+      apply clarsimp
+      apply (rule Refine_Basic.bind_mono)
+      apply simp_all
+      done
+  qed *) sorry
+qed
+
+lemma nfoldli_rule:
+  assumes I0: "I [] l0 \<sigma>0"
+  assumes IS: "\<And>x l1 l2 \<sigma>. \<lbrakk> l0=l1@x#l2; I l1 (x#l2) \<sigma>; c \<sigma> \<rbrakk> \<Longrightarrow> f x \<sigma> \<le> SPECT (emb (I (l1@[x]) l2) (enat body_time))"
+  assumes FNC: "\<And>l1 l2 \<sigma>. \<lbrakk> l0=l1@l2; I l1 l2 \<sigma>; \<not>c \<sigma> \<rbrakk> \<Longrightarrow> P \<sigma>"
+  assumes FC: "\<And>\<sigma>. \<lbrakk> I l0 [] \<sigma>; c \<sigma> \<rbrakk> \<Longrightarrow> P \<sigma>"
+  shows "nfoldli l0 c f \<sigma>0 \<le> SPECT (emb P (body_time * length l0))"
+  apply (rule order_trans[OF nfoldli_while[
+    where I="\<lambda>(l2,\<sigma>). \<exists>l1. l0=l1@l2 \<and> I l1 l2 \<sigma>" and E="\<lambda>(l2,\<sigma>). (length l2) * body_time"]]) (*
+  unfolding FOREACH_cond_def FOREACH_body_def
+  apply (refine_rcg WHILEIT_rule[where R="measure (length o fst)"] refine_vcg)
+  apply simp
+  using I0 apply simp
+
+  apply (case_tac a, simp)
+  apply simp
+  apply (elim exE conjE)
+  apply (rule order_trans[OF IS], assumption+)
+  apply auto []
+
+  apply simp
+  apply (elim exE disjE2)
+  using FC apply auto []
+  using FNC apply auto []
+  done *)
+  sorry
+
 
 definition "LIST_FOREACH' tsl c f \<sigma> \<equiv> do {xs \<leftarrow> tsl; nfoldli xs c f \<sigma>}"
 
