@@ -66,6 +66,13 @@ method progress' methods solver =
   (rule asm_rl[of "progress _"] , (simp split: prod.splits | intro allI impI conjI | determ \<open>rule progress_rules\<close> | rule disjI1 disjI2; progress'\<open>solver\<close> | solver)+) []
 
 
+lemma WHILET_refine:
+  assumes R0: "(x,x')\<in>R"
+  assumes COND_REF: "\<And>x x'. \<lbrakk> (x,x')\<in>R \<rbrakk> \<Longrightarrow> b x = b' x'"
+  assumes STEP_REF: 
+    "\<And>x x'. \<lbrakk> (x,x')\<in>R; b x; b' x' \<rbrakk> \<Longrightarrow> f x \<le> \<Down>R (f' x')"
+  shows "whileT b f x \<le>\<Down>R (whileT b' f' x')"
+  sorry
 
 lemma assumes "(\<And>s t. P s = Some t \<Longrightarrow> \<exists>s'. Some t \<le> Q s' \<and> (s, s') \<in> R)"
   shows SPECT_refine: "SPECT P \<le> \<Down> R (SPECT Q)"
