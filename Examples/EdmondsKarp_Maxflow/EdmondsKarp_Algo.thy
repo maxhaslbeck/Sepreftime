@@ -12,7 +12,8 @@ text \<open>
 subsection \<open>Algorithm\<close>
 
 locale EdKa = Network c s t for c :: "'capacity::linordered_idom graph" and s t +
-  fixes shortestpath_time :: nat 
+  fixes shortestpath_time :: nat
+    and augment_with_path_time :: nat 
   assumes augment_progress: "0 < shortestpath_time"
 begin
 
@@ -49,7 +50,7 @@ lemma augments: "\<And>f p. NFlow c s t f \<Longrightarrow> info f p \<Longright
 
 print_locale FoFu
 
-interpretation edka: FoFu c s t "edka_measure:: (nat \<times> nat \<Rightarrow> 'capacity) \<Rightarrow> nat" shortestpath_time "info :: (nat \<times> nat \<Rightarrow> 'capacity) \<Rightarrow> (nat \<times> nat) list \<Rightarrow> bool"
+interpretation edka: FoFu c s t "edka_measure:: (nat \<times> nat \<Rightarrow> 'capacity) \<Rightarrow> nat" shortestpath_time augment_with_path_time "info :: (nat \<times> nat \<Rightarrow> 'capacity) \<Rightarrow> (nat \<times> nat) list \<Rightarrow> bool"
   apply standard
   subgoal using NFlow.augmenting_path_imp_shortest info_def by blast 
   subgoal using edka_measure_decreases info_def augments by simp
@@ -85,7 +86,7 @@ definition "edka_partial \<equiv> do {
           ASSERT (p\<noteq>[]);
           ASSERT (NPreflow.isAugmentingPath c s t f p);
           ASSERT (Graph.isShortestPath (residualGraph c f) s p t);
-          f \<leftarrow> RETURNT (NFlow.augment_with_path c f p);
+          f \<leftarrow> SPECT [NFlow.augment_with_path c f p \<mapsto> augment_with_path_time];
           ASSERT (NFlow c s t f);
           RETURNT (f, False)
         }  
@@ -117,7 +118,7 @@ lemma edka_partial_refine : "edka_partial \<le> \<Down>Id edka.fofu"
       unfolding edka.find_augmenting_spec_def (* WHY DO I NEED TO RECOVER ALL THIS INFORMATION FROM THE
           inresT and nofailT predicate?! *)      
       by(simp add: nofailT_ASSERT_bind)
-    by(rule ASSERT_leI | simp)+     
+    by (rule ASSERT_leI | simp)+     
   done
 
 
@@ -139,7 +140,7 @@ definition "edka \<equiv> do {
           ASSERT (p\<noteq>[]);
           ASSERT (NPreflow.isAugmentingPath c s t f p);
           ASSERT (Graph.isShortestPath (residualGraph c f) s p t);
-          f \<leftarrow> RETURNT (NFlow.augment_with_path c f p);
+          f \<leftarrow> SPECT [NFlow.augment_with_path c f p \<mapsto> augment_with_path_time];
           ASSERT (NFlow c s t f);
           RETURNT (f, False)
         }  
@@ -234,16 +235,19 @@ text \<open>Finally, we present a version of the Edmonds-Karp algorithm
   Note that we only count the non-breaking loop iterations.
   \<close>
 
+definition edka_time :: "nat" where
+  "edka_time  =   (shortestpath_time+augment_with_path_time) * (2 * (card V) * (card E) + (card V) + 1)"
+ 
 
-lemma maxFlow_time_ub: "edka.maxFlow_time \<le> shortestpath_time  * ((2 * card V * card E + card V) + 1)"
-  unfolding edka.maxFlow_time_def edka_measure_def 
+lemma maxFlow_time_ub: "edka.maxFlow_time \<le>  edka_time"
+  unfolding edka.maxFlow_time_def edka_measure_def unfolding edka_time_def
   using ekMeasure_upper_bound by auto
 
 
-lemma SPECT_ub: "T\<le>T' \<Longrightarrow> SPECT (emb' M' T) \<le> SPECT (emb' M' T')"
-  unfolding emb'_def by (auto simp: pw_le_iff le_funD order_trans refine_pw_simps)
 
-lemma "edka \<le> (SPECT (emb isMaxFlow (shortestpath_time * ((2 * card V * card E + card V) + 1))))"
+
+
+lemma "edka \<le> (SPECT (emb isMaxFlow (edka_time)))"
   apply(rule order_trans[OF edka_correct_time]) 
   apply(rule SPECT_ub)
   apply (simp only: le_fun_def)

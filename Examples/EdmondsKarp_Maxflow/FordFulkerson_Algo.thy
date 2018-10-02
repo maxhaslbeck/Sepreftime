@@ -16,7 +16,8 @@ definition (in NFlow) "augment_with_path p \<equiv> augment (augmentingFlow p)"
  
 locale FoFu = Network c s t for c :: "'capacity::linordered_idom graph" and s t +
   fixes  R :: "(nat \<times> nat \<Rightarrow> 'capacity) \<Rightarrow> nat"
-     and   find_augmenting_time :: "nat "
+     and find_augmenting_time :: "nat "
+     and augment_with_path_time :: "nat"
      and special_info :: "(nat \<times> nat \<Rightarrow> 'capacity) \<Rightarrow> (nat \<times> nat) list \<Rightarrow> bool"
    assumes ff: "NFlow c s t a \<Longrightarrow>
  \<forall>x. \<not> special_info a x
@@ -69,7 +70,7 @@ definition (in FoFu) "fofu \<equiv> do {
       | Some p \<Rightarrow> do {
           ASSERT (p\<noteq>[]);
           ASSERT (NPreflow.isAugmentingPath c s t f p);
-          f \<leftarrow> RETURNT ( NFlow.augment_with_path c f p );
+          f \<leftarrow> SPECT [NFlow.augment_with_path c f p \<mapsto> augment_with_path_time];
           ASSERT (NFlow c s t f);
           RETURNT (f, False)
         }  
@@ -110,10 +111,10 @@ lemma (in NFlow) augmenting_path_not_empty:
 text \<open>Finally, we can use the verification condition generator to
   show correctness\<close>
 
-fun (in FoFu) Te where "Te (f,brk) = (if brk then 0 else find_augmenting_time  * (1+ R f))"
+fun (in FoFu) Te where "Te (f,brk) = (if brk then 0 else (find_augmenting_time + augment_with_path_time)  * (1+ R f))"
 
 
-definition (in FoFu) "maxFlow_time = enat (find_augmenting_time * (R (\<lambda>_. 0) + 1)) "
+definition (in FoFu) "maxFlow_time = enat ( (find_augmenting_time + augment_with_path_time) * (R (\<lambda>_. 0) + 1)) "
 
 
 theorem (in FoFu)  fofu_partial_correct: "fofu \<le> SPECT (emb (\<lambda>f. isMaxFlow f) (maxFlow_time))"
@@ -134,7 +135,9 @@ theorem (in FoFu)  fofu_partial_correct: "fofu \<le> SPECT (emb (\<lambda>f. isM
     subgoal unfolding NFlow.augment_with_path_def
       using  NFlow.augment_pres_nflow augments by metis
     subgoal 
-      by (simp add: R_decreases less_imp_le_nat)
+      by (simp add: R_decreases less_imp_le_nat) 
+    subgoal  
+      by (simp add: R_decreases less_imp_le_nat) 
     subgoal by (metis R_decreases diff_mult_distrib2 prod_ineqs2 zero_less_diff)
     subgoal  using  augments by simp 
     subgoal using NFlow.augmenting_path_not_empty augments  by metis

@@ -109,9 +109,18 @@ lemma [simp]: "find_shortest_augmenting_spec_cf_time > 0" unfolding find_shortes
         simp: f.isAugmentingPath_def Graph.connected_def Graph.isSimplePath_def 
         dest: cf.shortestPath_is_path
         split: option.split)   
-      
+
+end
+
+
+locale EdKa2 = Network c s t for c :: "'capacity::linordered_idom graph" and s t +
+  fixes shortestpath_time :: nat
+    and augment_with_path_time :: nat 
+  assumes augment_progress: "0 < shortestpath_time"
+begin
+
     text \<open>This leads to the following refined algorithm\<close>  
-    definition "edka2 \<equiv> do {
+    definition  "edka2 \<equiv> do {
       cf \<leftarrow> RETURNT c;
 
       (cf,_) \<leftarrow> whileT 
@@ -124,7 +133,7 @@ lemma [simp]: "find_shortest_augmenting_spec_cf_time > 0" unfolding find_shortes
           | Some p \<Rightarrow> do {
               ASSERT (p\<noteq>[]);
               ASSERT (Graph.isShortestPath cf s p t);
-              cf \<leftarrow> RETURNT (Graph.augment_cf cf (set p) (resCap_cf cf p));
+              cf \<leftarrow> SPECT [Graph.augment_cf cf (set p) (resCap_cf cf p) \<mapsto> augment_with_path_time];
               ASSERT (RGraph c s t cf);
               RETURNT (cf, False)
             }  
@@ -135,26 +144,25 @@ lemma [simp]: "find_shortest_augmenting_spec_cf_time > 0" unfolding find_shortes
       RETURNT f
     }"
 
-    interpretation edk: EdKa c s t find_shortest_augmenting_spec_cf_time
-      apply standard by simp
     thm RGraph.find_shortest_augmenting_spec_cf_refine
 
-lemma WHILET_refine:
-  assumes R0: "(x,x')\<in>R"
-  assumes COND_REF: "\<And>x x'. \<lbrakk> (x,x')\<in>R \<rbrakk> \<Longrightarrow> b x = b' x'"
-  assumes STEP_REF: 
-    "\<And>x x'. \<lbrakk> (x,x')\<in>R; b x; b' x' \<rbrakk> \<Longrightarrow> f x \<le> \<Down>R (f' x')"
-  shows "whileT b f x \<le>\<Down>R (whileT b' f' x')"
-  sorry
+  (*  interpretation edk: EdKa c s t find_shortest_augmenting_spec_cf_time augment_with_path_time
+      apply standard by simp
+    thm RGraph.find_shortest_augmenting_spec_cf_refine
+*)
 
-    lemma  edka2_refine: "edka2 \<le> \<Down>Id edk.edka"
+lemma le_R_ASSERTI: "(\<Phi> \<Longrightarrow> M \<le> \<Down> R M') \<Longrightarrow>  M \<le> \<Down> R (ASSERT \<Phi> \<bind> (\<lambda>_. M'))"
+  by(auto simp: pw_le_iff refine_pw_simps)
+
+ 
+
+
+    lemma  edka2_refine: "edka2 \<le> \<Down>Id edka"
     proof -
       (* have [refine_dref_RELATES]: "RELATES cfi_rel" by (simp add: RELATES_def) *)
 
       show ?thesis
-        unfolding edka2_def edk.edka_def   (*
-         apply (rewrite in "let f' = NFlow.augmentingFlow c _ _ in _" Let_def)
-        apply (rewrite in "let f = flow_of_cf _ in _" Let_def) *)
+        unfolding edka2_def edka_def 
         apply (rule bindT_refine[where R'=cfi_rel] ) 
         subgoal unfolding cfi_rel_alt 
           apply(rule RETURNT_refine) by (auto simp add: residualGraph_zero_flow zero_flow)  
@@ -162,28 +170,33 @@ lemma WHILET_refine:
          apply(rule WHILET_refine)     apply simp
         subgoal by auto
          apply auto  apply(rule ASSERT_leI)
-        subgoal unfolding cfi_rel_alt apply (auto simp add: NFlow.is_RGraph) sorry
-         apply (rule bindT_refine[where R'=Id]) apply simp
-        apply(rule )
-        apply (refine_rcg)
-        apply refine_dref_type
-        apply vc_solve
+        subgoal unfolding cfi_rel_alt by (auto simp add: NFlow.is_RGraph)  
+         apply (rule bindT_refine[where R'=Id]) apply simp  
+        subgoal    
+          apply (frule RGraph.find_shortest_augmenting_spec_cf_refine)  
+          apply (simp add: cfi_rel_def in_br_conv)
+        subgoal apply (auto intro: RETURNT_refine split: option.splits) 
+          apply(rule le_R_ASSERTI)+
+          apply(rule ASSERT_leI) apply simp
+          apply(rule ASSERT_leI) apply (simp add: cfi_rel_alt)
+          apply(rule bindT_refine[where R'=cfi_rel]) apply simp
+          apply(rule SPECT_refine) apply (auto split: if_splits)[] oops
+          apply(rule ASSERT_leI) subgoal  
+            by (metis (full_types) augment_cf_refine cfi_rel_def in_br_conv) 
+          apply(rule RETURNT_refine)
+          by (auto simp: augment_cf_refine) 
+        subgoal 
+          apply(rule le_ASSERTI)
+          apply(rule ASSERT_leI)    
+          by(simp_all add: cfi_rel_def in_br_conv)
+        done  
 
-        \<comment> \<open>Solve some left-over verification conditions one by one\<close>
-        apply (drule NFlow.is_RGraph; 
-            auto simp: cfi_rel_def br_def residualGraph_zero_flow flow_of_c; 
-            fail)
-        apply (auto simp: cfi_rel_def br_def; fail)
-        using RGraph.find_shortest_augmenting_spec_cf_refine
-        apply (auto simp: cfi_rel_def br_def; fail)
-        apply (auto simp: cfi_rel_def br_def simp: RPreGraph.rg_fo_inv[OF RGraph.this_loc_rpg]; fail)
-        apply (drule (1) augment_cf_refine; simp add: cfi_rel_def br_def; fail)
-        apply (simp add: augment_cf_refine; fail)
-        apply (auto simp: cfi_rel_def br_def; fail)
-        apply (auto simp: cfi_rel_def br_def; fail)
-        done *)
-        sorry
     qed    
+end
+context Network
+begin
+
+    thm edka2_refine
 
     subsection \<open>Implementation of Bottleneck Computation and Augmentation\<close>  
     text \<open>We will access the capacities in the residual graph
@@ -192,17 +205,25 @@ lemma WHILET_refine:
     abbreviation (input) valid_edge :: "edge \<Rightarrow> bool" where
       "valid_edge \<equiv> \<lambda>(u,v). u\<in>V \<and> v\<in>V"
 
+    definition "lookup_time = (10::nat)"
+    definition "set_time = (10::nat)"
+
     definition cf_get 
       :: "'capacity graph \<Rightarrow> edge \<Rightarrow> 'capacity nrest" 
-      where "cf_get cf e \<equiv> ASSERT (valid_edge e) \<then> RETURNT (cf e)"  
+      where "cf_get cf e \<equiv> ASSERT (valid_edge e) \<then> SPECT [(cf e) \<mapsto> lookup_time]"  
     definition cf_set 
       :: "'capacity graph \<Rightarrow> edge \<Rightarrow> 'capacity \<Rightarrow> 'capacity graph nrest"
-      where "cf_set cf e cap \<equiv> ASSERT (valid_edge e) \<then> RETURNT (cf(e:=cap))"  
+      where "cf_set cf e cap \<equiv> ASSERT (valid_edge e) \<then> SPECT [(cf(e:=cap)) \<mapsto> set_time]"  
+
+    definition "\<And>t. mop_min t a b = SPECT [min a b \<mapsto> t]"
+
+    lemma mop_min: "\<And>t. t \<le> TTT Q (SPECT [ min a b \<mapsto> m_t]) \<Longrightarrow> t
+           \<le> TTT Q (mop_min m_t a b)" unfolding mop_min_def by simp
 
     definition resCap_cf_impl :: "'capacity graph \<Rightarrow> path \<Rightarrow> 'capacity nrest" 
     where "resCap_cf_impl cf p \<equiv> 
       case p of
-        [] \<Rightarrow> RETURNT (0::'capacity)
+        [] \<Rightarrow> SPECT [(0::'capacity) \<mapsto> 1]
       | (e#p) \<Rightarrow> do {
           cap \<leftarrow> cf_get cf e;
           ASSERT (distinct p);
@@ -210,16 +231,23 @@ lemma WHILET_refine:
             p (\<lambda>_. True)
             (\<lambda>e cap. do {
               cape \<leftarrow> cf_get cf e;
-              RETURNT (min cape cap)
+              mop_min 10 cape cap
             }) 
             cap
         }"
 
-    definition "resCap_cf_impl_time = 10"
+    definition "resCap_cf_impl_time p = 1 + (lookup_time+10) * length p"
+
+method vcg' methods solver uses rules simpdel = ((rule rules vcg_rules[THEN T_conseq6]
+      | progress\<open>auto\<close>
+      | split option.splits if_splits 
+      | clarsimp simp only: vcg_simp_rules  
+      | intro allI impI conjI
+      | (solver; fail) )+)
 
     lemma (in RGraph) resCap_cf_impl_refine:   
       assumes AUG: "cf.isSimplePath s p t"
-      shows "resCap_cf_impl cf p \<le> SPECT (emb (\<lambda>r. r = resCap_cf cf p) resCap_cf_impl_time)"
+      shows "resCap_cf_impl cf p \<le> SPECT (emb (\<lambda>r. r = resCap_cf cf p) (resCap_cf_impl_time p))"
     proof -
       (* TODO: Can we exploit Min.set_eq_fold *)
 
@@ -235,13 +263,27 @@ lemma WHILET_refine:
         then obtain e p' where "p=e#p'" by (auto simp: neq_Nil_conv)
       ultimately show ?thesis  
         unfolding resCap_cf_impl_def resCap_cf_def cf_get_def
-        apply (simp only: list.case) (*
+        apply (simp only: list.case)
+        apply(rule T_specifies_I)
+        apply(vcg'\<open>-\<close>)  
+          apply(rule nfoldli_rule[where I="\<lambda>l l' cap. 
+              cap = Min (cf`insert e (set l)) 
+            \<and> set (l@l') \<subseteq> Collect valid_edge" and body_time="lookup_time+10"
+              and P="(\<lambda>r. r = Min {cf ea |ea. ea \<in> set (e # p')})", THEN T_specifies_rev , THEN T_conseq4]) 
+          
+            apply (auto intro!: arg_cong[where f=Min])  []
+        subgoal apply(rule T_specifies_I) apply(vcg'\<open>-\<close> rules: mop_min)  
+          by (auto simp add: numeral_eq_enat intro!: arg_cong[where f=Min])  
+        by (auto simp: emb_eq_Some_conv Some_le_emb'_conv resCap_cf_impl_time_def intro!: arg_cong[where f=Min])
+ 
+        
+ (*
         apply (refine_vcg nfoldli_rule[where 
             I = "\<lambda>l l' cap. 
               cap = Min (cf`insert e (set l)) 
             \<and> set (l@l') \<subseteq> Collect valid_edge"])
         apply (auto intro!: arg_cong[where f=Min])
-        done *) sorry
+        done *)  
     qed    
 
     definition (in Graph) 
@@ -285,30 +327,31 @@ lemma WHILET_refine:
         
     definition "augment_edge_impl cf e cap \<equiv> do {
       v \<leftarrow> cf_get cf e; cf \<leftarrow> cf_set cf e (v-cap);
-      e \<leftarrow> RETURNT (prod.swap e);
+      e \<leftarrow> SPECT [prod.swap e\<mapsto>1];
       v \<leftarrow> cf_get cf e; cf \<leftarrow> cf_set cf e (v+cap);
       RETURNT cf
     }"
 
-    definition "augment_edge_impl_time = 10"
-  
+    definition "augment_edge_impl_time = 2* lookup_time + 2*set_time+1"
+
     lemma augment_edge_impl_refine: 
       assumes "valid_edge e" "\<forall>u. e\<noteq>(u,u)"
       shows "augment_edge_impl cf e cap 
-          \<le> SPECT (emb  (\<lambda>r. r = Graph.augment_edge cf e cap) augment_edge_impl_time)"
+              \<le> SPECT (emb  (\<lambda>r. r = Graph.augment_edge cf e cap) augment_edge_impl_time)"
       using assms
       unfolding augment_edge_impl_def Graph.augment_edge_def 
-      unfolding cf_get_def cf_set_def (*
-      apply refine_vcg
-      apply auto
-      done *) sorry
+      unfolding cf_get_def cf_set_def apply simp
+      apply(rule T_specifies_I)
+      apply (vcg'\<open>auto\<close>) apply (auto simp: augment_edge_impl_time_def one_enat_def)
+      done
+
       
     definition augment_cf_impl 
       :: "'capacity graph \<Rightarrow> path \<Rightarrow> 'capacity \<Rightarrow> 'capacity graph nrest" 
       where
       "augment_cf_impl cf p x \<equiv> do {
         RECT (\<lambda>D. \<lambda>
-          ([],cf) \<Rightarrow> RETURNT cf
+          ([],cf) \<Rightarrow> SPECT [ cf \<mapsto> 1]
         | (e#p,cf) \<Rightarrow> do {
             cf \<leftarrow> augment_edge_impl cf e x;
             D (p,cf)
@@ -318,7 +361,7 @@ lemma WHILET_refine:
 
     text \<open>Deriving the corresponding recursion equations\<close>  
     lemma augment_cf_impl_simps[simp]: 
-      "augment_cf_impl cf [] x = RETURNT cf"
+      "augment_cf_impl cf [] x = SPECT [ cf \<mapsto> 1]"
       "augment_cf_impl cf (e#p) x = do { 
         cf \<leftarrow> augment_edge_impl cf e x; 
         augment_cf_impl cf p x}"
@@ -331,17 +374,34 @@ lemma WHILET_refine:
       apply simp
       done      
 
+    definition "augment_cf_impl_time p =    1 + length p * augment_edge_impl_time "
+
     lemma augment_cf_impl_aux:    
       assumes "\<forall>e\<in>set p. valid_edge e"
       assumes "\<exists>s. Graph.isSimplePath cf s p t"
-      shows "augment_cf_impl cf p x \<le> RETURNT (Graph.augment_cf cf (set p) x)"
-      using assms
-      apply (induction p arbitrary: cf)
-      apply (simp add: Graph.augment_cf_empty)
+      shows "augment_cf_impl cf p x \<le> SPECT [Graph.augment_cf cf (set p) x\<mapsto> augment_cf_impl_time p]"
+      using assms unfolding augment_cf_impl_time_def
+    proof (induction p arbitrary: cf)
+      case Nil
+      then show ?case 
+        by (simp add: le_fun_def one_enat_def Graph.augment_cf_empty)
 
+    next
+      case (Cons a p)
+
+      from Cons(2,3)
+      show ?case  
       apply clarsimp
       apply (subst Graph.augment_cf_inductive, assumption)
-  (*
+      apply(rule T_specifies_I)
+        apply (vcg'\<open>-\<close> rules:  )   
+        apply(rule  augment_edge_impl_refine[THEN T_specifies_rev , THEN T_conseq4])
+          apply (auto dest: Graph.isSPath_no_selfloop)
+        apply(rule Cons(1)[THEN T_specifies_rev , THEN T_conseq4])
+          apply simp apply (auto simp add: emb_eq_Some_conv) []
+            apply (drule Graph.augment_cf_inductive(2)[where cap=x]; simp)
+        by (auto simp add: emb_eq_Some_conv split: if_splits) 
+      (*
       apply (refine_vcg augment_edge_impl_refine[THEN order_trans])
       apply simp
       apply simp
@@ -349,11 +409,12 @@ lemma WHILET_refine:
       apply (rule order_trans, rprems)
         apply (drule Graph.augment_cf_inductive(2)[where cap=x]; simp)
         apply simp
-      done  *) sorry
+      done  *)  
+    qed
       
     lemma (in RGraph) augment_cf_impl_refine:     
       assumes "Graph.isSimplePath cf s p t"
-      shows "augment_cf_impl cf p x \<le> RETURNT (Graph.augment_cf cf (set p) x)"
+      shows "augment_cf_impl cf p x \<le> SPECT [Graph.augment_cf cf (set p) x\<mapsto> augment_cf_impl_time p]"
       apply (rule augment_cf_impl_aux)
       using assms cf.E_ss_VxV apply (auto simp: cf.isSimplePath_def dest!: cf.isPath_edgeset) []
       using assms by blast
@@ -385,8 +446,27 @@ lemma WHILET_refine:
       RETURNT f
     }"
 
+    lemma ccId: "\<And>c. (c, c) \<in> Id" by simp
+
     lemma edka3_refine: "edka3 \<le> \<Down>Id edka2"
-      unfolding edka3_def edka2_def (*
+      unfolding edka3_def edka2_def
+      apply(rule bindT_refine)
+       apply(rule RETURNT_refine) 
+       apply(rule ccId)
+      apply(rule bindT_refine[where R'="Id \<times>\<^sub>r bool_rel"])
+       apply(rule WHILET_refine)
+         apply simp apply simp
+      apply(auto) []
+          apply(rule le_ASSERTI)+
+       apply(rule ASSERT_leI) apply simp
+      apply(auto) []
+       apply(rule bindT_mono) apply simp
+      apply(auto split: option.splits) []
+          apply(rule le_ASSERTI)+
+       apply(rule ASSERT_leI) apply simp
+       apply(rule ASSERT_leI) apply simp
+        
+       (*
       apply (rewrite in "let cf = Graph.augment_cf _ _ _ in _" Let_def)
       apply refine_rcg
       apply refine_dref_type
