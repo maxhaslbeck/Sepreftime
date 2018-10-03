@@ -44,7 +44,7 @@ lemma progress_SELECT_iff: "progress (SELECT P T) \<longleftrightarrow> T > 0"
 
 lemmas [progress_rules] = progress_SELECT_iff[THEN iffD2]
 
-lemma progress_REST_iff: "progress (REST [x \<mapsto> t]) \<longleftrightarrow> t\<noteq>0"
+lemma progress_REST_iff: "progress (REST [x \<mapsto> t]) \<longleftrightarrow> t>0"
   by (auto simp: progress_def)
 
 lemmas [progress_rules] = progress_REST_iff[THEN iffD2]
@@ -54,10 +54,43 @@ lemma progress_ASSERT_bind[progress_rules]: "\<lbrakk>\<Phi> \<Longrightarrow> p
   apply (auto simp: progress_def)
   done
 
-lemma progress_bind[progress_rules]: "progress m \<or> (\<forall>x. progress (f x)) \<Longrightarrow> progress (m\<bind>f)"
-  apply (auto simp: progress_def)
-  sorry
+lemma Sup_Some: "Sup (S::enat option set) = Some e \<Longrightarrow> \<exists>x\<in>S. (\<exists>i. x = Some i)"
+  unfolding Sup_option_def by (auto split: if_splits)
 
+lemma progress_bind[progress_rules]: assumes "progress m \<or> (\<forall>x. progress (f x))"
+  shows "progress (m\<bind>f)"
+proof  (cases m)
+  case FAILi
+  then show ?thesis by (auto simp: progress_def)
+next
+  case (REST x2)   
+  then show ?thesis unfolding  bindT_def progress_def apply safe
+  proof (goal_cases)
+    case (1 s' M y)
+    let ?P = "\<lambda>fa. \<exists>x. f x \<noteq> FAILT \<and>
+             (\<exists>t1. \<forall>x2a. f x = SPECT x2a \<longrightarrow> fa = map_option ((+) t1) \<circ> x2a \<and> x2 x = Some t1)"
+    from 1 have A: "Sup {fa s' |fa. ?P fa} = Some y" apply simp
+      apply(drule nrest_Sup_SPECT_D[where x=s']) by (auto split: nrest.splits)
+    from Sup_Some[OF this] obtain fa i where P: "?P fa" and 3: "fa s' = Some i"   by blast 
+    then obtain   x t1 x2a  where  a3: "f x = SPECT x2a"
+      and "\<forall>x2a. f x = SPECT x2a \<longrightarrow> fa = map_option ((+) t1) \<circ> x2a" and a2: "x2 x = Some t1"  
+      by fastforce 
+    then have a1: " fa = map_option ((+) t1) \<circ> x2a" by auto
+    have "progress m \<Longrightarrow> t1 > 0" apply(drule progressD)
+      using 1(1) a2 a1 a3 by auto  
+    moreover
+    have "progress (f x) \<Longrightarrow> x2a s' > Some 0"  
+      using   a1 1(1) a2 3  by (auto dest!: progressD[OF _ a3])   
+    ultimately
+    have " t1 > 0 \<or> x2a s' > Some 0" using assms by auto
+
+    then have "Some 0 < fa s'" using   a1  3 by auto
+    also have "\<dots> \<le> Sup {fa s'|fa. ?P fa}" 
+      apply(rule Sup_upper) using P by blast
+    also have "\<dots> = M s'" using A 1(3) by simp
+    finally show ?case .
+  qed 
+qed
 
 
 method progress methods solver = 
