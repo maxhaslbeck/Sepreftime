@@ -1684,6 +1684,9 @@ definition "progress m \<equiv> \<forall>s' M. m = SPECT M \<longrightarrow> M s
 lemma progressD: "progress m \<Longrightarrow> m=SPECT M \<Longrightarrow> M s' \<noteq> None \<Longrightarrow> M s' > Some 0"
   by (auto simp: progress_def)
 
+lemma [simp]: "progress FAILT" by(auto simp: progress_def)
+   
+
 lemma
   fixes I :: "'a \<Rightarrow> nat option"
   assumes "whileT b c s0 = r"
