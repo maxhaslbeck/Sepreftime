@@ -58,9 +58,12 @@ lemma rd_impl1_correct: "rd_impl1 as \<le> REST (emb (\<lambda>ys. set as = set 
   unfolding rd_impl1_def mop_empty_list_def mop_empty_set_def mop_mem_set_def mop_insert_set_def mop_push_list_def
       rd_ta_def rd_inv_def
   apply(rule T_specifies_I)
-  apply (vcg' \<open>simp\<close> rules: whileIET_rule[THEN T_conseq4]  ) 
+  apply (vcg' \<open>simp\<close> )  
+    unfolding Some_le_emb'_conv Some_eq_emb'_conv 
   supply [simp] = neq_Nil_conv distinct_length_le card_length
-     apply (vcg' \<open>auto simp: body_time_def remdups_time_def \<close> rules: TrueI)
+        apply (auto simp:
+              Some_le_mm3_Some_conv
+          body_time_def remdups_time_def)
   done
  
 

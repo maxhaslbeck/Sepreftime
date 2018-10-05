@@ -1,6 +1,162 @@
 theory RefineMonadicVCG
-imports "Refine_Imperative_HOL/Sepref"
+  imports "Refine_Imperative_HOL/Sepref"
+    "Case_Labeling.Case_Labeling"
+
 begin
+
+subsection \<open>VCG splitter\<close>
+
+
+ML \<open>
+
+  structure VCG_Case_Splitter = struct
+    fun dest_case ctxt t =
+      case strip_comb t of
+        (Const (case_comb, _), args) =>
+          (case Ctr_Sugar.ctr_sugar_of_case ctxt case_comb of
+             NONE => NONE
+           | SOME {case_thms, ...} =>
+               let
+                 val lhs = Thm.prop_of (hd (case_thms))
+                   |> HOLogic.dest_Trueprop |> HOLogic.dest_eq |> fst;
+                 val arity = length (snd (strip_comb lhs));
+                 (*val conv = funpow (length args - arity) Conv.fun_conv
+                   (Conv.rewrs_conv (map mk_meta_eq case_thms));*)
+               in
+                 SOME (nth args (arity - 1), case_thms)
+               end)
+      | _ => NONE;
+    
+    fun rewrite_with_asm_tac ctxt k =
+      Subgoal.FOCUS (fn {context = ctxt', prems, ...} =>
+        Local_Defs.unfold0_tac ctxt' [nth prems k]) ctxt;
+    
+    fun split_term_tac ctxt case_term = (
+      case dest_case ctxt case_term of
+        NONE => no_tac
+      | SOME (arg,case_thms) => (
+          Induct.cases_tac ctxt false [[SOME arg]] NONE []
+          THEN_ALL_NEW (asm_full_simp_tac (put_simpset HOL_basic_ss ctxt addsimps case_thms))
+        ) 1
+    
+    
+    )
+
+    fun split_tac ctxt = Subgoal.FOCUS_PARAMS (fn {context = ctxt, ...} => ALLGOALS (
+        SUBGOAL (fn (t, _) => case Logic.strip_imp_concl t of
+          @{mpat "Trueprop (Some _ \<le> TTT _ ?prog)"} => split_term_tac ctxt prog
+        | @{mpat "Trueprop (progress ?prog)"} => split_term_tac ctxt prog
+        | _ => no_tac
+        ))
+      ) ctxt 
+      THEN_ALL_NEW Hypsubst.hyp_subst_tac ctxt
+
+  end
+\<close>
+
+method_setup vcg_split_case = \<open>Scan.succeed (fn ctxt => SIMPLE_METHOD' (CHANGED o (VCG_Case_Splitter.split_tac ctxt)))\<close>
+
+
+subsection \<open>mm3 and emb\<close>
+
+
+
+lemma Some_eq_mm3_Some_conv[vcg_simp_rules]: "Some t = mm3 t' (Some t'') \<longleftrightarrow> (t'' \<le> t' \<and> t = enat (t' - t''))"
+  by (simp add: mm3_def)
+
+lemma Some_eq_mm3_Some_conv': "mm3 t' (Some t'') = Some t \<longleftrightarrow> (t'' \<le> t' \<and> t = enat (t' - t''))"
+  using Some_eq_mm3_Some_conv by metis
+
+
+lemma Some_le_emb'_conv[vcg_simp_rules]: "Some t \<le> emb' Q ft x \<longleftrightarrow> Q x \<and> t \<le> ft x"
+  by (auto simp: emb'_def)
+
+lemma Some_eq_emb'_conv[vcg_simp_rules]: "emb' Q tf s = Some t \<longleftrightarrow> (Q s \<and> t = tf s)"
+  unfolding emb'_def by(auto split: if_splits)
+
+subsection \<open>Setup Labeled VCG\<close>
+
+context
+begin
+  interpretation Labeling_Syntax .
+
+  definition "valid t Q M = (Some t \<le> TTT Q M)"
+
+  lemma LRETURNTRule:
+    assumes "V\<langle>(''weaken'', IC, []),CT: Some t \<le> Q x\<rangle>"
+    shows "C\<langle>IC,CT,IC: valid t Q (RETURNT x)\<rangle>"
+    using assms unfolding LABEL_simps   
+    by (simp add: valid_def T_RETURNT)  
+
+  
+  lemma LCondRule:
+    fixes IC CT defines "CT' \<equiv> (''cond'', IC, []) # CT "
+    assumes (* "V\<langle>(''vc'', IC, []),(''cond'', IC, []) # CT: p \<subseteq> {s. (s \<in> b \<longrightarrow> s \<in> w) \<and> (s \<notin> b \<longrightarrow> s \<in> w')}\<rangle>"
+      and *) "b \<Longrightarrow> C\<langle>Suc IC,(''the'', IC, []) # (''cond'', IC, []) # CT,OC1: valid t Q c1 \<rangle>"
+      and "~b \<Longrightarrow> C\<langle>Suc OC1,(''els'', Suc OC1, []) # (''cond'', IC, []) # CT,OC: valid t Q c2 \<rangle>"
+    shows "C\<langle>IC,CT,OC: valid t Q (if b then c1 else c2)\<rangle>"
+    using assms(2-) unfolding LABEL_simps by (simp add: valid_def)
+  
+lemma While:
+  assumes  "I s0"  "(\<And>s. I s \<Longrightarrow> b s \<Longrightarrow> Some 0 \<le> TTT (\<lambda>s'. mm3 (E s) (if I s' then Some (E s') else None)) (C s))"
+     "(\<And>s. progress (C s))"
+     "(\<And>x. \<not> b x \<Longrightarrow>  I x \<Longrightarrow>  (E x) \<le> (E s0) \<Longrightarrow>   Some (t + enat ((E s0) - E x)) \<le> Q x)"
+   shows   "Some t \<le> TTT Q (whileIET I E b C s0)"
+  apply(rule whileIET_rule'[THEN T_conseq4])
+  subgoal using assms(2) by simp
+  subgoal using assms(3) by simp
+  subgoal using assms(1) by simp
+  subgoal for x using assms(4) apply(cases "I x") by(auto simp: Some_eq_mm3_Some_conv' split: if_splits)    
+  done
+    
+
+  lemma LWhileRule:
+    fixes IC CT  
+    assumes "V\<langle>(''precondition'', IC, []),(''while'', IC, []) # CT: I s0\<rangle>"
+      and "\<And>s. I s \<Longrightarrow>  b s \<Longrightarrow>  C\<langle>Suc IC,(''invariant'', Suc IC, []) # (''while'', IC, []) # CT,OC: valid 0 (\<lambda>s'. mm3 (E s) (if I s' then Some (E s') else None)) (C s)\<rangle>"
+      and "\<And>s. V\<langle>(''progress'', IC, []),(''while'', IC, []) # CT: progress (C s)\<rangle>"
+      and "\<And>x. \<not> b x \<Longrightarrow>  I x \<Longrightarrow>  (E x) \<le> (E s0) \<Longrightarrow> V\<langle>(''postcondition'', IC, []),(''while'', IC, []) # CT: Some (t + enat ((E s0) - E x)) \<le> Q x\<rangle>" 
+    shows "C\<langle>IC,CT,OC: valid t Q (whileIET I E b C s0)\<rangle>"
+     using assms unfolding valid_def  unfolding LABEL_simps
+    apply(rule While) .
+
+  thm whileIET_rule'[THEN T_conseq4, no_vars] T_conseq4
+    
+
+lemma validD: "valid t Q M \<Longrightarrow> Some t \<le> TTT Q M" by(simp add: valid_def)
+
+
+  lemma LABELs_to_concl:
+    "C\<langle>IC, CT, OC: True\<rangle> \<Longrightarrow> C\<langle>IC, CT, OC: P\<rangle> \<Longrightarrow> P"
+    "V\<langle>x, ct: True\<rangle> \<Longrightarrow> V\<langle>x, ct: P\<rangle> \<Longrightarrow> P"
+    unfolding LABEL_simps .
+
+
+lemma "(if b then RETURNT (1::nat) else RETURNT 2) \<le> SPECT (emb (\<lambda>x. x>0) 1)"
+  apply(rule T_specifies_I) apply(rule validD)
+  apply(rule Initial_Label)
+  apply(intro LCondRule ; rule LRETURNTRule )  
+proof casify
+  case cond {
+    case the case weaken
+    then show ?case by(simp add: Some_le_emb'_conv)       
+  next
+    case els case weaken
+    then show ?case  by(simp add: Some_le_emb'_conv)  
+  }
+qed
+
+    
+
+  lemma "V\<langle>(''weaken'', 0, []),[]: P\<rangle>"   
+  proof (casify)
+    case weaken
+    then show ?case sorry
+  qed
+
+
+end
+
 
 (* TODO: move *)
 
@@ -54,6 +210,10 @@ lemma progress_ASSERT_bind[progress_rules]: "\<lbrakk>\<Phi> \<Longrightarrow> p
   apply (auto simp: progress_def)
   done
 
+
+lemma progress_SPECT_emb[progress_rules]: "t > 0 \<Longrightarrow> progress (SPECT (emb P t))" by(auto simp: progress_def emb'_def)
+
+
 lemma Sup_Some: "Sup (S::enat option set) = Some e \<Longrightarrow> \<exists>x\<in>S. (\<exists>i. x = Some i)"
   unfolding Sup_option_def by (auto split: if_splits)
 
@@ -96,9 +256,13 @@ qed
 method progress methods solver = 
   (rule asm_rl[of "progress _"] , (simp split: prod.splits | intro allI impI conjI | determ \<open>rule progress_rules\<close> | rule disjI1; progress \<open>solver\<close>; fail | rule disjI2; progress \<open>solver\<close>; fail | solver)+) []
 method progress' methods solver = 
-  (rule asm_rl[of "progress _"] , (simp split: prod.splits | intro allI impI conjI | determ \<open>rule progress_rules\<close> | rule disjI1 disjI2; progress'\<open>solver\<close> | solver)+) []
+  (rule asm_rl[of "progress _"] , (vcg_split_case | intro allI impI conjI | determ \<open>rule progress_rules\<close> | rule disjI1 disjI2; progress'\<open>solver\<close> | (solver;fail))+) []
 
 
+
+subsection \<open>WHILET refine\<close>
+
+                                         
 lemma WHILET_refine:
   assumes R0: "(x,x')\<in>R"
   assumes COND_REF: "\<And>x x'. \<lbrakk> (x,x')\<in>R \<rbrakk> \<Longrightarrow> b x = b' x'"
@@ -120,29 +284,11 @@ lemma assumes "(\<And>s t. P s = Some t \<Longrightarrow> \<exists>s'. Some t \<
     done
   done
 
-
-subsection \<open>VCG for monadic programs\<close>
-
-method vcg' methods solver uses rules simpdel = ((rule rules vcg_rules[THEN T_conseq6]
-      | progress\<open>auto\<close>
-      | clarsimp split: option.splits if_splits simp: vcg_simp_rules simp del: simpdel
-      | intro allI impI conjI
-      | (solver; fail) )+)
-
-
-thm vcg_rules
-
-subsection \<open>Stuff involcing mm3 and emb\<close>
+subsection \<open>moreStuff involving mm3 and emb\<close>
 
 lemma Some_le_mm3_Some_conv[vcg_simp_rules]: "Some t \<le> mm3 t' (Some t'') \<longleftrightarrow> (t'' \<le> t' \<and> t \<le> enat (t' - t''))"
   by (simp add: mm3_def)
 
-
-lemma Some_le_emb'_conv[vcg_simp_rules]: "Some t \<le> emb' Q ft x \<longleftrightarrow> Q x \<and> t \<le> ft x"
-  by (auto simp: emb'_def)
-
-lemma Some_eq_emb'_conv[vcg_simp_rules]: "emb' Q tf s = Some t \<longleftrightarrow> (Q s \<and> t = tf s)"
-  unfolding emb'_def by(auto split: if_splits)
 
 
 
@@ -188,5 +334,58 @@ lemma T_RESTemb: "(\<And>x. P x \<Longrightarrow> Some (t' + t x) \<le> Q x)
   by (auto simp: T_RESTemb_iff)
 
 (* lemmas [vcg_rules] = T_RESTemb_iff[THEN iffD2] *)
+
+
+
+
+
+subsection \<open>VCG for monadic programs\<close>
+
+subsubsection \<open>old\<close>
+thm vcg_rules
+thm vcg_simp_rules
+declare mm3_Some_conv [vcg_simp_rules]
+thm progress_rules 
+thm vcg_rules
+
+lemma SS[vcg_simp_rules]: "Some t = Some t' \<longleftrightarrow> t = t'" by simp
+lemma SS': "(if b then Some t else None) = Some t' \<longleftrightarrow> (b \<and> t = t')" by simp 
+
+term "(case s of (a,b) \<Rightarrow> M a b)"
+lemma case_T[vcg_rules]: "(\<And>a b. s = (a, b) \<Longrightarrow> t \<le> TTT Q (M a b)) \<Longrightarrow> t  \<le> TTT Q (case s of (a,b) \<Rightarrow> M a b)"
+  by (simp add: split_def)
+
+subsubsection \<open>new setup\<close>
+
+named_theorems vcg_rules' 
+lemma if_T[vcg_rules']: "(b \<Longrightarrow> t \<le> TTT Q Ma) \<Longrightarrow> (\<not>b \<Longrightarrow> t \<le> TTT Q Mb) \<Longrightarrow> t  \<le> TTT Q (if b then Ma else Mb)"
+   by (simp add: split_def)
+lemma RETURNT_T_I[vcg_rules']: "t \<le> Q x \<Longrightarrow> t  \<le> TTT Q (RETURNT x)"
+   by (simp add: T_RETURNT)
+   
+
+lemma T_SPECT_I[vcg_rules']: "(Some (t' + t ) \<le> Q x)
+    \<Longrightarrow>  Some t' \<le> TTT Q (SPECT [ x \<mapsto> t])  "
+  by(auto simp: emb'_def T_pw mii_alt aux1)   
+ 
+declare TbindT_I  [vcg_rules']
+declare T_RESTemb [vcg_rules']
+declare T_ASSERT_I [vcg_rules']
+declare While[ vcg_rules']
+thm vcg_rules
+  
+
+
+
+method repeat_all_new methods m = (m;repeat_all_new \<open>m\<close>)?
+
+
+method vcg'_step methods solver uses rules = (intro rules vcg_rules' | vcg_split_case | progress simp | (solver; fail))
+
+method vcg' methods solver uses rules = repeat_all_new \<open>vcg'_step solver rules: rules\<close>
+
+ 
+
+
 
 end

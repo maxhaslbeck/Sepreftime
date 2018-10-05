@@ -1631,9 +1631,12 @@ qed
 
 
 named_theorems vcg_simp_rules
-lemmas [vcg_simp_rules] = T_bindT T_RETURNT
+lemmas [vcg_simp_rules] = (* T_bindT *) T_RETURNT
 
-method vcg' uses rls = ((rule rls vcg_rules[THEN T_conseq6] | clarsimp split: if_splits simp: vcg_simp_rules)+)
+lemma TbindT_I: "Some t \<le>  T (\<lambda>y. T Q (f y)) M \<Longrightarrow>  Some t \<le> T Q (M \<bind> f)"
+  by(simp add: T_bindT)
+
+method vcg' uses rls = ((rule rls TbindT_I vcg_rules[THEN T_conseq6] | clarsimp split: if_splits simp:  vcg_simp_rules)+)
 
 lemma
   assumes "whileT b c s = r"
@@ -1729,7 +1732,7 @@ definition  whileIET :: "('a \<Rightarrow> bool) \<Rightarrow> ('a \<Rightarrow>
   "\<And>E c. whileIET I E b c = whileT b c"
  
 
-lemma  whileIET_rule[vcg_rules]:
+lemma  whileIET_rule[THEN T_conseq6, vcg_rules]:
   fixes E
   assumes 
     "(\<And>s t t'.
@@ -1743,8 +1746,31 @@ shows "Some 0 \<le> T (\<lambda>x. if b x then None else mm3 (E s0) (if I x then
                 then Some (E e) else None)"])
   using assms by auto 
 
+ 
+
+lemma transf:
+  assumes "I s \<Longrightarrow>  b s \<Longrightarrow> Some 0 \<le> T (\<lambda>s'. mm3 (E s) (if I s' then Some (E s') else None)) (C s)" 
+  shows "
+    (if I s then Some (E s) else None) = Some t \<Longrightarrow>
+    b s \<Longrightarrow> Some 0 \<le> T (\<lambda>s'. mm3 t (if I s' then Some (E s') else None)) (C s)"
+ apply(cases "I s")
+  subgoal apply simp
+    using assms by auto
+    subgoal by simp
+    done
+
+  thm mm3_def mm2_def
 
 
+lemma  whileIET_rule':
+  fixes E
+  assumes 
+    "(\<And>s t t'. I s \<Longrightarrow>  b s \<Longrightarrow> Some 0 \<le> T (\<lambda>s'. mm3 (E s) (if I s' then Some (E s') else None)) (C s))" 
+  "\<And>s. progress (C s)"
+  "I s0" 
+shows "Some 0 \<le> T (\<lambda>x. if b x then None else mm3 (E s0) (if I x then Some (E x) else None)) (whileIET I E b C s0)" 
+  apply(rule whileIET_rule) apply(rule transf[where b=b]) using assms by auto  
+   
 
 lemma 
   assumes IS: "T (\<lambda>s. T (\<lambda>s'. if (s',s)\<in>R then I s' else None) (c s)) (SPECT (\<lambda>x. if b x then I x else None)) \<ge> Some 0" 

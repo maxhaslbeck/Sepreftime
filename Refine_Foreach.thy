@@ -29,7 +29,7 @@ text {*
 *}
    
 definition "FOREACH_body f \<equiv> \<lambda>(xs, \<sigma>). do {
-  let x = hd xs; \<sigma>'\<leftarrow>f x \<sigma>; RETURNT (tl xs,\<sigma>')
+  x \<leftarrow> RETURNT( hd xs); \<sigma>'\<leftarrow>f x \<sigma>; RETURNT (tl xs,\<sigma>')
   }"
 
 definition FOREACH_cond where "FOREACH_cond c \<equiv> (\<lambda>(xs,\<sigma>). xs\<noteq>[] \<and> c \<sigma>)"
@@ -63,46 +63,31 @@ lemma FOREACHoci_rule:
   shows "FOREACHoci R I S c f \<sigma>0 inittime body_time \<le> SPECT (emb P (enat overall_time))"
   unfolding FOREACHoci_def
   apply(rule T_specifies_I) 
-  apply(vcg'\<open>-\<close> rules: T_RESTemb whileIET_rule[THEN T_conseq4]  ) 
-  
-  unfolding FOREACH_body_def FOREACH_cond_def
-      apply(vcg'\<open>-\<close> rules: )
-  subgoal for a b xs'
-      apply (rule IP[THEN T_specifies_rev,THEN T_conseq4])
-          defer defer defer apply auto []
-    subgoal  
-      by (metis DiffE UnE list.sel(1) set_simps2 sorted_wrt.elims(2) sorted_wrt_append)  
-    subgoal  
-      by (simp add: Un_Diff sorted_wrt_append)  
-    subgoal apply(vcg'\<open>-\<close> rules: ) 
-          subgoal apply(rule exI[where x="xs' @ [hd a]"]) by simp   
-          subgoal            by (metis remove1_tl set_remove1_eq) 
-          subgoal 
-            by (simp add: left_diff_distrib') 
-          done
+  unfolding FOREACH_body_def FOREACH_cond_def  
+  apply(vcg'\<open>-\<close> rules:  IP[THEN T_specifies_rev,THEN T_conseq4]  )  
 
-          apply simp_all
+  prefer 5 apply auto []
+  subgoal using I0 by blast  
+  subgoal by blast  
+  subgoal by simp  
+  subgoal by auto  
+  subgoal by (metis distinct_append hd_Cons_tl remove1_tl set_remove1_eq sorted_wrt.simps(2) sorted_wrt_append)  
+  subgoal by (metis DiffD1 DiffD2 UnE list.set_sel(1) set_append sorted_wrt_append)  
+  subgoal apply (auto simp: Some_le_mm3_Some_conv Some_le_emb'_conv Some_eq_emb'_conv)
+      subgoal by (metis append.assoc append.simps(2) append_Nil hd_Cons_tl)
+      subgoal by (metis remove1_tl set_remove1_eq) 
+      subgoal by (simp add: diff_mult_distrib)
+      done
+  subgoal using time_ub II1 apply (auto simp: Some_le_mm3_Some_conv Some_le_emb'_conv Some_eq_emb'_conv
+               ) 
+    subgoal by (simp add: distinct_card) 
+    subgoal by (metis DiffD1 DiffD2 II2 Un_iff Un_upper2 sorted_wrt_append) 
+    subgoal by (metis DiffD1 DiffD2 II2 Un_iff sorted_wrt_append sup_ge2) 
+    subgoal by (metis add_mono diff_le_self distinct_append distinct_card dual_order.trans enat_ord_simps(1) length_append order_mono_setup.refl set_append)  
     done
-  subgoal (* progress *) apply(auto split: prod.splits)
-    apply(rule progress_rules) using progress_rules by simp
-   using I0 apply simp
-apply(vcg'\<open>-\<close> rules: ) 
-  apply (auto simp: FIN mm3_Some_conv left_diff_distrib'[symmetric] split: option.splits if_splits)
-  using II1 apply simp
-  subgoal for a x xs' apply(cases "set a = {}") apply(rule II1) apply simp
-        apply(rule II2) by (auto simp add: sorted_wrt_append) 
-  subgoal using time_ub  by (auto simp: distinct_card)
-proof (goal_cases)
-  case (1 a b xs')
-  have "length xs' \<le> length (xs' @ a)" by simp
-  also have "\<dots> = card (set xs') + card (set a)"
-    using 1 by (auto simp: distinct_card)
-  also have "\<dots> = card S" using 1 by (simp add: card_Un_disjoint)
-  finally have "length xs' \<le> card S" .
-  then have "inittime + enat (length xs' * body_time) \<le> inittime + enat (card S * body_time)" by simp
-  then show ?case using time_ub  
-    using order_trans by blast  
-qed  
+  subgoal by (fact FIN)
+  done
+
 
 lemma FOREACHci_rule :
   assumes IP: 
@@ -175,14 +160,10 @@ next
     apply (auto simp add: nfoldliIE_def)
     subgoal 
       apply(rule T_specifies_I)
-      apply (vcg'\<open>-\<close> simpdel: nfoldli_simps nfoldli.simps )
-      apply(rule IS[THEN T_specifies_rev  , THEN T_conseq4])
-      using Cons(2,3) apply (auto  simp del: nfoldli_simps nfoldli.simps)
-      apply(rule Cons(1)[unfolded nfoldliIE_def, THEN T_specifies_rev  , THEN T_conseq4])
-      apply simp
-      apply (simp add: Some_eq_emb'_conv) 
-      apply (simp add: Some_eq_emb'_conv Some_le_emb'_conv) 
-      done
+      apply (vcg'\<open>-\<close> rules: IS[THEN T_specifies_rev  , THEN T_conseq4] 
+                            Cons(1)[unfolded nfoldliIE_def, THEN T_specifies_rev  , THEN T_conseq4])
+      unfolding Some_eq_emb'_conv Some_le_emb'_conv
+      using Cons(2,3) by auto
     subgoal 
       apply(simp add: RETURNT_def le_fun_def Some_le_emb'_conv)
       apply(rule FNC) using Cons(2,3) by auto

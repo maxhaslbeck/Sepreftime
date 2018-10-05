@@ -83,36 +83,28 @@ lemma binarysearch_correct: "sorted xs \<Longrightarrow> l \<le> r \<Longrightar
 proof(induct "r-l" arbitrary: l r rule: less_induct)
   case less
   from less(2-4) show ?case apply(subst binarysearch.code(2))  unfolding mop_lookup_list_def
-    apply (vcg'\<open>simp\<close>)
-            apply (metis le_neq_implies_less le_refl not_less_eq) 
-    subgoal apply(rule T_conseq4)  
-         apply(rule less(1)) apply (simp add: avg_def;fail)+
+    apply (vcg'\<open>simp\<close>) apply safe (** waaaaa  vcg_split_case can't handle this *)
+    apply (vcg'\<open>simp\<close> rules: less(1)[THEN T_conseq4] )   
+    unfolding Some_le_emb'_conv Some_eq_emb'_conv
+    subgoal by auto 
+    subgoal using le_less_Suc_eq by fastforce
+    subgoal apply (simp) by auto2 
+    subgoal by(simp add: avg_def)  
+    subgoal by(simp add: avg_def)  
     subgoal 
-      apply(simp only: Some_le_emb'_conv Some_eq_emb'_conv)
-      apply (rule allI conjI)
-      subgoal by auto2    (* <<<<<<<<<<<<<<<<<<<<<<<<<<<  :) *)
-      subgoal  using binarysearch_mono[OF avg_diff1] 
+      apply (rule allI conjI) apply auto2
+        using binarysearch_mono[OF avg_diff1] 
         by (simp add: le_SucI)
-      done
+    subgoal by(simp add: avg_def)    
+    subgoal by(simp add: avg_def)   
+    subgoal by(simp add: avg_def)
+    subgoal 
+      apply (rule allI conjI) apply auto2  
+        using binarysearch_mono[OF avg_diff2] 
+        by (simp add: le_SucI) 
+    subgoal by auto2
     done
-    apply(simp add: avg_def)
-    subgoal 
-      using le_less_Suc_eq by fastforce 
-    subgoal by auto2    (* <<<<<<<<<<<<<<<<<<<<<<<<<<<  :) *)
-    apply(simp add: avg_def)
-    subgoal 
-      using le_less_Suc_eq by fastforce 
-    apply(rule T_conseq4) 
-         apply(rule less(1)) apply (simp add: avg_def;fail)+
-    subgoal 
-      apply(simp only: Some_le_emb'_conv Some_eq_emb'_conv)
-      apply (rule allI conjI)
-      subgoal by auto2    (* <<<<<<<<<<<<<<<<<<<<<<<<<<<  :) *)
-      subgoal  using binarysearch_mono[OF avg_diff2] 
-        by (simp add: le_SucI)
-      done
-    apply(simp add: avg_def)
-    done
+  
 qed
  
 sepref_definition binarysearch_impl is 
