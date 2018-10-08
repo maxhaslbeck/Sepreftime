@@ -26,6 +26,11 @@ lemma T_RESTemb: "(\<And>x. P x \<Longrightarrow> Some (t' + t x) \<le> Q x)
     \<Longrightarrow>  Some t' \<le> TTT Q (REST (emb' P t))  "
   by (auto simp: T_RESTemb_iff)
 
+lemma T_SPECT_I: "(Some (t' + t ) \<le> Q x)
+    \<Longrightarrow>  Some t' \<le> TTT Q (SPECT [ x \<mapsto> t])  "
+  by(auto simp:   T_pw mii_alt aux1)   
+ 
+
 
 definition "valid t Q M = (Some t \<le> TTT Q M)"
 
@@ -59,10 +64,16 @@ ML \<open>
     fun split_term_tac ctxt case_term = (
       case dest_case ctxt case_term of
         NONE => no_tac
-      | SOME (arg,case_thms) => (
-          Induct.cases_tac ctxt false [[SOME arg]] NONE []
-          THEN_ALL_NEW (asm_full_simp_tac (put_simpset HOL_basic_ss ctxt addsimps case_thms))
-        ) 1
+      | SOME (arg,case_thms) => let 
+            val stac = asm_full_simp_tac (put_simpset HOL_basic_ss ctxt addsimps case_thms) 
+          in 
+          (*CHANGED o stac
+          ORELSE'*)
+          (
+            Induct.cases_tac ctxt false [[SOME arg]] NONE []
+            THEN_ALL_NEW stac
+          ) 
+        end 1
     
     
     )
@@ -75,7 +86,7 @@ ML \<open>
         | _ => no_tac
         ))
       ) ctxt 
-      THEN_ALL_NEW Hypsubst.hyp_subst_tac ctxt
+      THEN_ALL_NEW TRY o Hypsubst.hyp_subst_tac ctxt
 
   end
 \<close>
@@ -174,7 +185,17 @@ lemma validD: "valid t Q M \<Longrightarrow> Some t \<le> TTT Q M" by(simp add: 
     by (simp add: valid_def T_RETURNT)  
 
  
+  thm T_SELECT
 
+  
+  lemma LSELECTRule:
+    fixes IC CT defines "CT' \<equiv> (''cond'', IC, []) # CT "
+    assumes (* "V\<langle>(''vc'', IC, []),(''cond'', IC, []) # CT: p \<subseteq> {s. (s \<in> b \<longrightarrow> s \<in> w) \<and> (s \<notin> b \<longrightarrow> s \<in> w')}\<rangle>"
+      and *) "\<And>x. P x \<Longrightarrow> C\<langle>Suc IC,(''Some'', IC, []) # (''SELECT'', IC, []) # CT,OC1: valid (t+T) Q (RETURNT (Some x)) \<rangle>"
+      and "\<forall>x. \<not> P x \<Longrightarrow> C\<langle>Suc OC1,(''None'', Suc OC1, []) # (''SELECT'', IC, []) # CT,OC: valid (t+T) Q (RETURNT None) \<rangle>"
+    shows "C\<langle>IC,CT,OC: valid t Q (SELECT P T)\<rangle>"
+    using assms(2-) unfolding LABEL_simps apply (simp add: valid_def) apply(rule T_SELECT) 
+    by(auto intro: T_SPECT_I simp add: T_RETURNT) 
 
   lemma LRESTembRule:
     assumes "\<And>x. P x \<Longrightarrow> C\<langle>IC,CT,OC: Some (t + T x) \<le> Q x\<rangle>"
@@ -224,11 +245,18 @@ method labeled_VCG_init =  ((rule T_specifies_I validD)+), rule Initial_Label
 method labeled_VCG_step uses rules = (rule rules[symmetric, THEN Linject2Rule] 
         LTTTinRule LbindTRule 
         LembRule Lmm3Rule
-        LRETURNTRule LASSERTRule LCondRule
+        LRETURNTRule LASSERTRule LCondRule LSELECTRule
         LRESTsingleRule LRESTembRule LWhileRule  ) | vcg_split_case
  
 method labeled_VCG uses rules = labeled_VCG_init, repeat_all_new \<open>labeled_VCG_step rules: rules\<close>
 method casified_VCG uses rules = labeled_VCG rules: rules, casify
+
+
+lemma "do { x \<leftarrow> SELECT P T;
+            (case x of None \<Rightarrow> RETURNT (1::nat) | Some t \<Rightarrow> RETURNT (2::nat))
+        } \<le> SPECT (emb Q T')"
+  apply labeled_VCG   oops
+
 
 
 lemma assumes "b" "c"
@@ -490,11 +518,7 @@ lemma if_T[vcg_rules']: "(b \<Longrightarrow> t \<le> TTT Q Ma) \<Longrightarrow
 lemma RETURNT_T_I[vcg_rules']: "t \<le> Q x \<Longrightarrow> t  \<le> TTT Q (RETURNT x)"
    by (simp add: T_RETURNT)
    
-
-lemma T_SPECT_I[vcg_rules']: "(Some (t' + t ) \<le> Q x)
-    \<Longrightarrow>  Some t' \<le> TTT Q (SPECT [ x \<mapsto> t])  "
-  by(auto simp:   T_pw mii_alt aux1)   
- 
+declare T_SPECT_I [vcg_rules']
 declare TbindT_I  [vcg_rules']
 declare T_RESTemb [vcg_rules']
 declare T_ASSERT_I [vcg_rules']
@@ -503,15 +527,23 @@ thm vcg_rules
   
 
 
+named_theorems vcg_simps'
+
+declare option.case [vcg_simps']
 
 
-
-method vcg'_step methods solver uses rules = (intro rules vcg_rules' | vcg_split_case | progress simp | (solver; fail))
+method vcg'_step methods solver uses rules = (intro rules vcg_rules' | vcg_split_case | (progress simp;fail) | (solver; fail))
 
 method vcg' methods solver uses rules = repeat_all_new \<open>vcg'_step solver rules: rules\<close>
 
- 
+thm T_SELECT
+declare T_SELECT [vcg_rules']
 
-
+lemma "\<And>c. do {  c \<leftarrow> RETURNT None;
+            (case_option (RETURNT (1::nat)) (\<lambda>p. RETURNT (2::nat))) c 
+      } \<le> SPECT (emb (\<lambda>x. x>(0::nat)) 1)"
+  apply(rule T_specifies_I)
+  apply(vcg'\<open>-\<close>)  unfolding  option.case   oops
+  thm option.case
 
 end

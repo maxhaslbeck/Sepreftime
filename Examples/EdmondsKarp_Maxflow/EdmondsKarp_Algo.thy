@@ -14,7 +14,7 @@ subsection \<open>Algorithm\<close>
 locale EdKa = Network c s t for c :: "'capacity::linordered_idom graph" and s t +
   fixes shortestpath_time :: nat
     and augment_with_path_time :: nat 
-  assumes augment_progress: "0 < shortestpath_time"
+  assumes augment_progress: "0 \<noteq> enat shortestpath_time"
 begin
 
 
@@ -102,7 +102,7 @@ lemma edka_partial_refine : "edka_partial \<le> \<Down>Id edka.fofu"
   apply(rule bindT_refine'[where R'=Id])
   apply simp
   apply(rule bindT_refine'[where R'="Id"])
-   apply simp
+   apply simp unfolding whileIET_def
    apply(rule whileT_mono)
    apply(rule case_prod_refine)
    apply auto   

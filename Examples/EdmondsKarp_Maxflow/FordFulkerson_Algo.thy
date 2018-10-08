@@ -25,7 +25,7 @@ locale FoFu = Network c s t for c :: "'capacity::linordered_idom graph" and s t 
 
   and R_decreases: "NFlow c s t a \<Longrightarrow> special_info a x \<Longrightarrow> R (NFlow.augment_with_path c a x) < R a"
 
-  and fat_g_0: "\<And>x. find_augmenting_time  > 0"
+  and fat_g_0[simp]: "\<And>x. enat find_augmenting_time \<noteq> 0"
 
   and augments: "\<And>p f.  NFlow c s t f \<Longrightarrow> special_info f p \<Longrightarrow> NPreflow.isAugmentingPath c s t f p"
 
@@ -56,12 +56,14 @@ abbreviation "fofu_invar \<equiv> \<lambda>(f,brk).
       \<and> (brk \<longrightarrow> (\<forall>p. \<not>NPreflow.isAugmentingPath c s t f p))
     "  
 
+fun (in FoFu) Te where "Te (f,brk) = (if brk then 0 else (find_augmenting_time + augment_with_path_time)  * (1+ R f))"
+
 text \<open>Finally, we obtain the Ford-Fulkerson algorithm.
   Note that we annotate some assertions to ease later refinement\<close>
 definition (in FoFu) "fofu \<equiv> do {
   f\<^sub>0 \<leftarrow> RETURNT (\<lambda>_. 0);
 
-  (f,_) \<leftarrow> whileT(*\<^bsup>fofu_invar\<^esup>*)
+  (f,_) \<leftarrow> whileIET fofu_invar Te
     (\<lambda>(f,brk). \<not>brk) 
     (\<lambda>(f,_). do {
       p \<leftarrow> find_augmenting_spec f;
@@ -111,8 +113,6 @@ lemma (in NFlow) augmenting_path_not_empty:
 text \<open>Finally, we can use the verification condition generator to
   show correctness\<close>
 
-fun (in FoFu) Te where "Te (f,brk) = (if brk then 0 else (find_augmenting_time + augment_with_path_time)  * (1+ R f))"
-
 
 definition (in FoFu) "maxFlow_time = enat ( (find_augmenting_time + augment_with_path_time) * (R (\<lambda>_. 0) + 1)) "
 
@@ -120,34 +120,30 @@ definition (in FoFu) "maxFlow_time = enat ( (find_augmenting_time + augment_with
 theorem (in FoFu)  fofu_partial_correct: "fofu \<le> SPECT (emb (\<lambda>f. isMaxFlow f) (maxFlow_time))"
   unfolding fofu_def find_augmenting_spec_def 
   apply(rule T_specifies_I)
-  apply (vcg'\<open>-\<close>)    
-
-  apply (rule T_conseq4)
-   apply (rule whileT_rule'''[OF refl, where I="(\<lambda>e. if fofu_invar e
-                then Some (Te e) else None)"])
-  subgoal (*progress*) by (progress'\<open>auto simp: fat_g_0 zero_enat_def\<close>)   
-    apply (vcg'\<open>-\<close>)  apply(rule T_SELECT)   
-  subgoal (* no augmenting path *)    
-    apply (vcg'\<open>-\<close>) 
-    using ff by blast
-  subgoal for f brk p (* found augmenting path *)    
-    apply (vcg'\<open>-\<close>)
+  apply(vcg'\<open>-\<close>)  apply (simp_all)
+  subgoal by (auto simp: zero_flow)
+  subgoal  using ff by blast
+  subgoal apply auto  
     subgoal unfolding NFlow.augment_with_path_def
       using  NFlow.augment_pres_nflow augments by metis
     subgoal 
-      by (simp add: R_decreases less_imp_le_nat) 
-    subgoal  
-      by (simp add: R_decreases less_imp_le_nat) 
-    subgoal by (metis R_decreases diff_mult_distrib2 prod_ineqs2 zero_less_diff)
-    subgoal  using  augments by simp 
-    subgoal using NFlow.augmenting_path_not_empty augments  by metis
+      apply (auto simp add: Some_le_mm3_Some_conv R_decreases  less_imp_le_nat)  
+      by (metis R_decreases diff_mult_distrib2 prod_ineqs2 zero_less_diff)
+    done
+  subgoal  unfolding NFlow.augment_with_path_def
+      using  NFlow.augment_pres_nflow augments by metis  
+  subgoal using augments by simp  
+  subgoal  using NFlow.augmenting_path_not_empty augments by blast 
+  subgoal unfolding maxFlow_time_def apply (auto simp: Some_le_emb'_conv)
+    using NFlow.noAugPath_iff_maxFlow[symmetric] by blast 
   done
-  apply (auto simp: zero_flow)
-  apply (vcg'\<open>-\<close>)
-  subgoal using 
-    NFlow.noAugPath_iff_maxFlow[symmetric] by blast
-  subgoal unfolding maxFlow_time_def by auto
-  done 
+
+theorem (in FoFu)  fofu_partial_correct': "fofu \<le> SPECT (emb (\<lambda>f. isMaxFlow f) (maxFlow_time))"
+  unfolding fofu_def find_augmenting_spec_def 
+  apply(labeled_VCG) using [[goals_limit = 16]]
+  apply (casify) oops
+
+ 
 (*
 subsection \<open>Algorithm without Assertions\<close>
 text \<open>For presentation purposes, we extract a version of the algorithm
