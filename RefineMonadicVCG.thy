@@ -4,6 +4,31 @@ theory RefineMonadicVCG
 
 begin
 
+
+method repeat_all_new methods m = (m;repeat_all_new \<open>m\<close>)?
+
+subsection "ASSERT"
+
+lemma T_ASSERT[vcg_simp_rules]: "Some t \<le> TTT Q (ASSERT \<Phi>) \<longleftrightarrow> Some t \<le> Q () \<and> \<Phi>"
+  apply (cases \<Phi>)
+   apply vcg'
+  done
+lemma T_ASSERT_I: "Some t \<le> Q () \<Longrightarrow> \<Phi> \<Longrightarrow> Some t \<le> TTT Q (ASSERT \<Phi>)"
+  by(simp add: T_ASSERT T_RETURNT) 
+
+
+lemma T_RESTemb_iff: "Some t'
+       \<le> TTT Q (REST (emb' P t)) \<longleftrightarrow> (\<forall>x. P x \<longrightarrow> Some (t' + t x) \<le> Q x ) "
+  by(auto simp: emb'_def T_pw mii_alt aux1)  
+
+
+lemma T_RESTemb: "(\<And>x. P x \<Longrightarrow> Some (t' + t x) \<le> Q x)
+    \<Longrightarrow>  Some t' \<le> TTT Q (REST (emb' P t))  "
+  by (auto simp: T_RESTemb_iff)
+
+
+definition "valid t Q M = (Some t \<le> TTT Q M)"
+
 subsection \<open>VCG splitter\<close>
 
 
@@ -46,6 +71,7 @@ ML \<open>
         SUBGOAL (fn (t, _) => case Logic.strip_imp_concl t of
           @{mpat "Trueprop (Some _ \<le> TTT _ ?prog)"} => split_term_tac ctxt prog
         | @{mpat "Trueprop (progress ?prog)"} => split_term_tac ctxt prog
+        | @{mpat "Trueprop (Case_Labeling.CTXT _ _ _ (valid _ _ ?prog))"} => split_term_tac ctxt prog
         | _ => no_tac
         ))
       ) ctxt 
@@ -80,13 +106,7 @@ context
 begin
   interpretation Labeling_Syntax .
 
-  definition "valid t Q M = (Some t \<le> TTT Q M)"
 
-  lemma LRETURNTRule:
-    assumes "V\<langle>(''weaken'', IC, []),CT: Some t \<le> Q x\<rangle>"
-    shows "C\<langle>IC,CT,IC: valid t Q (RETURNT x)\<rangle>"
-    using assms unfolding LABEL_simps   
-    by (simp add: valid_def T_RETURNT)  
 
   
   lemma LCondRule:
@@ -113,9 +133,9 @@ lemma While:
   lemma LWhileRule:
     fixes IC CT  
     assumes "V\<langle>(''precondition'', IC, []),(''while'', IC, []) # CT: I s0\<rangle>"
-      and "\<And>s. I s \<Longrightarrow>  b s \<Longrightarrow>  C\<langle>Suc IC,(''invariant'', Suc IC, []) # (''while'', IC, []) # CT,OC: valid 0 (\<lambda>s'. mm3 (E s) (if I s' then Some (E s') else None)) (C s)\<rangle>"
+      and "\<And>s. I s \<Longrightarrow>  b s \<Longrightarrow>  C\<langle>Suc IC,(''invariant'', Suc IC, []) # (''while'', IC, []) # CT,OC1: valid 0 (\<lambda>s'. mm3 (E s) (if I s' then Some (E s') else None)) (C s)\<rangle>"
       and "\<And>s. V\<langle>(''progress'', IC, []),(''while'', IC, []) # CT: progress (C s)\<rangle>"
-      and "\<And>x. \<not> b x \<Longrightarrow>  I x \<Longrightarrow>  (E x) \<le> (E s0) \<Longrightarrow> V\<langle>(''postcondition'', IC, []),(''while'', IC, []) # CT: Some (t + enat ((E s0) - E x)) \<le> Q x\<rangle>" 
+      and "\<And>x. \<not> b x \<Longrightarrow>  I x \<Longrightarrow>  (E x) \<le> (E s0) \<Longrightarrow> C\<langle>Suc OC1,(''postcondition'', IC, [])#(''while'', IC, []) # CT,OC: Some (t + enat ((E s0) - E x)) \<le> Q x\<rangle>" 
     shows "C\<langle>IC,CT,OC: valid t Q (whileIET I E b C s0)\<rangle>"
      using assms unfolding valid_def  unfolding LABEL_simps
     apply(rule While) .
@@ -131,29 +151,150 @@ lemma validD: "valid t Q M \<Longrightarrow> Some t \<le> TTT Q M" by(simp add: 
     "V\<langle>x, ct: True\<rangle> \<Longrightarrow> V\<langle>x, ct: P\<rangle> \<Longrightarrow> P"
     unfolding LABEL_simps .
 
+  thm T_ASSERT_I
 
-lemma "(if b then RETURNT (1::nat) else RETURNT 2) \<le> SPECT (emb (\<lambda>x. x>0) 1)"
-  apply(rule T_specifies_I) apply(rule validD)
-  apply(rule Initial_Label)
-  apply(intro LCondRule ; rule LRETURNTRule )  
+
+  lemma LASSERTRule:
+    assumes "V\<langle>(''ASSERT'', IC, []),CT: \<Phi>\<rangle>"
+      "C\<langle>Suc IC, CT,OC: valid t Q (RETURNT ())\<rangle>"
+    shows "C\<langle>IC,CT,OC: valid t Q (ASSERT \<Phi>)\<rangle>"
+    using assms unfolding LABEL_simps   
+    by (simp add: valid_def )   
+ 
+
+  lemma LbindTRule:
+    assumes "C\<langle>IC,CT,OC: valid t (\<lambda>y. TTT Q (f y)) m\<rangle>"
+    shows "C\<langle>IC,CT,OC: valid t Q (bindT m f)\<rangle>"
+    using assms unfolding LABEL_simps by(simp add: T_bindT valid_def )
+
+  lemma LRETURNTRule:
+    assumes "C\<langle>IC,CT,OC: Some t \<le> Q x\<rangle>"
+    shows "C\<langle>IC,CT,OC: valid t Q (RETURNT x)\<rangle>"
+    using assms unfolding LABEL_simps   
+    by (simp add: valid_def T_RETURNT)  
+
+ 
+
+
+  lemma LRESTembRule:
+    assumes "\<And>x. P x \<Longrightarrow> C\<langle>IC,CT,OC: Some (t + T x) \<le> Q x\<rangle>"
+    shows "C\<langle>IC,CT,OC: valid t Q (REST (emb' P T))\<rangle>"
+    using assms unfolding LABEL_simps   
+    by (simp add: valid_def T_RESTemb) 
+
+  lemma LRESTsingleRule:
+    assumes "C\<langle>IC,CT,OC: Some (t + t') \<le> Q x\<rangle>"
+    shows "C\<langle>IC,CT,OC: valid t Q (REST [x\<mapsto>t'])\<rangle>"
+    using assms unfolding LABEL_simps   
+    by (simp add: valid_def   T_pw mii_alt aux1)
+
+  lemma LTTTinRule:
+    assumes "C\<langle>IC,CT,OC: valid t Q M\<rangle>"
+    shows "C\<langle>IC,CT,OC: Some t \<le> TTT Q M\<rangle>"
+    using assms unfolding LABEL_simps by(simp add:  valid_def )
+
+  lemma LembRule:
+    assumes "V\<langle>(''time'', IC, []), CT: t \<le> T x \<rangle>"
+      and "V\<langle>(''func'', IC, []), CT: P x \<rangle>"
+    shows "C\<langle>IC,CT,IC: Some t \<le> emb' P T x\<rangle>"
+    using assms unfolding LABEL_simps   
+    by (simp add: emb'_def  )  
+
+  lemma Lmm3Rule:
+    assumes "V\<langle>(''time'', IC, []), CT: Va' \<le> Va \<and> t \<le> enat (Va - Va') \<rangle>"
+      and "V\<langle>(''func'', IC, []), CT: b \<rangle>"
+    shows "C\<langle>IC,CT,IC: Some t \<le> mm3 Va (if b then Some Va' else None) \<rangle>"
+    using assms unfolding LABEL_simps   
+    by (simp add:  mm3_def  )    
+ 
+
+  lemma LinjectRule:
+    assumes "Some t \<le> TTT Q A \<Longrightarrow> Some t \<le> TTT Q B"
+        "C\<langle>IC,CT,OC: valid t Q A\<rangle>"
+    shows "C\<langle>IC,CT,OC: valid t Q B\<rangle>"
+    using assms unfolding LABEL_simps by(simp add:  valid_def )
+  lemma Linject2Rule:
+    assumes "A = B"
+        "C\<langle>IC,CT,OC: valid t Q A\<rangle>"
+    shows "C\<langle>IC,CT,OC: valid t Q B\<rangle>"
+    using assms unfolding LABEL_simps by(simp add:  valid_def )
+
+
+method labeled_VCG_init =  ((rule T_specifies_I validD)+), rule Initial_Label
+method labeled_VCG_step uses rules = (rule rules[symmetric, THEN Linject2Rule] 
+        LTTTinRule LbindTRule 
+        LembRule Lmm3Rule
+        LRETURNTRule LASSERTRule LCondRule
+        LRESTsingleRule LRESTembRule LWhileRule  ) | vcg_split_case
+ 
+method labeled_VCG uses rules = labeled_VCG_init, repeat_all_new \<open>labeled_VCG_step rules: rules\<close>
+method casified_VCG uses rules = labeled_VCG rules: rules, casify
+
+
+lemma assumes "b" "c"
+  shows "do { ASSERT b;
+            ASSERT c;
+            RETURNT 1 } \<le> SPECT (emb (\<lambda>x. x>(0::nat)) 1)"
+  apply labeled_VCG    
 proof casify
-  case cond {
-    case the case weaken
-    then show ?case by(simp add: Some_le_emb'_conv)       
-  next
-    case els case weaken
-    then show ?case  by(simp add: Some_le_emb'_conv)  
-  }
+  case ASSERT then show ?case by fact
+  case ASSERTa then show ?case by fact
+  case func then show ?case by simp
+  case time then show ?case by simp 
 qed
 
-    
+lemma "do {      
+      (if b then RETURNT (1::nat) else RETURNT 2)
+    } \<le> SPECT (emb (\<lambda>x. x>0) 1)"
+  apply labeled_VCG    
+proof casify
+  case cond {
+    case the {
+      case time 
+      then show ?case by simp  
+    next
+      case func 
+      then show ?case by simp   
+    }
+  next
+    case els { (*
+      case time 
+      then show ?case by simp  
+    next *)
+      case func 
+      then show ?case by simp   
+    }
+  }
+qed simp
 
-  lemma "V\<langle>(''weaken'', 0, []),[]: P\<rangle>"   
-  proof (casify)
-    case weaken
-    then show ?case sorry
-  qed
 
+lemma assumes "b"
+  shows "do {
+      ASSERT b;
+      (if b then RETURNT (1::nat) else RETURNT 2)
+    } \<le> SPECT (emb (\<lambda>x. x>0) 1)"
+  apply labeled_VCG    
+proof casify
+  case ASSERT then show ?case by fact 
+  case cond {
+    case the {
+      case time 
+      then show ?case by simp  
+    next
+      case func 
+      then show ?case by simp   
+    }
+  next
+    case els { (*
+    case time 
+    then show ?case by simp  
+  next *)
+      case func 
+      then show ?case by simp   
+    }
+  }
+qed simp
+ 
 
 end
 
@@ -183,12 +324,6 @@ thm T_pw refine_pw_simps
 
 thm pw_le_iff
 
-lemma T_ASSERT[vcg_simp_rules]: "Some t \<le> TTT Q (ASSERT \<Phi>) \<longleftrightarrow> Some t \<le> Q () \<and> \<Phi>"
-  apply (cases \<Phi>)
-   apply vcg'
-  done
-lemma T_ASSERT_I: "Some t \<le> Q () \<Longrightarrow> \<Phi> \<Longrightarrow> Some t \<le> TTT Q (ASSERT \<Phi>)"
-  by(simp add: T_ASSERT T_RETURNT) 
 
 
 subsection \<open>Progress rules and solver\<close>
@@ -324,14 +459,6 @@ lemma emb_le_emb: "emb' P T \<le> emb' P' T' \<longleftrightarrow> (\<forall>x. 
   thm vcg_rules
 
 
-lemma T_RESTemb_iff: "Some t'
-       \<le> TTT Q (REST (emb' P t)) \<longleftrightarrow> (\<forall>x. P x \<longrightarrow> Some (t' + t x) \<le> Q x ) "
-  by(auto simp: emb'_def T_pw mii_alt aux1)  
-
-
-lemma T_RESTemb: "(\<And>x. P x \<Longrightarrow> Some (t' + t x) \<le> Q x)
-    \<Longrightarrow>  Some t' \<le> TTT Q (REST (emb' P t))  "
-  by (auto simp: T_RESTemb_iff)
 
 (* lemmas [vcg_rules] = T_RESTemb_iff[THEN iffD2] *)
 
@@ -366,7 +493,7 @@ lemma RETURNT_T_I[vcg_rules']: "t \<le> Q x \<Longrightarrow> t  \<le> TTT Q (RE
 
 lemma T_SPECT_I[vcg_rules']: "(Some (t' + t ) \<le> Q x)
     \<Longrightarrow>  Some t' \<le> TTT Q (SPECT [ x \<mapsto> t])  "
-  by(auto simp: emb'_def T_pw mii_alt aux1)   
+  by(auto simp:   T_pw mii_alt aux1)   
  
 declare TbindT_I  [vcg_rules']
 declare T_RESTemb [vcg_rules']
@@ -377,7 +504,6 @@ thm vcg_rules
 
 
 
-method repeat_all_new methods m = (m;repeat_all_new \<open>m\<close>)?
 
 
 method vcg'_step methods solver uses rules = (intro rules vcg_rules' | vcg_split_case | progress simp | (solver; fail))

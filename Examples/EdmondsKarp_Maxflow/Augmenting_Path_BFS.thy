@@ -127,12 +127,12 @@ begin
   lemma  mop_set_pick: "tt \<le> TTT Q (SPECT (emb (\<lambda>x. x\<in>S) (t S))) 
         \<Longrightarrow> tt \<le> TTT Q (mop_set_pick S)" unfolding mop_set_pick_def by simp
 
-
   lemma progress_mop_set_pick[progress_rules]: "t S > 0 \<Longrightarrow> progress (mop_set_pick S)"
       unfolding mop_set_pick_def by (progress\<open>simp add:   zero_enat_def\<close>) 
   sepref_register "mop_set_pick" 
   print_theorems 
 end
+ 
 
 context
   fixes t ::  "'c set \<Rightarrow> nat"
@@ -714,6 +714,59 @@ lemma   Te_pays_exit: "nf_invar c src dst PRED C N d \<Longrightarrow>   x \<in>
   apply(rule dual_order.trans[OF _ add_succs_spec_ub[where x=x]]) 
   unfolding Te_def body_time_def[symmetric]  using nf_invar.Cge1
   apply force apply simp by simp
+
+ML \<open>map_filter \<close>
+
+theorem pre_bfs_correct':
+    assumes [simp]: "src\<in>V" "src\<noteq>dst"       
+    assumes [simp]: "finite V"
+    shows "pre_bfs src dst \<le> SPECT (emb (bfs_spec src dst) (pre_bfs_time))"
+unfolding pre_bfs_def add_succs_spec_def 
+proof (casified_VCG rules: mop_set_pick_def mop_set_del_def  mop_set_empty_def) 
+  case while {
+    case progress then show ?case by(progress\<open>simp\<close>)
+    case precondition then show ?case by (auto simp: invar_init)
+    case invariant {
+      case ASSERT   then show ?case by (auto simp: nf_invar.invar_C_ss_V)
+      case ASSERTa  then show ?case by simp
+      case ASSERTb  then show ?case by (auto  simp: nf_invar.invar_N_ss_Vis)  
+      case cond {
+        case the {
+          case time then show ?case by(auto simp: Te_pays_exit)
+          case func then show ?case by(auto simp: nf_invar.invar_exit') 
+        }
+      next
+        case els {
+          case ASSERT then show ?case by (simp add: nf_invar.invar_succ_step )
+          case cond {
+            case the {
+              case time then show ?case by (auto intro: Te_decr_succ_step  Te_pays_succ_step)
+              case func then show ?case by (auto intro!:  nf_invar'.invar_shift  nf_invar.invar_succ_step)
+            }
+          next
+            case els {
+              case time then show ?case by (auto intro: Te_decr_level_step  Te_pays_level_step)
+              case func then show ?case by (auto intro: nf_invar'.invar_restore nf_invar.invar_succ_step )
+            }
+          }
+        }
+      }
+    }
+  } 
+  case postcondition {
+    case cond {
+      case the {
+        case func then show ?case by(auto simp:  f_invar.invar_found)
+        case time then show ?case by(auto simp: hlp_nat  Te_start_ub)  
+      next
+        case els {
+          case func then show ?case by(auto simp:  nf_invar.invar_not_found)
+          case time then show ?case by(auto simp: hlp_nat  Te_start_ub)  
+        }
+      }
+    }
+  }
+qed
 
 
 theorem pre_bfs_correct:
