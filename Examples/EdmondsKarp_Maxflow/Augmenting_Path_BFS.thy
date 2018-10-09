@@ -318,15 +318,17 @@ lemma T_conseq6':
 end
 
 locale Pre_BFS_Impl = Graph + 
-  fixes  set_insert_time map_dom_member_time set_delete_time
-      get_succs_list_time map_update_time set_pick_time set_empty_time  :: nat
+  fixes  set_insert_time map_dom_member_time set_delete_time :: nat
+    and   get_succs_list_time :: nat and  map_update_time set_pick_time set_empty_time  :: nat
   assumes [simp]: "set_pick_time > 0"
 begin 
  
 
   definition add_succs_spec_time :: "nat \<Rightarrow> nat"  where  "add_succs_spec_time cs = (cs * (map_dom_member_time + (max (set_insert_time + map_update_time) 1)))"
-lemma add_succs_spec_time_mono: "n \<le> m \<Longrightarrow> add_succs_spec_time n \<le> add_succs_spec_time m"
-  unfolding add_succs_spec_time_def by simp
+  
+  lemma add_succs_spec_time_mono: "n \<le> m \<Longrightarrow> add_succs_spec_time n \<le> add_succs_spec_time m"
+    unfolding add_succs_spec_time_def by simp
+
   definition "add_succs_spec dst succ v PRED N \<equiv> ASSERT (N \<subseteq> dom PRED) \<then> 
     SPECT (emb (\<lambda>(f,PRED',N').
       case f of
@@ -345,13 +347,13 @@ lemma add_succs_spec_time_mono: "n \<le> m \<Longrightarrow> add_succs_spec_time
 
   lemma max_dist_ub: "src\<in>V \<Longrightarrow> max_dist src \<le> card V" sorry
 
-  definition body_time :: nat where
-    "body_time = set_pick_time + set_delete_time + set_empty_time
-               + get_succs_list_time + add_succs_spec_time (card V)"
+  definition body_time :: "nat \<Rightarrow> nat" where
+    "body_time cV = set_pick_time + set_delete_time + set_empty_time
+               + get_succs_list_time + add_succs_spec_time cV"
 
   definition Te :: "node \<Rightarrow> bool \<times> (nat \<Rightarrow> nat option) \<times> nat set \<times> nat set \<times> nat
    \<Rightarrow> nat" where "Te src = (\<lambda>(f,PRED,C,N,d). if f then 0
-         else (card V * (max_dist src + 1 - d) + card C) * (body_time) )"
+         else (card V * (max_dist src + 1 - d) + card C) * (body_time (card V)) )"
 
 
 
@@ -607,11 +609,14 @@ lemma add_succs_spec_time_mono: "n \<le> m \<Longrightarrow> add_succs_spec_time
 
 
   definition pre_bfs_time'   where
-    "pre_bfs_time' src = (1 + card V + card V * max_dist src) * body_time"
+    "pre_bfs_time' src = (1 + card V + card V * max_dist src) * body_time (card V)"
   definition pre_bfs_time  where
-    "pre_bfs_time = (1 + card V + card V * card V) * body_time"
+    "pre_bfs_time cV = (1 + cV + cV * cV) * body_time cV"
 
-lemma Te_start_ub: "src \<in> V \<Longrightarrow> (Te src (False, [src \<mapsto> src], {src}, {}, 0)) \<le> pre_bfs_time"
+lemma body_time_progress: "body_time cV > 0" unfolding body_time_def by simp
+lemma pre_bfs_time_progress: "pre_bfs_time cV > 0" using body_time_progress pre_bfs_time_def by simp
+
+lemma Te_start_ub: "src \<in> V \<Longrightarrow> (Te src (False, [src \<mapsto> src], {src}, {}, 0)) \<le> pre_bfs_time (card V)"
   apply (auto simp add: Te_def pre_bfs_time_def) apply(rule max_dist_ub) by simp
 
 lemma Te_start_ub': "(Te src (False, [src \<mapsto> src], {src}, {}, 0)) \<le> pre_bfs_time' src"
@@ -654,7 +659,7 @@ lemma [simp]: "nf_invar c src dst PRED C N d \<Longrightarrow> finite V"
   using nf_invar'_def nf_invar.axioms(1) valid_PRED.FIN_V by blast  
 
 lemma  add_succs_spec_ub: "finite V \<Longrightarrow> set_pick_time + set_delete_time + get_succs_list_time + add_succs_spec_time (card (E `` {x})) + set_empty_time
-        \<le> body_time"
+        \<le> body_time (card V)"
   apply (simp add: body_time_def) apply(rule add_succs_spec_time_mono)  
   apply(rule card_mono) by (auto simp add: succ_ss_V)  
 lemma hl: "x \<in> C \<Longrightarrow> C \<noteq> {}" by auto
@@ -720,7 +725,7 @@ ML \<open>map_filter \<close>
 theorem pre_bfs_correct':
     assumes [simp]: "src\<in>V" "src\<noteq>dst"       
     assumes [simp]: "finite V"
-    shows "pre_bfs src dst \<le> SPECT (emb (bfs_spec src dst) (pre_bfs_time))"
+    shows "pre_bfs src dst \<le> SPECT (emb (bfs_spec src dst) (pre_bfs_time (card V)))"
 unfolding pre_bfs_def add_succs_spec_def 
 proof (casified_VCG rules: mop_set_pick_def mop_set_del_def  mop_set_empty_def) 
   case while {
@@ -772,7 +777,7 @@ qed
 theorem pre_bfs_correct:
     assumes [simp]: "src\<in>V" "src\<noteq>dst"       
     assumes [simp]: "finite V"
-    shows "pre_bfs src dst \<le> SPECT (emb (bfs_spec src dst) (pre_bfs_time))"
+    shows "pre_bfs src dst \<le> SPECT (emb (bfs_spec src dst) (pre_bfs_time (card V)))"
     unfolding pre_bfs_def add_succs_spec_def
     apply(rule T_specifies_I) 
 
@@ -869,7 +874,7 @@ begin
 
 
     definition (in valid_PRED_impl) "extract_rpath_time' = ndist dst * (map_lookup_time + list_append_time)"
-    definition (in valid_PRED_impl) "extract_rpath_time = (card V) * (map_lookup_time + list_append_time)"
+    definition (in valid_PRED_impl) "extract_rpath_time cV = cV * (map_lookup_time + list_append_time)"
 
 lemma (in valid_PRED) ndist_le_V:  assumes [simp]: "finite V" and conn: "connected src dst"
   shows "ndist dst \<le> card V"
@@ -930,7 +935,7 @@ proof -
     lemma extract_rpath_correct:
       assumes "dst\<in>dom PRED"
       shows "extract_rpath 
-        \<le> SPECT (emb (\<lambda>p. isSimplePath src p dst \<and> length p = ndist dst) extract_rpath_time)"
+        \<le> SPECT (emb (\<lambda>p. isSimplePath src p dst \<and> length p = ndist dst) (extract_rpath_time (card V)))"
       apply(rule dual_order.trans[OF _ extract_rpath_correct'])
       apply (auto simp add: emb_le_emb extract_rpath_time_def extract_rpath_time'_def intro!: ndist_le_V)
         using assms  apply auto  
@@ -965,7 +970,7 @@ interpretation pre: Pre_BFS_Impl c set_insert_time map_dom_member_time set_delet
       }    
     }"  thm pre.pre_bfs_correct
 
-    definition bfs_time   where "bfs_time src dst = pre.pre_bfs_time   + valid_PRED_impl.extract_rpath_time c list_append_time map_lookup_time"
+    definition bfs_time   where "bfs_time src dst = pre.pre_bfs_time (card V)   + valid_PRED_impl.extract_rpath_time list_append_time map_lookup_time (card V)"
 
     lemma bfs_correct:
       assumes "src\<in>V" "finite V" 
@@ -1051,8 +1056,7 @@ interpretation pre: Pre_BFS_Impl c set_insert_time map_dom_member_time set_delet
     apply(rule nfoldliIE_rule) 
     subgoal by auto 
        (* if I add a subgoal here vcg_split_case breaks, maybe problem with variable names? *)    
-       apply(rule T_specifies_I)
-      apply( vcg_split_case)
+       apply(rule T_specifies_I) 
        apply (vcg'\<open>-\<close> rules: mop_map_dom_member T_RESTemb mop_map_update  mop_insert_set ) 
  
          apply(auto simp add: Some_le_mm3_Some_conv Some_le_emb'_conv one_enat_def)    

@@ -7,7 +7,12 @@ begin
 
 method repeat_all_new methods m = (m;repeat_all_new \<open>m\<close>)?
 
+lemma R_intro: "A \<le>  \<Down>Id B \<Longrightarrow> A \<le> B" by simp
 subsection "ASSERT"
+
+
+lemma le_R_ASSERTI: "(\<Phi> \<Longrightarrow> M \<le> \<Down> R M') \<Longrightarrow>  M \<le> \<Down> R (ASSERT \<Phi> \<bind> (\<lambda>_. M'))"
+  by(auto simp: pw_le_iff refine_pw_simps)
 
 lemma T_ASSERT[vcg_simp_rules]: "Some t \<le> TTT Q (ASSERT \<Phi>) \<longleftrightarrow> Some t \<le> Q () \<and> \<Phi>"
   apply (cases \<Phi>)

@@ -25,6 +25,10 @@ lemma conc_fun_RES_sv: "single_valued R \<Longrightarrow>
   \<Down>R (REST X) = REST (\<lambda>c. if c\<in>Dom R then Some (X Sup {X a| a. (c,a)\<in>R})"
 *)
 
+lemma nrest_Rel_mono: "A \<le> B \<Longrightarrow> \<Down> R A \<le> \<Down> R B"
+  unfolding conc_fun_def
+  apply (auto split: nrest.split simp: le_fun_def)  
+  by (smt Sup_mono mem_Collect_eq)
  
 subsubsection \<open>Examples\<close>
 
