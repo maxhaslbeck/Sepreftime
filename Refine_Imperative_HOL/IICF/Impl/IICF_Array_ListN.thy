@@ -1,5 +1,5 @@
-theory Array_ListImpl
-imports List_Interface
+theory IICF_Array_ListN
+imports "../Intf/IICF_List"
 begin
 
 section "Implement the List Interface with an array"

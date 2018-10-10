@@ -73,6 +73,39 @@ qed
 
 subsection \<open>Operations\<close>
 
+
+
+context
+  fixes n::nat
+begin
+  definition "mop_empty_list = SPECT [ [] \<mapsto> enat n ]"
+
+  sepref_register "mop_empty_list" 
+  print_theorems 
+end
+
+context
+  fixes t::"'a list \<Rightarrow>nat"
+begin
+  definition "mop_push_list  x xs = SPECT [ ( xs @ [x] ) \<mapsto> enat (t xs) ]"
+  
+  sepref_register "mop_push_list" 
+  print_theorems
+  thm   mop_push_list.pat
+end
+
+
+context
+  fixes n::nat
+begin
+  definition "mop_lookup_list xs i = SPECT [ xs ! i \<mapsto> enat n ]"
+
+  sepref_register "mop_lookup_list" 
+  print_theorems 
+end
+
+
+(*
 sepref_decl_op list_empty: "[]" :: "\<langle>A\<rangle>list_rel" .
 context notes [simp] = eq_Nil_null begin
   sepref_decl_op list_is_empty: "\<lambda>l. l=[]" :: "\<langle>A\<rangle>list_rel \<rightarrow>\<^sub>f bool_rel" .
@@ -99,8 +132,11 @@ sepref_decl_op list_rotate1: rotate1 :: "\<langle>A\<rangle>list_rel \<rightarro
 sepref_decl_op list_rev: rev :: "\<langle>A\<rangle>list_rel \<rightarrow> \<langle>A\<rangle>list_rel" .
 sepref_decl_op list_index: index :: "\<langle>A\<rangle>list_rel \<rightarrow> A \<rightarrow> nat_rel" 
   where "single_valued A" "single_valued (A\<inverse>)" .
+*)
+
 
 subsection \<open>Patterns\<close>
+(*
 lemma [def_pat_rules]:
   "[] \<equiv> op_list_empty"
   "(=) $l$[] \<equiv> op_list_is_empty$l"
@@ -130,7 +166,9 @@ text \<open>Standard preconditions are preserved by list-relation. These lemmas 
   simplification of preconditions after composition.\<close>
 lemma list_rel_pres_neq_nil[fcomp_prenorm_simps]: "(x',x)\<in>\<langle>A\<rangle>list_rel \<Longrightarrow> x'\<noteq>[] \<longleftrightarrow> x\<noteq>[]" by auto
 lemma list_rel_pres_length[fcomp_prenorm_simps]: "(x',x)\<in>\<langle>A\<rangle>list_rel \<Longrightarrow> length x' = length x" by (rule list_rel_imp_same_length)
+*)
 
+(*
 locale list_custom_empty = 
   fixes rel empty and op_custom_empty :: "'a list"
   assumes customize_hnr_aux: "(uncurry0 empty,uncurry0 (RETURNT (op_list_empty::'a list))) \<in> unit_assn\<^sup>k \<rightarrow>\<^sub>a rel"
@@ -158,5 +196,6 @@ lemma gen_mop_list_swap: "mop_list_swap l i j = do {
   unfolding mop_list_swap_def
   by (auto simp: pw_eq_iff refine_pw_simps swap_def)
 
+*)
 
 end

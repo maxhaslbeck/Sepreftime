@@ -1,6 +1,5 @@
 theory BinarySearch
-  imports "../Refine_Imperative_HOL/Sepref"
-        Array_ListImpl
+  imports "../Refine_Imperative_HOL/IICF/Impl/IICF_Array_ListN" 
      "../RefineMonadicVCG" "SepLogicTime_RBTreeBasic.Asymptotics_1D"
 begin
 section "Binary Search"

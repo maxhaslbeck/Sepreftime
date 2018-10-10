@@ -1,5 +1,5 @@
-theory DynamicArray_ListImpl    
-  imports "List_Interface" "SepLogicTime_RBTreeBasic.DynamicArray2"
+theory IICF_DArray_List  
+  imports "../Intf/IICF_List" "SepLogicTime_RBTreeBasic.DynamicArray2"
 begin
 
 section "Implementing List Interface with DynamicArrays"

@@ -1,46 +1,18 @@
-theory Set_Impl2
-  imports "SepLogicTime_RBTreeBasic.RBTree_Impl"  DataRefinement
-      "Refine_Imperative_HOL/Sepref" 
+theory IICF_Rbt_Set
+  imports "SepLogicTime_RBTreeBasic.RBTree_Impl"  "../../../DataRefinement"
+      "../../Sepref" "../Intf/IICF_Set" 
 begin
 
 
 hide_const R B
 
-
-
-
-
 subsection "library for some set implementation"
 
 
 subsubsection "interface"
+ 
 
 
-context
-  fixes n::nat
-begin
-  definition "mop_empty_set = SPECT [ {} \<mapsto> enat n ]"
-
-  sepref_register "mop_empty_set" 
-  print_theorems 
-end
-
-context
-  fixes t:: "'a set \<Rightarrow> nat" 
-begin
-  definition "mop_insert_set x S = SPECT [ insert x S \<mapsto> enat (t S) ]"
-  sepref_register "mop_insert_set" 
-  print_theorems 
-end
-
-
-context
-  fixes t:: "'a set \<Rightarrow> nat" 
-begin
-  definition "mop_mem_set x S = SPECT [ x \<in> S \<mapsto> enat (t S) ]"
-  sepref_register "mop_mem_set" 
-  print_theorems 
-end
 
 
 term rbt_map_assn
@@ -268,10 +240,10 @@ thm set_mem_hnr_abs set_mem_SPEC_def
 
 subsubsection "implement the interface"
 
-lemma mop_empty_set_rule[sepref_fr_rules]:
-  "1\<le>n \<Longrightarrow> hn_refine (emp) set_empty emp rbt_set_assn (PR_CONST (mop_empty_set n))"
+lemma mop_set_empty_rule[sepref_fr_rules]:
+  "1\<le>n \<Longrightarrow> hn_refine (emp) set_empty emp rbt_set_assn (PR_CONST (mop_set_empty n))"
 
-  unfolding autoref_tag_defs mop_empty_set_def  
+  unfolding autoref_tag_defs mop_set_empty_def  
   apply (rule extract_cost_otherway[OF _ set_empty_rule, where Cost_lb=1 and F=emp])
   apply simp  
   subgoal 
@@ -280,13 +252,13 @@ lemma mop_empty_set_rule[sepref_fr_rules]:
    by (auto intro: entails_triv simp: set_init_t_def)
 
 
-lemma mop_insert_set_rule[sepref_fr_rules]:
+lemma mop_set_insert_rule[sepref_fr_rules]:
   "rbt_insert_logN (card S + 1) \<le> t S \<Longrightarrow> 
       hn_refine (hn_val Id x x' * hn_ctxt rbt_set_assn S p)
        (rbt_set_insert x' p)
-       (hn_val Id x x' * hn_invalid rbt_set_assn S p) rbt_set_assn ( PR_CONST (mop_insert_set t) $ x $ S)"
+       (hn_val Id x x' * hn_invalid rbt_set_assn S p) rbt_set_assn ( PR_CONST (mop_set_insert t) $ x $ S)"
 
-  unfolding mop_insert_set_def autoref_tag_defs
+  unfolding mop_set_insert_def autoref_tag_defs
   apply (rule extract_cost_otherway[OF _  rbt_insert_rule_abs, where F="hn_val Id x x' * hn_invalid rbt_set_assn S p" ])
   unfolding mult.assoc
     apply(rotatel)
@@ -308,9 +280,9 @@ lemma mop_mem_set_rule[sepref_fr_rules]:
   "rbt_search_time_logN (card S + 1) + 1 \<le> t S \<Longrightarrow>
     hn_refine (hn_val Id x x' * hn_ctxt rbt_set_assn S p)
      (rbt_mem (x'::nat) p)
-     (hn_ctxt (pure Id) x x' * hn_ctxt rbt_set_assn S p) id_assn ( PR_CONST (mop_mem_set t) $  x $ S)"
+     (hn_ctxt (pure Id) x x' * hn_ctxt rbt_set_assn S p) id_assn ( PR_CONST (mop_set_member t) $  x $ S)"
 
-  unfolding autoref_tag_defs mop_mem_set_def
+  unfolding autoref_tag_defs mop_set_member_def
   apply (rule extract_cost_otherway[OF _  rbt_mem_rule]) unfolding mult.assoc
   unfolding hn_ctxt_def
     apply rotatel apply(rule match_first) apply(rule match_first)       

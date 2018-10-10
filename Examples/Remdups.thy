@@ -1,6 +1,8 @@
 theory Remdups
   imports "../Refine_Imperative_HOL/Sepref" "SepLogicTime_RBTreeBasic.RBTree_Impl"
-    "../Set_Impl2" DynamicArray_ListImpl "../RefineMonadicVCG"
+    "../Refine_Imperative_HOL/IICF/Impl/IICF_Rbt_Set"  
+    "../Refine_Imperative_HOL/IICF/Impl/IICF_DArray_List"  
+ "../RefineMonadicVCG"
 begin
 
 
@@ -23,7 +25,7 @@ definition "rd_ta as = (\<lambda>(xs,ys,S). length xs * body_time (length as))"
 definition rd_impl1 :: "nat list \<Rightarrow> (nat list) nrest" where
 "rd_impl1 as = do {
   ys \<leftarrow> mop_empty_list 12;
-  S \<leftarrow> mop_empty_set 1;
+  S \<leftarrow> mop_set_empty 1;
   zs \<leftarrow> RETURNT as;
   (zs,ys,S) \<leftarrow> whileIET (rd_inv as) (rd_ta as) (\<lambda>(xs,ys,S). length xs > 0) (\<lambda>(xs,ys,S). do {                          
     ASSERT (length xs > 0);
@@ -31,11 +33,11 @@ definition rd_impl1 :: "nat list \<Rightarrow> (nat list) nrest" where
     ASSERT (card S \<le> length ys);
     x \<leftarrow> RETURNT (hd xs);
     xs \<leftarrow> RETURNT (tl xs);
-    b \<leftarrow> mop_mem_set (\<lambda>S. rbt_search_time_logN (length as + 1) + 1) x S;
+    b \<leftarrow> mop_set_member (\<lambda>S. rbt_search_time_logN (length as + 1) + 1) x S;
     if b then
       RETURNT (xs,ys,S)
     else do {
-      S \<leftarrow> mop_insert_set (\<lambda>S. rbt_insert_logN (length as + 1)) x S;
+      S \<leftarrow> mop_set_insert (\<lambda>S. rbt_insert_logN (length as + 1)) x S;
       ys \<leftarrow> mop_push_list (\<lambda>_. 23) x ys;  
       RETURNT (xs,ys,S)
     } 
@@ -55,7 +57,7 @@ lemma enat_neq_Z_iff[simp]: "enat x \<noteq> 0 \<longleftrightarrow> x\<noteq>0"
 
 lemma rd_impl1_correct: "rd_impl1 as \<le> REST (emb (\<lambda>ys. set as = set ys \<and> distinct ys)
                    ( remdups_time (length as) ))"
-  unfolding rd_impl1_def mop_empty_list_def mop_empty_set_def mop_mem_set_def mop_insert_set_def mop_push_list_def
+  unfolding rd_impl1_def mop_empty_list_def mop_set_empty_def mop_set_member_def mop_set_insert_def mop_push_list_def
       rd_ta_def rd_inv_def
   apply(rule T_specifies_I)
   apply (vcg' \<open>simp\<close> )  
