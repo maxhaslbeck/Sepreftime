@@ -6,20 +6,13 @@ imports
   "../../Refine_Foreach"
   "../../RefineMonadicVCG"
   "../../Refine_Imperative_HOL/IICF/Intf/IICF_Set"
+  "../../Refine_Imperative_HOL/IICF/Intf/IICF_Map"
 begin
 
 
 
 
 (* TODO: move *)
-
- 
-
-
-
-
-
-
 
 ML {*
 structure Refine = struct
@@ -99,64 +92,6 @@ method_setup refine_vcg =
     Refine.rcg_tac (add_thms @ Refine.vcg.get ctxt) ctxt THEN_ALL_NEW_FWD (TRY o Refine.post_tac ctxt)
   )) *} 
   "Refinement framework: Generate refinement and verification conditions"
-
-
-
-
-
-
-
-
-
-
- 
-
-context
-  fixes t ::  "('a \<Rightarrow> 'b option) \<Rightarrow> nat"
-begin
-  definition "mop_map_update m k v = SPECT [ m(k \<mapsto> v) \<mapsto> t m]"
-
-
-  lemma  mop_map_update: "tt \<le> TTT Q (SPECT [ m(k \<mapsto> v) \<mapsto> t m]) 
-        \<Longrightarrow> tt \<le> TTT Q (mop_map_update m k v)" unfolding mop_map_update_def by simp
-
-  sepref_register "mop_map_update" 
-  print_theorems 
-end
-
-
-context
-  fixes t ::  "('a \<Rightarrow> 'b option) \<Rightarrow> nat"
-begin
-  definition "mop_map_dom_member m x = SPECT (emb (\<lambda>b. b \<longleftrightarrow> x\<in>dom m) (t m))"
-
-
-  lemma  mop_map_dom_member: "tt \<le> TTT Q (SPECT (emb (\<lambda>b. b \<longleftrightarrow> x\<in>dom m) (t m))) 
-        \<Longrightarrow> tt \<le> TTT Q (mop_map_dom_member m x)" unfolding mop_map_dom_member_def by simp
-
-  sepref_register "mop_map_dom_member" 
-  print_theorems 
-end
-
-context
-  fixes t ::  "('a \<Rightarrow> 'b option) \<Rightarrow> nat"
-begin
-definition "mop_map_lookup m x = do {
-        ASSERT (x\<in>dom m);
-        SPECT [  (the (m x)) \<mapsto> t m]
-      }"
-
-
-lemma  mop_map_lookup: "tt \<le> TTT Q (SPECT [  (the (m x)) \<mapsto> t m])
-        \<Longrightarrow> x : dom m 
-        \<Longrightarrow> tt \<le> TTT Q (mop_map_lookup m x)" unfolding mop_map_lookup_def by simp
-
-  lemma progress_mop_map_lookup[progress_rules]: "t m > 0 \<Longrightarrow> progress (mop_map_lookup m x)"
-      unfolding mop_map_lookup_def by (progress\<open>simp add:   zero_enat_def\<close>) 
-  sepref_register "mop_map_lookup" 
-  print_theorems 
-end
-
 
 
 context

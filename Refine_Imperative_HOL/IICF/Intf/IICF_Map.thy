@@ -72,6 +72,58 @@ lemma [synth_rules]: "\<lbrakk>INTF_OF_REL K TYPE('k); INTF_OF_REL V TYPE('v)\<r
   \<Longrightarrow> INTF_OF_REL (\<langle>K,V\<rangle>map_rel) TYPE(('k,'v) i_map)" by simp
 
 subsection \<open>Operations\<close>
+
+
+
+
+context
+  fixes t ::  "('a \<Rightarrow> 'b option) \<Rightarrow> nat"
+begin
+  definition "mop_map_update m k v = SPECT [ m(k \<mapsto> v) \<mapsto> t m]"
+
+
+  lemma  mop_map_update: "tt \<le> TTT Q (SPECT [ m(k \<mapsto> v) \<mapsto> t m]) 
+        \<Longrightarrow> tt \<le> TTT Q (mop_map_update m k v)" unfolding mop_map_update_def by simp
+
+  sepref_register "mop_map_update" 
+  print_theorems 
+end
+
+
+context
+  fixes t ::  "('a \<Rightarrow> 'b option) \<Rightarrow> nat"
+begin
+  definition "mop_map_dom_member m x = SPECT (emb (\<lambda>b. b \<longleftrightarrow> x\<in>dom m) (t m))"
+
+
+  lemma  mop_map_dom_member: "tt \<le> TTT Q (SPECT (emb (\<lambda>b. b \<longleftrightarrow> x\<in>dom m) (t m))) 
+        \<Longrightarrow> tt \<le> TTT Q (mop_map_dom_member m x)" unfolding mop_map_dom_member_def by simp
+
+  sepref_register "mop_map_dom_member" 
+  print_theorems 
+end
+
+context
+  fixes t ::  "('a \<Rightarrow> 'b option) \<Rightarrow> nat"
+begin
+definition "mop_map_lookup m x = do {
+        ASSERT (x\<in>dom m);
+        SPECT [  (the (m x)) \<mapsto> t m]
+      }"
+
+
+lemma  mop_map_lookup: "tt \<le> TTT Q (SPECT [  (the (m x)) \<mapsto> t m])
+        \<Longrightarrow> x : dom m 
+        \<Longrightarrow> tt \<le> TTT Q (mop_map_lookup m x)" unfolding mop_map_lookup_def by simp
+
+  lemma progress_mop_map_lookup[progress_rules]: "t m > 0 \<Longrightarrow> progress (mop_map_lookup m x)"
+      unfolding mop_map_lookup_def by (auto intro!: progress_rules simp add:   zero_enat_def) 
+  sepref_register "mop_map_lookup" 
+  print_theorems 
+end
+
+
+(*
   sepref_decl_op map_empty: "Map.empty" :: "\<langle>K,V\<rangle>map_rel" .
   
   sepref_decl_op map_is_empty: "(=) Map.empty" :: "\<langle>K,V\<rangle>map_rel \<rightarrow> bool_rel"
@@ -125,9 +177,9 @@ subsection \<open>Operations\<close>
     apply (elim IntE)
     apply parametricity
     done
-
+*)
 subsection \<open>Patterns\<close>
-
+(*
 lemma pat_map_empty[pat_rules]: "\<lambda>\<^sub>2_. None \<equiv> op_map_empty" by simp
 
 lemma pat_map_is_empty[pat_rules]: 
@@ -154,9 +206,9 @@ lemma op_map_contains_key[pat_rules]:
   "Not$((=) $(m$k)$None) \<equiv> op_map_contains_key$'k$'m"
    by (auto intro!: eq_reflection)
 
-
+*)
 subsection \<open>Parametricity\<close>
-
+(*
 locale map_custom_empty = 
   fixes op_custom_empty :: "'k\<rightharpoonup>'v"
   assumes op_custom_empty_def: "op_custom_empty = op_map_empty"
@@ -166,8 +218,10 @@ begin
   lemma fold_custom_empty:
     "Map.empty = op_custom_empty"
     "op_map_empty = op_custom_empty"
-    "mop_map_empty = RETURN op_custom_empty"
+    "mop_map_empty = RETURNT op_custom_empty"
     unfolding op_custom_empty_def by simp_all
 end
+*)
+
 
 end
