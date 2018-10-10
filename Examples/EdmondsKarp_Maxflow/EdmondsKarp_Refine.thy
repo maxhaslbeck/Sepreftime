@@ -137,6 +137,7 @@ begin
     interpretation Ed: EdKa c s t shortestpath_time augment_with_path_time
       apply standard by simp
 
+
     definition "find_shortest_augmenting_spec_cf cf \<equiv> 
       ASSERT (RGraph c s t cf) \<then>
       SPECT (emb (\<lambda>
@@ -237,8 +238,11 @@ begin
           apply(rule ASSERT_leI)    
           by(simp_all add: cfi_rel_def in_br_conv)
         done  
-
     qed    
+
+lemma  edka2_correct: "edka2 \<le> \<Down>Id  (SPECT (emb isMaxFlow (enat Ed.edka_time)))"
+    apply(rule order.trans) apply(rule edka2_refine) using Ed.edka_correct by simp
+ 
 end
 
 locale RGraph_impl = RGraph c s t cf for c :: "'capacity::linordered_idom graph" and s t cf +
@@ -497,8 +501,7 @@ proof -
   ultimately
   show ?thesis unfolding augment_with_path_time_def by simp
 qed
-
-term RGraph_impl.resCap_cf_impl
+ 
     interpretation Ed_Res: EdKa_Res c s t shortestpath_time augment_with_path_time
       apply standard by simp
   
@@ -579,8 +582,12 @@ lemma "s\<in>V" by auto
       apply (frule (1) RGraph.resCap_cf_impl_refine)
       apply (frule (1) RGraph.augment_cf_impl_refine)
       apply (auto simp: pw_le_iff refine_pw_simps)
-      done *)  
-
+      done *) 
+                                                                         
+lemma  edka3_correct: "edka3 \<le> \<Down>Id (SPECT (emb isMaxFlow (enat (EdKa.edka_time c shortestpath_time augment_with_path_time))))"
+  unfolding EdKa.edka_time_def
+    apply(rule order.trans) apply(rule edka3_refine) 
+    using Ed_Res.edka2_correct by simp 
 end
  
 term Augmenting_Path_BFS.bfs
@@ -686,7 +693,10 @@ lemma [simp]:  "enat shortest_path_time \<noteq> 0"
       apply refine_dref_type
       apply (vc_solve simp: bfs_refines_shortest_augmenting_spec)
       done *)  
-
+ 
+  lemma  edka4_correct: "edka4 \<le> \<Down> Id (SPECT (emb isMaxFlow (enat (EdKa.edka_time c shortest_path_time edru.augment_with_path_time))))"
+    apply(rule order.trans) apply(rule edka4_refine) 
+    using edru.edka3_correct by simp 
 end
 
 locale Succ_Impl = Graph c for  c :: "'capacity::linordered_idom graph" +
@@ -985,6 +995,16 @@ lemma is_adj_map_app_le_V: "is_adj_map am \<Longrightarrow> u \<in> V  \<Longrig
       apply (simp add: RPreGraph.resV_netV[OF RGraph.this_loc_rpg])
       apply (simp add: RGraph.rg_succ_ref)
       done *)  
+
+lemma "(enat (EdKa.edka_time c edka.shortest_path_time (EdKa_Res_Up.augment_with_path_time c matrix_lookup_time matrix_set_time))) = foo"
+  apply(subst EdKa_Res_Up.augment_with_path_time_def)
+  unfolding EdKa_Res_Up_def EdKa_Res_Up_axioms_def apply auto oops
+
+    thm edka.edka4_correct
+  lemma  edka5_correct: "\<lbrakk>is_adj_map am\<rbrakk> \<Longrightarrow> edka5 am \<le> \<Down> Id (SPECT (emb isMaxFlow (enat (EdKa.edka_time c edka.shortest_path_time (EdKa_Res_Up.augment_with_path_time c matrix_lookup_time matrix_set_time)))))"
+    apply(rule order.trans) apply(rule edka5_refine) 
+    using edka.edka4_correct by simp_all 
+
 
 end    
 end

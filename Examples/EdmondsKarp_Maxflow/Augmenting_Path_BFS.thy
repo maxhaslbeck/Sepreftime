@@ -5,6 +5,7 @@ imports
   Graph_Impl
   "../../Refine_Foreach"
   "../../RefineMonadicVCG"
+  "../../Refine_Imperative_HOL/IICF/Intf/IICF_Set"
 begin
 
 
@@ -104,51 +105,11 @@ method_setup refine_vcg =
 
 
 
-context
-  fixes t ::  "nat"
-begin
-  definition "mop_set_empty = SPECT [ {} \<mapsto> t ]"
 
-  lemma mop_set_empty: "tt \<le> TTT Q (SPECT [ {} \<mapsto> t ]) \<Longrightarrow> tt
-           \<le> TTT Q (mop_set_empty)" unfolding mop_set_empty_def by simp
-
-  sepref_register "mop_set_empty" 
-  print_theorems 
-end
 
 
 
  
-context
-  fixes t ::  "'c set \<Rightarrow> nat"
-begin
-  definition "mop_set_pick S = SPECT (emb (\<lambda>x. x\<in>S) (t S))"
-
-  lemma  mop_set_pick: "tt \<le> TTT Q (SPECT (emb (\<lambda>x. x\<in>S) (t S))) 
-        \<Longrightarrow> tt \<le> TTT Q (mop_set_pick S)" unfolding mop_set_pick_def by simp
-
-  lemma progress_mop_set_pick[progress_rules]: "t S > 0 \<Longrightarrow> progress (mop_set_pick S)"
-      unfolding mop_set_pick_def by (progress\<open>simp add:   zero_enat_def\<close>) 
-  sepref_register "mop_set_pick" 
-  print_theorems 
-end
- 
-
-context
-  fixes t ::  "'c set \<Rightarrow> nat"
-begin
-  definition "mop_set_del S x = SPECT [ S - {x} \<mapsto> (t S)]"
-
-  lemma  mop_set_del: "tt \<le> TTT Q (SPECT [ S - {x} \<mapsto> (t S)]) 
-        \<Longrightarrow> tt \<le> TTT Q (mop_set_del S x)" unfolding mop_set_del_def by simp
-
-
-  lemma progress_mop_set_del[progress_rules]: "t S > 0 \<Longrightarrow> progress (mop_set_del S x)"
-      unfolding mop_set_del_def by (progress\<open>simp add:   zero_enat_def\<close>) 
-
-  sepref_register "mop_set_del" 
-  print_theorems 
-end
 
 context
   fixes t ::  "('a \<Rightarrow> 'b option) \<Rightarrow> nat"
@@ -211,15 +172,6 @@ begin
            \<le> TTT Q (mop_append x xs)" unfolding mop_append_def by simp
 end
 
-context 
-  fixes t :: "'c set \<Rightarrow> nat"
-begin
-
-  definition "mop_insert_set x S = SPECT [insert x S \<mapsto> t S]"
-
-lemma mop_insert_set: "tt \<le> TTT Q (SPECT [ (insert x S) \<mapsto> t S]) \<Longrightarrow>
-       tt \<le> TTT Q (mop_insert_set x S)" unfolding mop_insert_set_def by simp
-end
 
 
 lemma T_conseq6':
@@ -1038,7 +990,7 @@ interpretation pre: Pre_BFS_Impl c set_insert_time map_dom_member_time set_delet
       else do {
         PRED \<leftarrow> mop_map_update (\<lambda>_. map_update_time) PRED v u;
         ASSERT (v\<notin>N);
-        N \<leftarrow> mop_insert_set (%_. set_insert_time) v N;
+        N \<leftarrow> mop_set_insert (%_. set_insert_time) v N;
         RETURNT (v=dst,PRED,N)
       }
     }) 
@@ -1057,7 +1009,7 @@ interpretation pre: Pre_BFS_Impl c set_insert_time map_dom_member_time set_delet
     subgoal by auto 
        (* if I add a subgoal here vcg_split_case breaks, maybe problem with variable names? *)    
        apply(rule T_specifies_I) 
-       apply (vcg'\<open>-\<close> rules: mop_map_dom_member T_RESTemb mop_map_update  mop_insert_set ) 
+       apply (vcg'\<open>-\<close> rules: mop_map_dom_member T_RESTemb mop_map_update  mop_set_insert ) 
  
          apply(auto simp add: Some_le_mm3_Some_conv Some_le_emb'_conv one_enat_def)    
       subgoal by (auto simp: it_step_insert_iff map_mmupd_def)

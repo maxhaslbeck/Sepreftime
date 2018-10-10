@@ -247,7 +247,7 @@ lemma maxFlow_time_ub: "edka.maxFlow_time \<le>  edka_time"
 
 
 
-lemma "edka \<le> (SPECT (emb isMaxFlow (edka_time)))"
+lemma edka_correct: "edka \<le> (SPECT (emb isMaxFlow (edka_time)))"
   apply(rule order_trans[OF edka_correct_time]) 
   apply(rule SPECT_ub)
   apply (simp only: le_fun_def)

@@ -5,18 +5,29 @@ begin
 
 subsection \<open>Imperative Implementation\<close>
 
-  context Impl_Succ begin
-    definition op_bfs :: "'ga \<Rightarrow> node \<Rightarrow> node \<Rightarrow> path option nres" 
-      where [simp]: "op_bfs c s t \<equiv> Graph.bfs2 (absG c) (succ c) s t"
+term Augmenting_Path_BFS.bfs2
+
+context Impl_Succ begin
+
+    abbreviation "bfs2 cf SS s t == Augmenting_Path_BFS.bfs2 cf
+                       set_insert_time map_dom_member_time  set_delete_time  map_update_time
+                      set_pick_time list_append_time map_lookup_time set_empty_time SS s t"
+
+    definition op_bfs :: "'ga \<Rightarrow> node \<Rightarrow> node \<Rightarrow> path option nrest"
+      where [simp]: "op_bfs c s t \<equiv> bfs2 (absG c) (succ c) s t"
   
     lemma pat_op_dfs[pat_rules]: 
-      "Graph.bfs2$(absG$c)$(succ$c)$s$t \<equiv> UNPROTECT op_bfs$c$s$t" by simp 
+      "bfs2$(absG$c)$(succ$c)$s$t \<equiv> UNPROTECT op_bfs$c$s$t" by simp 
   
     sepref_register "PR_CONST op_bfs" 
-      :: "'ig \<Rightarrow> node \<Rightarrow> node \<Rightarrow> path option nres"  
-  
+      :: "'ig \<Rightarrow> node \<Rightarrow> node \<Rightarrow> path option nrest"  
+
+
     type_synonym ibfs_state 
       = "bool \<times> (node,node) i_map \<times> node set \<times> node set \<times> nat"
+
+    term Pre_BFS_Impl.init_state
+    thm Pre_BFS_Impl.init_state_def
 
     sepref_register Graph.init_state :: "node \<Rightarrow> ibfs_state nres"
     schematic_goal init_state_impl:
