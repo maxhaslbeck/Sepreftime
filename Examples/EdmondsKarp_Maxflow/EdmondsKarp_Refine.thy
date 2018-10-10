@@ -594,7 +594,7 @@ term Augmenting_Path_BFS.bfs
 
 locale EdKa_Res_Bfs = Network c s t for c :: "'capacity::linordered_idom graph" and s t +
   fixes  set_insert_time map_dom_member_time set_delete_time get_succs_list_time map_update_time set_pick_time :: nat
-    and list_append_time map_lookup_time set_empty_time :: nat
+    and list_append_time map_lookup_time set_empty_time set_isempty_time :: nat
 
     and matrix_lookup_time matrix_set_time :: nat 
   assumes [simp]: "map_lookup_time > 0"
@@ -604,7 +604,7 @@ begin
     interpretation pbi: Pre_BFS_Impl c set_pick_time
       apply standard by simp
 
-    definition "shortest_path_time = Pre_BFS_Impl.pre_bfs_time set_insert_time map_dom_member_time set_delete_time get_succs_list_time map_update_time set_pick_time set_empty_time (card V)
+    definition "shortest_path_time = Pre_BFS_Impl.pre_bfs_time set_insert_time map_dom_member_time set_delete_time get_succs_list_time map_update_time set_pick_time set_empty_time set_isempty_time (card V)
                  + valid_PRED_impl.extract_rpath_time list_append_time map_lookup_time (card V)"
   
 
@@ -621,7 +621,7 @@ lemma [simp]:  "enat shortest_path_time \<noteq> 0"
     abbreviation "augment_cf_impl'' cf p bn \<equiv> edru.augment_cf_impl' cf p bn"
 
     definition "MYbfs cf ss tt = Augmenting_Path_BFS.bfs cf set_insert_time map_dom_member_time set_delete_time get_succs_list_time map_update_time set_pick_time  
-          list_append_time map_lookup_time set_empty_time ss tt"
+          list_append_time map_lookup_time set_empty_time set_isempty_time ss tt"
 
     subsection \<open>Refinement to use BFS\<close>
 
@@ -658,7 +658,7 @@ lemma [simp]:  "enat shortest_path_time \<noteq> 0"
     proof (rule le_ASSERTI, goal_cases)
       case 1
       interpret BFS: Augmenting_Path_BFS cf set_insert_time map_dom_member_time set_delete_time get_succs_list_time map_update_time set_pick_time  
-          list_append_time map_lookup_time set_empty_time
+          list_append_time map_lookup_time set_empty_time set_isempty_time
         apply standard by auto
       thm BFS.bfs_correct
       show ?case
@@ -856,7 +856,7 @@ end
 
 locale EdKa_Tab = Network c s t for c :: "'capacity::linordered_idom graph" and s t +
   fixes  set_insert_time map_dom_member_time set_delete_time map_update_time set_pick_time :: nat
-    and list_append_time map_lookup_time set_empty_time :: nat
+    and list_append_time map_lookup_time set_empty_time set_isempty_time :: nat
 
     and matrix_lookup_time matrix_set_time :: nat 
   assumes [simp]: "map_lookup_time > 0"
@@ -871,13 +871,13 @@ begin
     interpretation edka: EdKa_Res_Bfs c s t set_insert_time map_dom_member_time set_delete_time
       get_succs_list_time
       map_update_time set_pick_time 
-      list_append_time map_lookup_time set_empty_time 
-      matrix_lookup_time matrix_set_time
+      list_append_time map_lookup_time set_empty_time  set_isempty_time
+      matrix_lookup_time matrix_set_time 
       apply(standard) by auto
     
 
     definition "MYbfs2 cf succ ss tt = Augmenting_Path_BFS.bfs2 cf set_insert_time map_dom_member_time set_delete_time map_update_time set_pick_time  
-          list_append_time map_lookup_time set_empty_time succ ss tt"
+          list_append_time map_lookup_time set_empty_time set_isempty_time succ ss tt"
 
 
     definition "MYrg_succ2 am cf u = Succ_Impl.rg_succ2 c list_append_time matrix_lookup_time am cf u"

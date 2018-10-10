@@ -272,6 +272,7 @@ end
 locale Pre_BFS_Impl = Graph + 
   fixes  set_insert_time map_dom_member_time set_delete_time :: nat
     and   get_succs_list_time :: nat and  map_update_time set_pick_time set_empty_time  :: nat
+    and set_isempty_time :: nat
   assumes [simp]: "set_pick_time > 0"
 begin 
  
@@ -300,7 +301,7 @@ begin
   lemma max_dist_ub: "src\<in>V \<Longrightarrow> max_dist src \<le> card V" sorry
 
   definition body_time :: "nat \<Rightarrow> nat" where
-    "body_time cV = set_pick_time + set_delete_time + set_empty_time
+    "body_time cV = set_pick_time + set_delete_time + set_isempty_time + set_empty_time
                + get_succs_list_time + add_succs_spec_time cV"
 
   definition Te :: "node \<Rightarrow> bool \<times> (nat \<Rightarrow> nat option) \<times> nat set \<times> nat set \<times> nat
@@ -324,7 +325,8 @@ begin
           RETURNT (f,PRED,C,N,d+1)
         else do {
           ASSERT (assn1 src dst (f,PRED,C,N,d));
-          if (C={}) then do {
+          b \<leftarrow> mop_set_isempty (\<lambda>_. set_isempty_time) C;
+          if (b) then do {
             C \<leftarrow> RETURNT N; 
             N \<leftarrow> mop_set_empty (set_empty_time);
             d \<leftarrow> RETURNT (d+1);
@@ -610,14 +612,14 @@ lemma   Te_decr_succ_step: "nf_invar c src dst PRED C N d \<Longrightarrow>
 lemma [simp]: "nf_invar c src dst PRED C N d \<Longrightarrow> finite V"
   using nf_invar'_def nf_invar.axioms(1) valid_PRED.FIN_V by blast  
 
-lemma  add_succs_spec_ub: "finite V \<Longrightarrow> set_pick_time + set_delete_time + get_succs_list_time + add_succs_spec_time (card (E `` {x})) + set_empty_time
+lemma  add_succs_spec_ub: "finite V \<Longrightarrow> set_pick_time + set_delete_time + get_succs_list_time + add_succs_spec_time (card (E `` {x})) + set_isempty_time + set_empty_time
         \<le> body_time (card V)"
   apply (simp add: body_time_def) apply(rule add_succs_spec_time_mono)  
   apply(rule card_mono) by (auto simp add: succ_ss_V)  
 lemma hl: "x \<in> C \<Longrightarrow> C \<noteq> {}" by auto
 lemma   Te_pays_succ_step: "nf_invar c src dst PRED C N d \<Longrightarrow> 
     x \<in> C \<Longrightarrow>   
-    set_pick_time + set_delete_time + get_succs_list_time + add_succs_spec_time (card (E `` {x}))  + set_empty_time
+    set_pick_time + set_delete_time + get_succs_list_time + add_succs_spec_time (card (E `` {x}))  + set_isempty_time + set_empty_time
     \<le> Te src (False, PRED, C, N, d) -
        Te src
         (False, map_mmupd PRED (E `` {x} - dom PRED) x, N \<union> (E `` {x} - dom PRED), {}, Suc d)"
@@ -648,7 +650,7 @@ lemma Te_decr_level_step: "nf_invar c src dst PRED C N d \<Longrightarrow> C \<n
 lemma  Te_pays_level_step: "nf_invar c src dst PRED C N d \<Longrightarrow>  
     C \<noteq> {} \<Longrightarrow> 
     x \<in> C \<Longrightarrow> 
-    set_pick_time + set_delete_time + get_succs_list_time + add_succs_spec_time (card (E `` {x}))  
+    set_pick_time + set_delete_time + get_succs_list_time + add_succs_spec_time (card (E `` {x}))  + set_isempty_time
        \<le> Te src (False, PRED, C, N, d) -
           Te src
            (False, map_mmupd PRED (E `` {x} - dom PRED) x, C - {x},
@@ -679,7 +681,7 @@ theorem pre_bfs_correct':
     assumes [simp]: "finite V"
     shows "pre_bfs src dst \<le> SPECT (emb (bfs_spec src dst) (pre_bfs_time (card V)))"
 unfolding pre_bfs_def add_succs_spec_def 
-proof (casified_VCG rules: mop_set_pick_def mop_set_del_def  mop_set_empty_def) 
+proof (casified_VCG rules: mop_set_pick_def mop_set_del_def  mop_set_empty_def mop_set_isempty_def) 
   case while {
     case progress then show ?case by(progress\<open>simp\<close>)
     case precondition then show ?case by (auto simp: invar_init)
@@ -733,7 +735,7 @@ theorem pre_bfs_correct:
     unfolding pre_bfs_def add_succs_spec_def
     apply(rule T_specifies_I) 
 
-    apply(vcg' \<open>clarsimp\<close> rules: mop_set_pick mop_set_del  mop_set_empty)
+    apply(vcg' \<open>clarsimp\<close> rules: mop_set_pick mop_set_del  mop_set_empty mop_set_isempty)
 
     apply (simp_all split: bool.splits add: Some_le_mm3_Some_conv Some_le_emb'_conv)
     apply safe 
@@ -896,13 +898,13 @@ proof -
 
 locale Augmenting_Path_BFS = Graph + 
   fixes  set_insert_time map_dom_member_time set_delete_time get_succs_list_time map_update_time set_pick_time :: nat
-    and list_append_time map_lookup_time set_empty_time :: nat
+    and list_append_time map_lookup_time set_empty_time set_isempty_time :: nat
   assumes [simp]: "map_lookup_time > 0"
   assumes [simp]: "set_pick_time > 0"
 begin 
 
 interpretation pre: Pre_BFS_Impl c set_insert_time map_dom_member_time set_delete_time
-    get_succs_list_time map_update_time set_pick_time set_empty_time
+    get_succs_list_time map_update_time set_pick_time set_empty_time set_isempty_time
   apply standard by simp 
 
 
@@ -1061,7 +1063,8 @@ interpretation pre: Pre_BFS_Impl c set_insert_time map_dom_member_time set_delet
               RETURNT (f,PRED,C,N,d+1)
             else do {
               ASSERT (assn1 src dst (f,PRED,C,N,d));
-              if (C={}) then do {
+              b \<leftarrow> mop_set_isempty (\<lambda>_. set_isempty_time) C;
+              if b then do {
                 C \<leftarrow> RETURNT N; 
                 N \<leftarrow> mop_set_empty set_empty_time; 
                 d \<leftarrow> RETURNT (d+1);
@@ -1141,7 +1144,7 @@ begin
   are interpretations only visible in the local context? *)
 
 interpretation pre: Pre_BFS_Impl c set_insert_time map_dom_member_time set_delete_time get_succs_list_time map_update_time set_pick_time
-  set_empty_time
+  set_empty_time set_isempty_time
   apply standard by simp 
 
   term pre.pre_bfs2
@@ -1185,7 +1188,7 @@ interpretation pre: Pre_BFS_Impl c set_insert_time map_dom_member_time set_delet
 thm Augmenting_Path_BFS.bfs2_refine
 
 interpretation Augmenting_Path_BFS  set_insert_time map_dom_member_time set_delete_time get_succs_list_time map_update_time set_pick_time 
-     list_append_time map_lookup_time set_empty_time
+     list_append_time map_lookup_time set_empty_time set_isempty_time
   oops
 
   (*

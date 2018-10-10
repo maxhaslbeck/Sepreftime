@@ -32,6 +32,19 @@ end
 context
   fixes t ::  "'c set \<Rightarrow> nat"
 begin
+  definition "mop_set_isempty S = SPECT [ S={} \<mapsto> t S ]"
+
+  lemma  mop_set_isempty: "tt \<le> TTT Q (SPECT [ S={} \<mapsto> t S ]) 
+        \<Longrightarrow> tt \<le> TTT Q (mop_set_isempty S)" unfolding mop_set_isempty_def by simp
+ 
+  sepref_register "mop_set_isempty" 
+  print_theorems 
+end
+
+
+context
+  fixes t ::  "'c set \<Rightarrow> nat"
+begin
   definition "mop_set_pick S = SPECT (emb (\<lambda>x. x\<in>S) (t S))"
 
   lemma  mop_set_pick: "tt \<le> TTT Q (SPECT (emb (\<lambda>x. x\<in>S) (t S))) 
