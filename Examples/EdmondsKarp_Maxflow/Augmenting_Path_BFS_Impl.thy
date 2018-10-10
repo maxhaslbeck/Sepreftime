@@ -1,5 +1,8 @@
 theory Augmenting_Path_BFS_Impl
-imports Augmenting_Path_BFS
+  imports
+          "../../Refine_Imperative_HOL/IICF/Impl/IICF_Rbt_Set"
+          "../../Refine_Imperative_HOL/IICF/Impl/IICF_RbtMap_Map"
+          Augmenting_Path_BFS 
 begin
 
 
@@ -9,16 +12,20 @@ term Augmenting_Path_BFS.bfs2
 
 context Impl_Succ begin
 
+    abbreviation "init_state_time == 3 + rbt_insert_logN 1 + rbt_insert_logN 1"
+    abbreviation "set_pick_time == 1"
+
+
     abbreviation "bfs2 cf SS s t == Augmenting_Path_BFS.bfs2 cf
                        set_insert_time map_dom_member_time  set_delete_time  map_update_time
-                      set_pick_time list_append_time map_lookup_time set_empty_time SS s t"
+                      set_pick_time list_append_time map_lookup_time set_empty_time set_isempty_time init_state_time SS s t"
 
     definition op_bfs :: "'ga \<Rightarrow> node \<Rightarrow> node \<Rightarrow> path option nrest"
       where [simp]: "op_bfs c s t \<equiv> bfs2 (absG c) (succ c) s t"
   
-    lemma pat_op_dfs[pat_rules]: 
+   (* lemma pat_op_dfs[pat_rules]: 
       "bfs2$(absG$c)$(succ$c)$s$t \<equiv> UNPROTECT op_bfs$c$s$t" by simp 
-  
+  *)
     sepref_register "PR_CONST op_bfs" 
       :: "'ig \<Rightarrow> node \<Rightarrow> node \<Rightarrow> path option nrest"  
 
@@ -29,24 +36,52 @@ context Impl_Succ begin
     term Pre_BFS_Impl.init_state
     thm Pre_BFS_Impl.init_state_def
 
-    sepref_register Graph.init_state :: "node \<Rightarrow> ibfs_state nres"
+
+    lemma P: "Pre_BFS_Impl set_pick_time" unfolding Pre_BFS_Impl_def by simp
+
+    definition "init_state = Pre_BFS_Impl.init_state init_state_time"
+
+definition init_state1 :: "nat \<Rightarrow> (bool \<times> (nat \<Rightarrow> nat option) \<times> nat set \<times> nat set \<times> nat) nrest" where
+  "init_state1 src = do {
+        m \<leftarrow> mop_map_empty 1;
+        m \<leftarrow> mop_map_update (\<lambda>M. rbt_insert_logN (sizeM1' M)) m src src;
+        C \<leftarrow> mop_set_empty 1;
+        C \<leftarrow> mop_set_insert (\<lambda>_. rbt_insert_logN (card C + 1)) src C;
+        N \<leftarrow> mop_set_empty 1;
+        RETURNT (False, m, C, N, 0)
+      }"
+
+  
+  
+  lemma "init_state1 src \<le> init_state src"
+    unfolding init_state1_def init_state_def 
+    unfolding Pre_BFS_Impl.init_state_def[OF P]
+    apply(rule T_specifies_I) unfolding mop_map_empty_def mop_map_update_def mop_set_empty_def
+        mop_set_insert_def
+      apply(vcg' \<open>clarsimp\<close>  ) by (simp add: sizeM1'_def) 
+
+
+
+
+    sepref_register init_state :: "node \<Rightarrow> ibfs_state nrest"
+
     schematic_goal init_state_impl:
       fixes src :: nat
       notes [id_rules] = 
         itypeI[Pure.of src "TYPE(nat)"]
       shows "hn_refine (hn_val nat_rel src srci) 
-        (?c::?'c Heap) ?\<Gamma>' ?R (Graph.init_state src)"
+        (?c::?'c Heap) ?\<Gamma>' ?R (init_state1 src)"
       using [[id_debug, goals_limit = 1]]
-      unfolding Graph.init_state_def
-      apply (rewrite in "[src\<mapsto>src]" iam.fold_custom_empty)
-      apply (subst ls.fold_custom_empty)
-      apply (subst ls.fold_custom_empty)
-      apply (rewrite in "insert src _" fold_set_insert_dj)
-      apply (rewrite in "_(\<hole>\<mapsto>src)" fold_COPY)
-      apply sepref
+      unfolding init_state1_def   
+      apply sepref 
       done
-    concrete_definition (in -) init_state_impl uses Impl_Succ.init_state_impl
+      concrete_definition (in -) init_state_impl uses Impl_Succ.init_state_impl
+
+      thm init_state_impl_def
+(*
     lemmas [sepref_fr_rules] = init_state_impl.refine[OF this_loc,to_hfref]
+*)
+
 
     schematic_goal bfs_impl:
       (*notes [sepref_opt_simps del] = imp_nfoldli_def 

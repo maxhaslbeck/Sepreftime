@@ -1,5 +1,5 @@
 section \<open>Map Interface\<close>
-theory IICF_Map
+theory IICF_Map     
 imports "../../Sepref"
 begin
   
@@ -74,6 +74,18 @@ lemma [synth_rules]: "\<lbrakk>INTF_OF_REL K TYPE('k); INTF_OF_REL V TYPE('v)\<r
 subsection \<open>Operations\<close>
 
 
+context
+  fixes t ::  " nat"
+begin
+  definition "mop_map_empty  = SPECT [ Map.empty \<mapsto> t]"
+
+
+  lemma  mop_map_empty: "tt \<le> TTT Q (SPECT [ Map.empty \<mapsto> t  ]) 
+        \<Longrightarrow> tt \<le> TTT Q (mop_map_empty )" unfolding mop_map_empty_def by simp
+
+  sepref_register "mop_map_empty" 
+  print_theorems 
+end
 
 
 context

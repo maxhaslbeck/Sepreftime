@@ -17,8 +17,8 @@ locale Impl_Succ =
   fixes isG :: "'ga \<Rightarrow> 'gi \<Rightarrow> assn"
   fixes succ_impl :: "'gi \<Rightarrow> node \<Rightarrow> node list Heap"
 
-  fixes  set_insert_time map_dom_member_time set_delete_time get_succs_list_time map_update_time set_pick_time :: nat
-    and list_append_time map_lookup_time set_empty_time :: nat
+  fixes  set_insert_time map_dom_member_time set_delete_time get_succs_list_time map_update_time :: nat
+    and list_append_time map_lookup_time set_empty_time set_isempty_time :: nat
   assumes [simp]: "map_lookup_time > 0"
   assumes [simp]: "set_pick_time > 0"
 

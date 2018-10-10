@@ -1,8 +1,7 @@
 theory IICF_Rbt_Set
-  imports "SepLogicTime_RBTreeBasic.RBTree_Impl"  "../../../DataRefinement"
-      "../../Sepref" "../Intf/IICF_Set" 
+  imports "SepLogicTime_RBTreeBasic.RBTree_Impl" 
+      "../Intf/IICF_Set" 
 begin
-
 
 hide_const R B
 
@@ -55,11 +54,12 @@ theorem rbt_insert_rule_abs [hoare_triple]:
 
 lemma a[rewrite]: "S = keys_of M \<Longrightarrow> M\<langle>x\<rangle> = Some () \<longleftrightarrow> x \<in> S"  
   by (simp add: keys_of_iff)  
-                        
+
+(*
 theorem rbt_search_abs [hoare_triple]:
   "<rbt_set_assn S b * $(rbt_search_time_logN (card S + 1))> rbt_search x b <\<lambda>r. rbt_set_assn S b * \<up>(r = Some () \<longleftrightarrow> x \<in> S)>\<^sub>t"
   by auto2
-
+*)
 
 definition rbt_mem :: "nat \<Rightarrow> (nat, unit) rbt_node ref option \<Rightarrow> bool Heap" where [rewrite]:
   "rbt_mem x p = do {
@@ -212,7 +212,7 @@ definition Y' :: "bool \<Rightarrow> unit option \<Rightarrow> assn" where
 lemma set_mem_hnr':
   "hn_refine (rbt_map_assn' S p * hn_val Id x x') (rbt_search (x'::nat) p) (rbt_map_assn' S p * hn_val Id x x') Y' ( (set_mem_SPEC x S))"
   sorry  *)
-
+(*
 lemma set_mem_hnr_abs:
   "hn_refine (rbt_set_assn S p * hn_val Id x x') (rbt_search (x'::nat) p) (rbt_set_assn S p * hn_val Id x x') Y' ( (set_mem_SPEC x S))"
   unfolding set_mem_SPEC_def
@@ -226,7 +226,7 @@ lemma set_mem_hnr_abs:
     apply(rule inst_ex_assn) unfolding Y'_def unfolding mult.assoc
     apply(rule fl_)   apply(rule fl_) apply(rule entails_triv)
   apply simp apply simp apply simp by simp 
-
+*)
 (* theorems that should be visible from the outside *)
 
 (* init *)
@@ -236,7 +236,7 @@ thm set_init_hnr'_short set_init_SPEC_def
 thm set_ins_hnr_abs set_ins_SPEC_def
 
 (* membership test *)
-thm set_mem_hnr_abs set_mem_SPEC_def
+(* thm set_mem_hnr_abs set_mem_SPEC_def *)
 
 subsubsection "implement the interface"
 
@@ -290,6 +290,5 @@ lemma mop_mem_set_rule[sepref_fr_rules]:
   apply rotater
    apply(rule match_first) apply (simp add: pure_def)   apply safe
     apply(rule inst_ex_assn[where x="x \<in> S"])  by auto 
-
                                                   
 end

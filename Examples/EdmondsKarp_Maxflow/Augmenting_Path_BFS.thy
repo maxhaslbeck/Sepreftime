@@ -207,7 +207,7 @@ end
 locale Pre_BFS_Impl = Graph + 
   fixes  set_insert_time map_dom_member_time set_delete_time :: nat
     and   get_succs_list_time :: nat and  map_update_time set_pick_time set_empty_time  :: nat
-    and set_isempty_time :: nat
+    and set_isempty_time init_state_time :: nat
   assumes [simp]: "set_pick_time > 0"
 begin 
  
@@ -247,6 +247,7 @@ begin
 
   definition pre_bfs :: "node \<Rightarrow> node \<Rightarrow> (nat \<times> (node\<rightharpoonup>node)) option nrest"
     where "pre_bfs src dst \<equiv> do {
+        s \<leftarrow> SPECT [(False,[src\<mapsto>src],{src},{},0::nat) \<mapsto> init_state_time];
     (f,PRED,_,_,d) \<leftarrow> whileIET (outer_loop_invar src dst) (Te src)
       (\<lambda>(f,PRED,C,N,d). f=False \<and> C\<noteq>{})
       (\<lambda>(f,PRED,C,N,d). do {
@@ -269,7 +270,7 @@ begin
           } else RETURNT (f,PRED,C,N,d)
         }  
       })
-      (False,[src\<mapsto>src],{src},{},0::nat);
+      s;
     if f then RETURNT (Some (d, PRED)) else RETURNT None
     }"
 
@@ -498,14 +499,14 @@ begin
 
 
   definition pre_bfs_time'   where
-    "pre_bfs_time' src = (1 + card V + card V * max_dist src) * body_time (card V)"
+    "pre_bfs_time' src = init_state_time + (1 + card V + card V * max_dist src) * body_time (card V)"
   definition pre_bfs_time  where
-    "pre_bfs_time cV = (1 + cV + cV * cV) * body_time cV"
+    "pre_bfs_time cV = init_state_time + (1 + cV + cV * cV) * body_time cV"
 
 lemma body_time_progress: "body_time cV > 0" unfolding body_time_def by simp
 lemma pre_bfs_time_progress: "pre_bfs_time cV > 0" using body_time_progress pre_bfs_time_def by simp
 
-lemma Te_start_ub: "src \<in> V \<Longrightarrow> (Te src (False, [src \<mapsto> src], {src}, {}, 0)) \<le> pre_bfs_time (card V)"
+lemma Te_start_ub: "src \<in> V \<Longrightarrow> init_state_time + (Te src (False, [src \<mapsto> src], {src}, {}, 0)) \<le> pre_bfs_time (card V)"
   apply (auto simp add: Te_def pre_bfs_time_def) apply(rule max_dist_ub) by simp
 
 lemma Te_start_ub': "(Te src (False, [src \<mapsto> src], {src}, {}, 0)) \<le> pre_bfs_time' src"
@@ -833,13 +834,13 @@ proof -
 
 locale Augmenting_Path_BFS = Graph + 
   fixes  set_insert_time map_dom_member_time set_delete_time get_succs_list_time map_update_time set_pick_time :: nat
-    and list_append_time map_lookup_time set_empty_time set_isempty_time :: nat
+    and list_append_time map_lookup_time set_empty_time set_isempty_time init_state_time :: nat
   assumes [simp]: "map_lookup_time > 0"
   assumes [simp]: "set_pick_time > 0"
 begin 
 
 interpretation pre: Pre_BFS_Impl c set_insert_time map_dom_member_time set_delete_time
-    get_succs_list_time map_update_time set_pick_time set_empty_time set_isempty_time
+    get_succs_list_time map_update_time set_pick_time set_empty_time set_isempty_time init_state_time
   apply standard by simp 
 
 
@@ -978,7 +979,7 @@ interpretation pre: Pre_BFS_Impl c set_insert_time map_dom_member_time set_delet
     begin
       definition init_state :: "node \<Rightarrow> bfs_state nrest"
       where 
-        "init_state src \<equiv> RETURNT (False,[src\<mapsto>src],{src},{},0::nat)"
+        "init_state src \<equiv> SPECT [ (False,[src\<mapsto>src],{src},{},0::nat) \<mapsto> init_state_time ]"
 
       definition "setpickt S = set_pick_time"
       definition "setdelt S = set_delete_time"
@@ -1041,6 +1042,7 @@ lemma "\<langle>Id\<rangle>list_rel = Id" by simp
         shows "pre_bfs2 src dst \<le>\<Down>Id (pre_bfs src dst)"
         unfolding pre_bfs_def pre_bfs2_def init_state_def
         apply simp unfolding whileIET_def
+        apply(rule bindT_mono) apply simp
         apply(rule bindT_mono)
          apply(rule whileT_mono)
          apply(clarsimp split: prod.splits)
@@ -1079,7 +1081,7 @@ begin
   are interpretations only visible in the local context? *)
 
 interpretation pre: Pre_BFS_Impl c set_insert_time map_dom_member_time set_delete_time get_succs_list_time map_update_time set_pick_time
-  set_empty_time set_isempty_time
+  set_empty_time set_isempty_time init_state_time
   apply standard by simp 
 
   term pre.pre_bfs2
@@ -1123,7 +1125,7 @@ interpretation pre: Pre_BFS_Impl c set_insert_time map_dom_member_time set_delet
 thm Augmenting_Path_BFS.bfs2_refine
 
 interpretation Augmenting_Path_BFS  set_insert_time map_dom_member_time set_delete_time get_succs_list_time map_update_time set_pick_time 
-     list_append_time map_lookup_time set_empty_time set_isempty_time
+     list_append_time map_lookup_time set_empty_time set_isempty_time init_state_time
   oops
 
   (*
