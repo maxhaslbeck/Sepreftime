@@ -3,22 +3,22 @@ theory IICF_Array_Matrix
 imports "../Intf/IICF_Matrix" (* Separation_Logic_Imperative_HOL.Array_Blit *)
 begin
 
-  definition "is_amtx N M c mtx \<equiv> \<exists>\<^sub>Al. mtx \<mapsto>\<^sub>a l * \<up>( 
+  definition is_amtx where [rewrite_ent]:   "is_amtx N M c mtx = (\<exists>\<^sub>Al. mtx \<mapsto>\<^sub>a l * \<up>( 
       length l = N*M 
     \<and> (\<forall>i<N. \<forall>j<M. l!(i*M+j) = c (i,j))
-    \<and> (\<forall>i j. (i\<ge>N \<or> j\<ge>M) \<longrightarrow> c (i,j) = 0))"
+    \<and> (\<forall>i j. (i\<ge>N \<or> j\<ge>M) \<longrightarrow> c (i,j) = 0)))"
 
   lemma is_amtx_precise[safe_constraint_rules]: "precise (is_amtx N M)"
     apply rule
     unfolding is_amtx_def
-    apply clarsimp
+    apply clarsimp (* 
     apply prec_extract_eqs
     apply (rule ext)
     apply (rename_tac x)
-    apply (case_tac x; simp)
+    apply (case_tac x; simp)                                       
     apply (rename_tac i j)
     apply (case_tac "i<N"; case_tac "j<M"; simp)
-    done
+    done *) sorry
     
   lemma is_amtx_bounded:
     shows "rdomp (is_amtx N M) m \<Longrightarrow> mtx_nonzero m \<subseteq> {0..<N}\<times>{0..<M}"
@@ -30,7 +30,7 @@ begin
   (*definition "mtx_new N M c \<equiv> do {
     Array.make (N*M) (\<lambda>i. c (i div M, i mod M))
   }"*)
-  
+  (*
   definition "mtx_tabulate N M c \<equiv> do {
     m \<leftarrow> Array.new (N*M) 0;
     (_,_,m) \<leftarrow> imp_for' 0 (N*M) (\<lambda>k (i,j,m). do {
@@ -41,17 +41,16 @@ begin
     }) (0,0,m);
     return m
   }"
-      
-      
+ *)      
+      (*
   definition "amtx_copy \<equiv> array_copy"
+*)
 
-  definition "amtx_dflt N M v \<equiv> Array.make (N*M) (\<lambda>i. v)"
+  definition [rewrite]: "amtx_dflt N M v = Array.make (N*M) (\<lambda>i. v)"
 
-  definition "mtx_get M mtx e \<equiv> Array.nth mtx (fst e * M + snd e)"
-  definition "mtx_set M mtx e v \<equiv> Array.upd (fst e * M + snd e) v mtx"
+  definition [rewrite]: "mtx_get M mtx e = Array.nth mtx (fst e * M + snd e)"
+  definition  [rewrite]: "mtx_set M mtx e v = Array.upd (fst e * M + snd e) v mtx"
 
-  lemma mtx_idx_valid[simp]: "\<lbrakk>i < (N::nat); j < M\<rbrakk> \<Longrightarrow> i * M + j < N * M"
-    by (rule mlex_bound)
 
   lemma mtx_idx_unique_conv[simp]: 
     fixes M :: nat
@@ -67,7 +66,7 @@ begin
       
   (*lemma mtx_index_unique[simp]: "\<lbrakk>i<(N::nat); j<M; i'<N; j'<M\<rbrakk> \<Longrightarrow> i*M+j = i'*M+j' \<longleftrightarrow> i=i' \<and> j=j'"
     by (metis ab_semigroup_add_class.add.commute add_diff_cancel_right' div_if div_mult_self3 gr0I not_less0)*)
-
+(*
   lemma mtx_tabulate_rl[sep_heap_rules]:
     assumes NONZ: "mtx_nonzero c \<subseteq> {0..<N}\<times>{0..<M}"
     shows "<emp> mtx_tabulate N M c <IICF_Array_Matrix.is_amtx N M c>"
@@ -95,34 +94,100 @@ begin
       apply sep_auto  
       by (metis add.right_neutral M_POS mtx_idx_unique_conv)  
   qed
-
+*)
+(*
   lemma mtx_copy_rl[sep_heap_rules]:
     "<is_amtx N M c mtx> amtx_copy mtx <\<lambda>r. is_amtx N M c mtx * is_amtx N M c r>"
     by (sep_auto simp: amtx_copy_def is_amtx_def)
+*)
 
   definition "PRES_ZERO_UNIQUE A \<equiv> (A``{0}={0} \<and> A\<inverse>``{0} = {0})"
   lemma IS_ID_imp_PRES_ZERO_UNIQUE[constraint_rules]: "IS_ID A \<Longrightarrow> PRES_ZERO_UNIQUE A"
     unfolding IS_ID_def PRES_ZERO_UNIQUE_def by auto
 
   definition op_amtx_dfltNxM :: "nat \<Rightarrow> nat \<Rightarrow> 'a::zero \<Rightarrow> nat\<times>nat\<Rightarrow>'a" where
-    [simp]: "op_amtx_dfltNxM N M v \<equiv> \<lambda>(i,j). if i<N \<and> j<M then v else 0"
-  context fixes N M::nat begin  
+    [simp]: "op_amtx_dfltNxM N M v = (\<lambda>(i,j). if i<N \<and> j<M then v else 0)"
+
+lemma opt_amtx_dfltNxM[rewrite]: "op_amtx_dfltNxM N M v (i,j) = (if i<N \<and> j<M then v else 0)"
+  unfolding op_amtx_dfltNxM_def by simp
+
+(*
+context fixes N M::nat begin  
   sepref_decl_op (no_def) op_amtx_dfltNxM: "op_amtx_dfltNxM N M" :: "A \<rightarrow> \<langle>A\<rangle>mtx_rel"
     where "CONSTRAINT PRES_ZERO_UNIQUE A"
     apply (rule fref_ncI) unfolding op_amtx_dfltNxM_def[abs_def] mtx_rel_def
     apply parametricity
     by (auto simp add: PRES_ZERO_UNIQUE_def)
-  end  
+end  
+*)
 
-  lemma mtx_dflt_rl[sep_heap_rules]: "<emp> amtx_dflt N M k <is_amtx N M (op_amtx_dfltNxM N M k)>"
-    by (sep_auto simp: amtx_dflt_def is_amtx_def)
+declare [[print_trace]]
+ 
+lemma "length [0..<N * M] = N * M" by auto2
+lemma "i< length[0..<N] \<Longrightarrow> map (\<lambda>i. k) [0..<N] ! i = k" by auto2
+lemma "i<   N \<Longrightarrow> map (\<lambda>i. k) [0..<N] ! i = k" 
+@proof
+  @have "i< length [0..<N]"
+@qed
+declare upt_zero_length [rewrite_arg]
+lemma "i<   N*M \<Longrightarrow> map (\<lambda>i. k) [0..<N*M] ! i = k"  by auto2
 
-  lemma mtx_get_rl[sep_heap_rules]: "\<lbrakk>i<N; j<M \<rbrakk> \<Longrightarrow> <is_amtx N M c mtx> mtx_get M mtx (i,j) <\<lambda>r. is_amtx N M c mtx * \<up>(r = c (i,j))>"
-    by (sep_auto simp: mtx_get_def is_amtx_def)
-    
-  lemma mtx_set_rl[sep_heap_rules]: "\<lbrakk>i<N; j<M \<rbrakk> 
-    \<Longrightarrow> <is_amtx N M c mtx> mtx_set M mtx (i,j) v <\<lambda>r. is_amtx N M (c((i,j) := v)) r>"
-    by (sep_auto simp: mtx_set_def is_amtx_def nth_list_update)
+lemma "(\<forall>i<N. \<forall>j<M. map (\<lambda>i. k) [0..<N * M] ! (i * M + j) = (if i < N \<and> j < M then k else 0))"
+  apply auto2 oops
+  thm nth_map
+
+
+lemma mtx_idx_valid[simp,backward]: "\<lbrakk>i < (N::nat); j < M\<rbrakk> \<Longrightarrow> i * M + j < N * M"
+  by (rule mlex_bound)
+lemma "i<N \<Longrightarrow> j<M \<Longrightarrow>    map (\<lambda>i. k) [0..<N * M] ! (i * M + j) = k"
+@proof
+ @have "i * M + j < N*M"  
+@qed
+
+lemma "i<N \<Longrightarrow> j<M \<Longrightarrow>  map (\<lambda>i. k) [0..<N * M] ! (i * M + j) = (if i < N \<and> j < M then k else 0)"
+@proof
+ @have "i * M + j < N*M"  
+  oops
+
+thm make_rule
+  lemma mtx_dflt_rl: "<timeCredit_assn (N*M+1)> amtx_dflt N M k <is_amtx N M (op_amtx_dfltNxM N M k)>"
+    (* by (sep_auto simp: amtx_dflt_def is_amtx_def) *) 
+    apply auto2 sorry
+
+  lemma ij[backward]: "i<N \<Longrightarrow> j<M \<Longrightarrow> i * M + j < N* (M::nat)" by auto2
+
+  lemma mtx_get_rl': "\<lbrakk>i<N; j<M \<rbrakk> \<Longrightarrow> <timeCredit_assn 1 * is_amtx N M c mtx> mtx_get M mtx (i,j) <\<lambda>r. is_amtx N M c mtx * \<up>(r = c (i,j))>"
+    by auto2
+  lemma mtx_get_rl: "\<lbrakk>fst k<N; snd k<M \<rbrakk> \<Longrightarrow> <timeCredit_assn 1 * is_amtx N M c mtx> mtx_get M mtx k <\<lambda>r. is_amtx N M c mtx * \<up>(r = c k)>"
+    by auto2
+
+
+lemma "n<length l \<Longrightarrow> l[n:=1] ! n = 1" by auto2
+ 
+lemma "i<N \<Longrightarrow> j<M \<Longrightarrow> ia<N \<Longrightarrow> ja<M \<Longrightarrow> length l = N * M \<Longrightarrow>
+      l[i * M + j := v] ! (ia * M + ja) = (if i * M + j = ia * M + ja then v else l ! (ia * M + ja))"
+@proof 
+  @have "ia * M + ja < length l" 
+  @qed
+
+lemma "j<J \<Longrightarrow> snd (i, j) < J " by auto2
+
+lemma a[rewrite]: "length l = N * M \<Longrightarrow> ia<N \<Longrightarrow> ja<M \<Longrightarrow> l[k := v] ! (ia * M + ja) = (if k = ia * M + ja then v else l ! (ia * M + ja))"
+@proof 
+  @have "ia * M + ja < length l"
+@qed 
+
+  thm nth_list_update
+  
+  lemma mtx_set_rl': "\<lbrakk>i<N; j<M \<rbrakk> 
+    \<Longrightarrow> <timeCredit_assn 1 * is_amtx N M c mtx> mtx_set M mtx (i,j) v <\<lambda>r. is_amtx N M (c((i,j) := v)) r>"
+    apply auto2 sorry
+
+  lemma mtx_set_rl: "\<lbrakk>fst k<N; snd k<M \<rbrakk> 
+    \<Longrightarrow> <timeCredit_assn 1 * is_amtx N M c mtx> mtx_set M mtx k v <\<lambda>r. is_amtx N M (c(k := v)) r>"
+    using mtx_set_rl' 
+    by force
+
 
   definition "amtx_assn N M A \<equiv> hr_comp (is_amtx N M) (\<langle>the_pure A\<rangle>mtx_rel)"
   lemmas [fcomp_norm_unfold] = amtx_assn_def[symmetric]
@@ -150,7 +215,7 @@ begin
     apply (drule is_amtx_bounded)
     using assms
     by (fastforce simp: IS_PURE_def is_pure_conv mtx_rel_pres_zero[symmetric] mtx_nonzero_def)
-
+(*
   lemma mtx_tabulate_aref: 
     "(mtx_tabulate N M, RETURN o op_mtx_new) 
       \<in> [\<lambda>c. mtx_nonzero c \<subseteq> {0..<N}\<times>{0..<M}]\<^sub>a id_assn\<^sup>k \<rightarrow> IICF_Array_Matrix.is_amtx N M"  
@@ -161,7 +226,7 @@ begin
     apply rule apply rule
     apply (sep_auto simp: pure_def)
     done
-
+*)
   lemma mtx_nonzero_bid_eq:
     assumes "R\<subseteq>Id"
     assumes "(a, a') \<in> Id \<rightarrow> R" 
@@ -178,10 +243,70 @@ begin
     using assms
     apply (clarsimp simp: mtx_nonzero_def PRES_ZERO_UNIQUE_def)
     by (metis (no_types, hide_lams) IdI Image_singleton_iff converse_iff singletonD tagged_fun_relD_none)
-    
 
+
+
+  subsection "implementation of interface"
+
+  thm mtx_set_rl
+
+lemma p: "the_pure id_assn = Id" by simp
+
+lemma extractpureD: "h \<Turnstile> pure R a c * F \<Longrightarrow> (c,a) \<in> R \<and> h \<Turnstile> F"
+  by (simp add: pure_def)
+
+lemma mop_matrix_update_rule[sepref_fr_rules]:
+  "1 \<le> t  \<Longrightarrow> fst k' < M \<Longrightarrow> snd k' < M \<Longrightarrow>
+      hn_refine (hn_val Id v' v * hn_val Id k' k * hn_ctxt (asmtx_assn M (pure Id)) m' m)
+       (PR_CONST (mtx_set M) m k v)                                                             
+       (hn_val Id v' v * hn_val Id k' k * hn_invalid (asmtx_assn M (pure Id)) m' m) (asmtx_assn M (pure Id)) ( PR_CONST (mop_matrix_set t) $ m' $ k' $ v')"
+  apply(rule  hn_refine_preI)
+  unfolding mop_matrix_set_def autoref_tag_defs
+  apply (rule extract_cost_otherway[OF _  mtx_set_rl, where F="hn_val Id v' v * hn_val Id k' k * hn_invalid (asmtx_assn M (pure Id)) m' m" ])
+  unfolding mult.assoc
+    apply(rotatel) apply(rotatel)
+    apply rotater apply rotater apply rotater apply rotater   apply swapr    apply taker apply(rule isolate_first)
+       apply (simp add: gr_def hn_ctxt_def) apply(rule ent_trans) 
+        apply(rule invalidate_clone[where R="asmtx_assn M id_assn"]) apply(rule match_first)
+   unfolding amtx_assn_def  apply simp  apply (rule entails_triv)
+  unfolding hn_ctxt_def apply(rotatel)
+    apply(rule match_first)  apply (rule entails_triv)
+  subgoal by(auto dest: extractpureD)  
+  subgoal by(auto dest: extractpureD)  
+  subgoal apply rotatel apply rotatel apply rotatel apply rotater apply rotater apply (rule match_first) apply simp
+    apply(simp only: ex_distrib_star' pure_def hr_comp_def)
+    apply(auto simp add: ex_distrib_star')
+    apply(rule ent_ex_postI[where x="m'(k' := v')"]) apply simp  
+      using entt_refl' by blast   
+  subgoal by simp
+  done
+ 
+lemma mop_mem_set_rule[sepref_fr_rules]:
+  "1 \<le> t \<Longrightarrow> fst k' < M \<Longrightarrow> snd k' < M \<Longrightarrow>
+    hn_refine (hn_val Id k' k * hn_ctxt (asmtx_assn M (pure Id)) m' m)
+    (PR_CONST (mtx_get M) m k)      
+     (hn_ctxt (pure Id) k' k* hn_ctxt (asmtx_assn M (pure Id)) m' m) id_assn ( PR_CONST (mop_matrix_get t) $ m' $ k')"
+ apply(rule  hn_refine_preI)
+  unfolding autoref_tag_defs mop_matrix_get_def
+  apply (rule extract_cost_otherway[OF _  mtx_get_rl]) unfolding mult.assoc
+  unfolding hn_ctxt_def
+    apply rotatel apply rotatel apply(rule match_first) apply rotater apply(rule match_first)       
+      apply(simp add: amtx_assn_def) apply (rule entails_triv)
+  subgoal by(auto dest: extractpureD)  
+  subgoal by(auto dest: extractpureD)  
+  subgoal 
+    apply rotater  unfolding amtx_assn_def
+      apply (simp add:  ) apply (simp add: pure_def  )    apply safe
+    apply(rule inst_ex_assn[where x="m' k'"]) apply (auto simp: )
+      using entt_refl' by blast    
+  subgoal by auto 
+
+
+
+
+(*
   lemma op_mtx_new_fref': 
-    "CONSTRAINT PRES_ZERO_UNIQUE A \<Longrightarrow> (RETURN \<circ> op_mtx_new, RETURN \<circ> op_mtx_new) \<in> (nat_rel \<times>\<^sub>r nat_rel \<rightarrow> A) \<rightarrow>\<^sub>f \<langle>\<langle>A\<rangle>mtx_rel\<rangle>nres_rel"
+    "CONSTRAINT PRES_ZERO_UNIQUE A \<Longrightarrow> (RETURN \<circ> op_mtx_new, RETURN \<circ> op_mtx_new) \<in> (nat_rel \<times>\<^sub>r nat_rel \<rightarrow> A) \<rightarrow>\<^sub>f \<langle>\<langle>A\<rangle>mtx_rel\<rangle>nrest_rel"
     by (rule op_mtx_new.fref)
     
 
@@ -195,7 +320,9 @@ begin
     "op_mtx_new \<equiv> op_amtx_new N M"
     "mop_mtx_new \<equiv> \<lambda>c. RETURN (op_amtx_new N M c)"
     by (auto simp: mop_mtx_new_alt[abs_def])
+*)
 
+(*
   context fixes N M :: nat begin  
     sepref_register "PR_CONST (op_amtx_new N M)" :: "(nat \<times> nat \<Rightarrow> 'a) \<Rightarrow> 'a i_mtx"
   end
@@ -507,9 +634,9 @@ begin
   hide_const scmul_impl
 
 
+*)
 
 
   hide_const(open) is_amtx
-
 
 end

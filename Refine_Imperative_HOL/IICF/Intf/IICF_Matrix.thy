@@ -16,7 +16,7 @@ begin
   subsection \<open>Operations\<close>  
 
   definition op_mtx_new :: "'a mtx \<Rightarrow> 'a mtx" where [simp]: "op_mtx_new c \<equiv> c"
-
+(*
   sepref_decl_op (no_def) mtx_new: "op_mtx_new" :: "(nat_rel\<times>\<^sub>rnat_rel \<rightarrow> A) \<rightarrow> \<langle>A\<rangle>mtx_rel"
     apply (rule fref_ncI) unfolding op_mtx_new_def[abs_def] mtx_rel_def 
     by parametricity
@@ -29,11 +29,28 @@ begin
   definition op_mtx_copy :: "'a mtx \<Rightarrow> 'a mtx" where [simp]: "op_mtx_copy c \<equiv> c"
 
   sepref_decl_op (no_def) mtx_copy: "op_mtx_copy" :: "\<langle>A\<rangle>mtx_rel \<rightarrow> \<langle>A\<rangle>mtx_rel" .
+*)
 
+(*
   sepref_decl_op mtx_get: "\<lambda>(c::'a mtx) ij. c ij" :: "\<langle>A\<rangle>mtx_rel \<rightarrow> (nat_rel\<times>\<^sub>rnat_rel) \<rightarrow> A"
     apply (rule fref_ncI) unfolding mtx_rel_def
     by parametricity
-    
+  *)
+
+context
+  fixes t ::  "nat"
+begin
+  definition "mop_matrix_get (m::'b mtx) e = SPECT [m e \<mapsto> t]"
+
+  lemma matrix_get: "\<And>tt. tt \<le> TTT Q (SPECT [ m e \<mapsto> t]) \<Longrightarrow> tt
+           \<le> TTT Q (mop_matrix_get m e)" unfolding mop_matrix_get_def by simp 
+ 
+  sepref_register "mop_matrix_get" 
+  print_theorems 
+end 
+
+
+(*
   sepref_decl_op mtx_set: "fun_upd::'a mtx \<Rightarrow> _" :: "\<langle>A\<rangle>mtx_rel \<rightarrow> (nat_rel\<times>\<^sub>rnat_rel) \<rightarrow> A \<rightarrow> \<langle>A\<rangle>mtx_rel"
     apply (rule fref_ncI) 
     unfolding mtx_rel_def
@@ -42,8 +59,26 @@ begin
     show ?case by parametricity
   qed
 
-  definition mtx_nonzero :: "_ mtx \<Rightarrow> (nat\<times>nat) set" where "mtx_nonzero m \<equiv> {(i,j). m (i,j)\<noteq>0}"
+*)
 
+context
+  fixes t ::  "nat"
+begin
+  definition "mop_matrix_set (m::'b mtx) e v = SPECT [m(e:=v) \<mapsto> t]"
+
+  lemma matrix_set: "\<And>tt. tt \<le> TTT Q (SPECT [ m(e:=v) \<mapsto> t]) \<Longrightarrow> tt
+           \<le> TTT Q (mop_matrix_set m e v)" unfolding mop_matrix_set_def by simp 
+ 
+  sepref_register "mop_matrix_set" 
+  print_theorems 
+end 
+    
+
+
+
+
+  definition mtx_nonzero :: "_ mtx \<Rightarrow> (nat\<times>nat) set" where "mtx_nonzero m \<equiv> {(i,j). m (i,j)\<noteq>0}"
+(*
   sepref_decl_op mtx_nonzero: "mtx_nonzero" :: "\<langle>A\<rangle>mtx_rel \<rightarrow> \<langle>nat_rel\<times>\<^sub>rnat_rel\<rangle>set_rel"
     where "IS_ID (A::(_\<times>(_::zero)) set)"
   proof goal_cases
@@ -57,14 +92,18 @@ begin
       apply parametricity
       unfolding U by simp_all
   qed
-
+*)
   subsection \<open>Patterns\<close>
-  lemma pat_amtx_get: "c$e\<equiv>op_mtx_get$'c$'e" by simp
+ (*
+ lemma pat_amtx_get: "c$e\<equiv>op_mtx_get$'c$'e" by simp
   lemma pat_amtx_set: "fun_upd$c$e$v\<equiv>op_mtx_set$'c$'e$'v" by simp
 
   lemmas amtx_pats[pat_rules] = pat_amtx_get pat_amtx_set
 
+*)
+
   subsection \<open>Pointwise Operations\<close>
+(*
   subsubsection \<open>Auxiliary Definitions and Lemmas\<close>
   locale pointwise_op =
     fixes f :: "'p \<Rightarrow> 's \<Rightarrow> 's"
@@ -429,6 +468,8 @@ begin
       done
   
   end
+
+*)
 
 end
 
