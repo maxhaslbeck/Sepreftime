@@ -212,7 +212,7 @@ locale Pre_BFS_Impl = Graph +
 begin 
  
 
-  definition add_succs_spec_time :: "nat \<Rightarrow> nat"  where  "add_succs_spec_time cs = (cs * (map_dom_member_time + (max (set_insert_time + map_update_time) 1)))"
+  definition add_succs_spec_time :: "nat \<Rightarrow> nat"  where  "add_succs_spec_time cs = (cs * (map_dom_member_time + (max (set_insert_time + map_update_time) (1::nat))))"
   
   lemma add_succs_spec_time_mono: "n \<le> m \<Longrightarrow> add_succs_spec_time n \<le> add_succs_spec_time m"
     unfolding add_succs_spec_time_def by simp
@@ -792,8 +792,8 @@ proof -
     
 
     term valid_PRED_impl.Ter 
-    definition (in valid_PRED_impl) "extract_rpath  \<equiv> do {
-      (_,p) \<leftarrow> whileIET (extract_rpath_inv src dst PRED) (Ter)         
+    definition (in -) "extract_rpath src dst PRED map_lookup_time list_append_time   \<equiv> do {
+      (d,p) \<leftarrow> whileT        
         (\<lambda>(v,p). v\<noteq>src) (\<lambda>(v,p). do {
         ASSERT (v\<in>dom PRED);
         u \<leftarrow> mop_map_lookup (\<lambda>_. map_lookup_time) PRED v;
@@ -810,9 +810,10 @@ proof -
   
     lemma extract_rpath_correct':
       assumes "dst\<in>dom PRED"
-      shows "extract_rpath  
+      shows "extract_rpath src dst PRED   map_lookup_time list_append_time  
         \<le> SPECT (emb (\<lambda>p. isSimplePath src p dst \<and> length p = ndist dst) extract_rpath_time')"
       using assms unfolding extract_rpath_def isSimplePath_def  
+      apply(subst whileIET_def[symmetric, where I="extract_rpath_inv src dst PRED" and E =Ter  ])
       apply simp
       apply(rule T_specifies_I) 
       apply (vcg'\<open>-\<close> rules: mop_map_lookup mop_append)   
@@ -824,7 +825,7 @@ proof -
 
     lemma extract_rpath_correct:
       assumes "dst\<in>dom PRED"
-      shows "extract_rpath 
+      shows "extract_rpath  src dst PRED map_lookup_time list_append_time 
         \<le> SPECT (emb (\<lambda>p. isSimplePath src p dst \<and> length p = ndist dst) (extract_rpath_time (card V)))"
       apply(rule dual_order.trans[OF _ extract_rpath_correct'])
       apply (auto simp add: emb_le_emb extract_rpath_time_def extract_rpath_time'_def intro!: ndist_le_V)
@@ -844,8 +845,7 @@ interpretation pre: Pre_BFS_Impl c set_insert_time map_dom_member_time set_delet
   apply standard by simp 
 
 
-  term Pre_BFS_Impl.pre_bfs
-  term valid_PRED_impl.extract_rpath
+  term Pre_BFS_Impl.pre_bfs 
   
     definition "bfs src dst \<equiv> do {
       if src=dst then RETURNT (Some [])
@@ -854,7 +854,7 @@ interpretation pre: Pre_BFS_Impl c set_insert_time map_dom_member_time set_delet
         case br of
           None \<Rightarrow> RETURNT None
         | Some (d,PRED) \<Rightarrow> do {
-            p \<leftarrow> valid_PRED_impl.extract_rpath c src dst PRED list_append_time map_lookup_time;
+            p \<leftarrow> extract_rpath src dst PRED map_lookup_time list_append_time;
             RETURNT (Some p)
           }  
       }    
@@ -924,7 +924,7 @@ interpretation pre: Pre_BFS_Impl c set_insert_time map_dom_member_time set_delet
     (\<lambda>(f,PRED,N). \<not>f)
     (\<lambda>v (f,PRED,N). do {
       b \<leftarrow> mop_map_dom_member (%_. map_dom_member_time) PRED v;
-      if b then SPECT [ (f,PRED,N) \<mapsto> 1]
+      if b then SPECT [ (f,PRED,N) \<mapsto> enat 1]
       else do {
         PRED \<leftarrow> mop_map_update (\<lambda>_. map_update_time) PRED v u;
         ASSERT (v\<notin>N);
@@ -976,10 +976,9 @@ interpretation pre: Pre_BFS_Impl c set_insert_time map_dom_member_time set_delet
 
     context
       fixes succ :: "node \<Rightarrow> node list nrest"
+      fixes init_state :: "node \<Rightarrow> bfs_state nrest"
     begin
-      definition init_state :: "node \<Rightarrow> bfs_state nrest"
-      where 
-        "init_state src \<equiv> SPECT [ (False,[src\<mapsto>src],{src},{},0::nat) \<mapsto> init_state_time ]"
+       
 
       definition "setpickt S = set_pick_time"
       definition "setdelt S = set_delete_time"
@@ -987,7 +986,7 @@ interpretation pre: Pre_BFS_Impl c set_insert_time map_dom_member_time set_delet
       definition pre_bfs2 :: "node \<Rightarrow> node \<Rightarrow> (nat \<times> (node\<rightharpoonup>node)) option nrest"
         where "pre_bfs2 src dst \<equiv> do {
         s \<leftarrow> init_state src;
-        (f,PRED,_,_,d) \<leftarrow> whileT (\<lambda>(f,PRED,C,N,d). f=False \<and> C\<noteq>{})
+        (f,PRED,ttt,tt,d) \<leftarrow> whileT (\<lambda>(f,PRED,C,N,d). f=False \<and> C\<noteq>{})
           (\<lambda>(f,PRED,C,N,d). do {
             ASSERT (C\<noteq>{});
             v \<leftarrow> mop_set_pick setpickt C;
@@ -996,14 +995,14 @@ interpretation pre: Pre_BFS_Impl c set_insert_time map_dom_member_time set_delet
             sl \<leftarrow> succ v;
             (f,PRED,N) \<leftarrow> inner_loop dst sl v PRED N;
             if f then
-              RETURNT (f,PRED,C,N,d+1)
+              RETURNT (f,PRED,C,N,d+(1::nat))
             else do {
               ASSERT (assn1 src dst (f,PRED,C,N,d));
               b \<leftarrow> mop_set_isempty (\<lambda>_. set_isempty_time) C;
               if b then do {
                 C \<leftarrow> RETURNT N; 
                 N \<leftarrow> mop_set_empty set_empty_time; 
-                d \<leftarrow> RETURNT (d+1);
+                d \<leftarrow> RETURNT (d+(1::nat));
                 RETURNT (f,PRED,C,N,d)
               } else RETURNT (f,PRED,C,N,d)
             }  
@@ -1039,10 +1038,11 @@ lemma "\<langle>Id\<rangle>list_rel = Id" by simp
       lemma pre_bfs2_refine: 
         assumes succ_impl: "\<And>ui u. \<lbrakk>(ui,u)\<in>Id; u\<in>V\<rbrakk> 
           \<Longrightarrow> succ ui \<le> \<Down> (\<langle>Id\<rangle>list_set_rel) (SPECT [E``{u} \<mapsto> enat get_succs_list_time])"
+          and init_state_impl: "\<And>src. init_state src \<le> SPECT [ (False,[src\<mapsto>src],{src},{},0::nat) \<mapsto> init_state_time ]"
         shows "pre_bfs2 src dst \<le>\<Down>Id (pre_bfs src dst)"
-        unfolding pre_bfs_def pre_bfs2_def init_state_def
+        unfolding pre_bfs_def pre_bfs2_def
         apply simp unfolding whileIET_def
-        apply(rule bindT_mono) apply simp
+        apply(rule bindT_mono) apply fact
         apply(rule bindT_mono)
          apply(rule whileT_mono)
          apply(clarsimp split: prod.splits)
@@ -1087,15 +1087,15 @@ interpretation pre: Pre_BFS_Impl c set_insert_time map_dom_member_time set_delet
   term pre.pre_bfs2
     
 
-    definition "bfs2 succ src dst \<equiv> do {
+    definition "bfs2 succ init_state src dst \<equiv> do {
       if src=dst then 
         RETURNT (Some [])
-      else do {  
-        br \<leftarrow> pre.pre_bfs2 succ src dst;
+      else do {           
+        br \<leftarrow> pre.pre_bfs2 succ init_state src dst;
         case br of
           None \<Rightarrow> RETURNT None
         | Some (d,PRED) \<Rightarrow> do {
-            p \<leftarrow> valid_PRED_impl.extract_rpath c src dst PRED list_append_time map_lookup_time;
+            p \<leftarrow> extract_rpath  src dst PRED  map_lookup_time list_append_time;
             RETURNT (Some p)
           }  
       }    
@@ -1105,11 +1105,12 @@ interpretation pre: Pre_BFS_Impl c set_insert_time map_dom_member_time set_delet
     lemma bfs2_refine:
       assumes succ_impl: "\<And>ui u. \<lbrakk>(ui,u)\<in>Id; u\<in>V\<rbrakk> 
         \<Longrightarrow> succ ui \<le> \<Down> (\<langle>Id\<rangle>list_set_rel) (SPECT [E``{u} \<mapsto> enat get_succs_list_time])"
-      shows "bfs2 succ src dst \<le> \<Down>Id (bfs src dst)"
+          and init_state_impl: "\<And>src. init_state src \<le> SPECT [ (False,[src\<mapsto>src],{src},{},0::nat) \<mapsto> init_state_time ]"
+      shows "bfs2 succ init_state src dst \<le> \<Down>Id (bfs src dst)"
       unfolding bfs_def bfs2_def
       apply auto
       apply(rule bindT_mono) 
-       apply(rule pre.pre_bfs2_refine[simplified, OF succ_impl]) apply simp
+       apply(rule pre.pre_bfs2_refine[simplified, OF succ_impl init_state_impl])  
       by (auto )
         
  (*
