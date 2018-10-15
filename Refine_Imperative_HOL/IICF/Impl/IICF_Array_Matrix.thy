@@ -254,6 +254,20 @@ lemma p: "the_pure id_assn = Id" by simp
 
 lemma extractpureD: "h \<Turnstile> pure R a c * F \<Longrightarrow> (c,a) \<in> R \<and> h \<Turnstile> F"
   by (simp add: pure_def)
+  
+ 
+
+lemma mop_matrix_update_rule[sepref_fr_rules]:
+  "1 \<le> t  \<Longrightarrow> fst k' < M \<Longrightarrow> snd k' < M \<Longrightarrow>
+      hn_refine (hn_val Id v' v * hn_val Id k' k * hn_ctxt (asmtx_assn M (pure Id)) m' m)
+       (PR_CONST (mtx_set M) m k v)                                                             
+       (hn_val Id v' v * hn_val Id k' k * hn_invalid (asmtx_assn M (pure Id)) m' m) (asmtx_assn M (pure Id)) ( PR_CONST (mop_matrix_set t) $ m' $ k' $ v')"
+  apply(rule  hn_refine_preI)
+  unfolding mop_matrix_set_def autoref_tag_defs
+  apply (rule extract_cost_otherway[OF _  mtx_set_rl, where F="hn_val Id v' v * hn_val Id k' k * hn_invalid (asmtx_assn M (pure Id)) m' m" ])
+
+
+  oops
 
 lemma mop_matrix_update_rule[sepref_fr_rules]:
   "1 \<le> t  \<Longrightarrow> fst k' < M \<Longrightarrow> snd k' < M \<Longrightarrow>

@@ -4,6 +4,25 @@ imports "SepLogicTime_RBTreeBasic.SepAuto"
 begin
 
 
+lemma ent_pure_pre_iff[simp]: "(P*\<up>b \<Longrightarrow>\<^sub>A Q) \<longleftrightarrow> (b \<longrightarrow> (P \<Longrightarrow>\<^sub>A Q))"
+  unfolding entails_def
+  by (auto   )
+
+lemma ent_pure_pre_iff_sng[simp]: 
+  "(\<up>b \<Longrightarrow>\<^sub>A Q) \<longleftrightarrow> (b \<longrightarrow> (emp \<Longrightarrow>\<^sub>A Q))"
+  using ent_pure_pre_iff[where P=emp]
+  by simp
+
+lemma ent_pure_post_iff[simp]: 
+  "(P \<Longrightarrow>\<^sub>A Q*\<up>b) \<longleftrightarrow> ((\<forall>h. h\<Turnstile>P \<longrightarrow> b) \<and> (P \<Longrightarrow>\<^sub>A Q))"
+  unfolding entails_def
+  by (auto)
+
+lemma ent_pure_post_iff_sng[simp]: 
+  "(P \<Longrightarrow>\<^sub>A \<up>b) \<longleftrightarrow> ((\<forall>h. h\<Turnstile>P \<longrightarrow> b) \<and> (P \<Longrightarrow>\<^sub>A emp))"
+  using ent_pure_post_iff[where Q=emp]
+  by simp 
+
 
 
 subsection "Rotate method"
@@ -64,11 +83,193 @@ lemma run_and_execute: "(\<forall>\<sigma> t r. run c (Some h) \<sigma> r t \<lo
 
 
 
+
 subsection "Simplifier setup"
+
+
+lemma is_entails: "P\<Longrightarrow>\<^sub>AQ \<Longrightarrow> P \<Longrightarrow>\<^sub>AQ" .
+ 
+text {* Used by existential quantifier extraction tactic *}
+lemma enorm_exI': (* Incomplete, as chosen x may depend on heap! *)
+  "(\<And>x. Z x \<longrightarrow> (P \<Longrightarrow>\<^sub>A Q x)) \<Longrightarrow> (\<exists>x. Z x) \<longrightarrow> (P \<Longrightarrow>\<^sub>A (\<exists>\<^sub>Ax. Q x))"
+  by (metis ent_ex_postI)
+
+
+lemma ent_false: "false \<Longrightarrow>\<^sub>A P" by simp  
+lemmas solve_ent_preprocess_simps = 
+  ent_pure_post_iff ent_pure_post_iff_sng ent_pure_pre_iff ent_pure_pre_iff_sng
+lemmas ent_refl = entails_triv
+lemmas ent_triv = ent_true ent_false
+lemmas norm_assertion_simps = assn_one_left 
+
+(*
+theorem solve_ent_preprocess_simps:
+            (?P \<Longrightarrow>\<^sub>A ?Q * \<up> ?b) = ((\<forall>h. h \<Turnstile> ?P \<longrightarrow> ?b) \<and> (?P \<Longrightarrow>\<^sub>A ?Q))
+            (?P \<Longrightarrow>\<^sub>A \<up> ?b) = ((\<forall>h. h \<Turnstile> ?P \<longrightarrow> ?b) \<and> (?P \<Longrightarrow>\<^sub>A emp))
+            (?P * \<up> ?b \<Longrightarrow>\<^sub>A ?Q) = (?b \<longrightarrow> (?P \<Longrightarrow>\<^sub>A ?Q))
+            (\<up> ?b \<Longrightarrow>\<^sub>A ?Q) = (?b \<longrightarrow> (emp \<Longrightarrow>\<^sub>A ?Q)) *) 
+
+
+subsection {* Frame Matcher *}
+text {* Given star-lists P,Q and a frame F, this method tries to match 
+  all elements of Q with corresponding elements of P. The result is a 
+  partial match, that contains matching pairs and the unmatched content.*}
+
+text {* The frame-matcher internally uses syntactic lists separated by
+  star, and delimited by the special symbol @{text "SLN"}, which is defined
+  to be @{text "emp"}. *}
+definition [simp]: "SLN \<equiv> emp"
+lemma SLN_left: "SLN * P = P" by simp
+lemma SLN_right: "P * SLN = P" by simp
+
+lemmas SLN_normalize = SLN_right mult.assoc[symmetric, where 'a=assn]
+lemmas SLN_strip = SLN_right SLN_left mult.assoc[symmetric, where 'a=assn]
+
+text {* A query to the frame matcher. Contains the assertions
+  P and Q that shall be matched, as well as a frame F, that is not 
+  touched. *}
+
+definition [simp]: "FI_QUERY P Q F \<equiv> P \<Longrightarrow>\<^sub>A Q*F"
+
+abbreviation "fi_m_fst M \<equiv> foldr (( * )) (map fst M) emp"
+abbreviation "fi_m_snd M \<equiv> foldr (( * )) (map snd M) emp"
+abbreviation "fi_m_match M \<equiv> (\<forall>(p,q)\<in>set M. p \<Longrightarrow>\<^sub>A q)"
+
+text {* A result of the frame matcher. Contains a list of matching pairs,
+  as well as the unmatched parts of P and Q, and the frame F.
+*}
+definition [simp]: "FI_RESULT M UP UQ F \<equiv> 
+  fi_m_match M \<longrightarrow> (fi_m_fst M * UP \<Longrightarrow>\<^sub>A fi_m_snd M * UQ * F)"
+
+text {* Internal structure used by the frame matcher: 
+  m contains the matched pairs; p,q the assertions that still needs to be 
+  matched; up,uq the assertions that could not be matched; and f the frame.
+  p and q are SLN-delimited syntactic lists. 
+*}
+
+definition [simp]: "FI m p q up uq f \<equiv> 
+  fi_m_match m \<longrightarrow> (fi_m_fst m * p * up \<Longrightarrow>\<^sub>A fi_m_snd m * q * uq * f)"
+
+text {* Initialize processing of query *}
+lemma FI_init: 
+  assumes "FI [] (SLN*P) (SLN*Q) SLN SLN F"
+  shows "FI_QUERY P Q F"
+  using assms by simp
+
+text {* Construct result from internal representation *}
+lemma FI_finalize:
+  assumes "FI_RESULT m (p*up) (q*uq) f"
+  shows "FI m p q up uq f"
+  using assms by (simp add: mult.assoc )
+
+text {* Auxiliary lemma to show that all matching pairs together form
+  an entailment. This is required for most applications. *}
+lemma fi_match_entails:
+  assumes "fi_m_match m"
+  shows "fi_m_fst m \<Longrightarrow>\<^sub>A fi_m_snd m"
+  using assms apply (induct m)
+  apply (simp_all split: prod.split_asm add: ent_star_mono)
+  done
+
+text {* Internally, the frame matcher tries to match the first assertion
+  of q with the first assertion of p. If no match is found, the first
+  assertion of p is discarded. If no match for any assertion in p can be
+  found, the first assertion of q is discarded. *}
+
+text {* Match *}
+lemma FI_match:
+  assumes "p \<Longrightarrow>\<^sub>A q"
+  assumes "FI ((p,q)#m) (ps*up) (qs*uq) SLN SLN f"
+  shows "FI m (ps*p) (qs*q) up uq f"
+  using assms unfolding FI_def
+  apply (simp add: mult.assoc) 
+  by (simp add: mult.left_commute) 
+
+text {* No match *}
+lemma FI_p_nomatch:
+  assumes "FI m ps (qs*q) (p*up) uq f"
+  shows "FI m (ps*p) (qs*q) up uq f"
+  using assms unfolding FI_def
+  by (simp add: mult.assoc)  
+
+text {* Head of q could not be matched *}
+lemma FI_q_nomatch:
+  assumes "FI m (SLN*up) qs SLN (q*uq) f"
+  shows "FI m SLN (qs*q) up uq f"
+  using assms unfolding FI_def
+  by (simp add: mult.assoc)  
+
+subsection {* Frame Inference *}
+lemma frame_inference_init:
+  assumes "FI_QUERY P Q F"
+  shows "P \<Longrightarrow>\<^sub>A Q * F"
+  using assms by simp
+
+lemma frame_inference_finalize:
+  shows "FI_RESULT M F emp F"
+  apply simp
+  apply rule
+  apply (drule fi_match_entails)
+  apply (rule ent_star_mono[OF _ ent_refl])
+  apply assumption
+  done
+
+subsection {* Entailment Solver *}
+lemma entails_solve_init:
+  "FI_QUERY P Q true \<Longrightarrow> P \<Longrightarrow>\<^sub>A Q * true"
+  "FI_QUERY P Q emp \<Longrightarrow> P \<Longrightarrow>\<^sub>A Q"
+  by (simp_all add: mult.assoc)  
+
+lemma entails_solve_finalize:
+  "FI_RESULT M P emp true"
+  "FI_RESULT M emp emp emp"
+  by (auto simp add: fi_match_entails intro: ent_star_mono)
+
+
+named_theorems sep_dflt_simps "Seplogic: Default simplification rules for automated solvers"
+named_theorems sep_eintros "Seplogic: Intro rules for entailment solver"
+named_theorems sep_heap_rules "Seplogic: VCG heap rules"
+named_theorems sep_decon_rules "Seplogic: VCG deconstruct rules"
 
 ML \<open>
 structure Seplogic_Auto =
 struct
+
+
+  (***********************************)
+  (*          Method Setup           *)
+  (***********************************)
+
+  val dflt_simps_modifiers = [
+    Args.$$$ "dflt_simps" -- Scan.option Args.add -- Args.colon 
+      >> K (Method.modifier (Named_Theorems.add @{named_theorems sep_dflt_simps}) \<^here>),
+    Args.$$$ "dflt_simps" -- Scan.option Args.del -- Args.colon 
+      >> K (Method.modifier (Named_Theorems.del @{named_theorems sep_dflt_simps}) \<^here>)
+  ];
+  val heap_modifiers = [
+    Args.$$$ "heap" -- Scan.option Args.add -- Args.colon 
+      >> K (Method.modifier (Named_Theorems.add @{named_theorems sep_heap_rules}) \<^here>),
+    Args.$$$ "heap" -- Scan.option Args.del -- Args.colon 
+      >> K (Method.modifier (Named_Theorems.del @{named_theorems sep_heap_rules}) \<^here>)
+  ];
+  val decon_modifiers = [
+    Args.$$$ "decon" -- Scan.option Args.add -- Args.colon 
+      >> K (Method.modifier (Named_Theorems.add @{named_theorems sep_decon_rules}) \<^here>),
+    Args.$$$ "decon" -- Scan.option Args.del -- Args.colon 
+      >> K (Method.modifier (Named_Theorems.del @{named_theorems sep_decon_rules}) \<^here>)
+  ];
+
+  val eintros_modifiers = [
+    Args.$$$ "eintros" -- Scan.option Args.add -- Args.colon 
+      >> K (Method.modifier (Named_Theorems.add @{named_theorems sep_eintros}) \<^here>),
+    Args.$$$ "eintros" -- Scan.option Args.del -- Args.colon 
+      >> K (Method.modifier (Named_Theorems.del @{named_theorems sep_eintros}) \<^here>)
+  ];
+
+
+  val solve_entails_modifiers = dflt_simps_modifiers @ eintros_modifiers;
+  val sep_auto_modifiers = 
+    clasimp_modifiers (* @ vcg_modifiers @ eintros_modifiers; *)
 
   (***********************************)
   (*     Assertion Normalization     *)
@@ -200,8 +401,168 @@ struct
     else
       (tracing ("assn_simproc failed with exception\n:" ^ Runtime.exn_message exc);
         NONE) (* Fail silently *);
+
+
+  val assn_simproc =
+    Simplifier.make_simproc @{context} "assn_simproc"
+     {lhss =
+      [@{term "h \<Turnstile> P"},
+       @{term "P \<Longrightarrow>\<^sub>A Q"},
+       @{term "P \<Longrightarrow>\<^sub>t Q"} (*,
+       @{term "Hoare_Triple.hoare_triple P c Q"},
+       @{term "(P::assn) = Q"} *)],
+      proc = K assn_simproc_fun};
+
+
+  (***********************************)
+  (*     Default Simplifications     *)
+  (***********************************)
+
+  (* Default simplification. MUST contain assertion normalization!
+    Tactic must not fail! *)
+  fun dflt_tac ctxt = asm_full_simp_tac
+    (put_simpset HOL_ss ctxt
+      addsimprocs [assn_simproc] 
+      addsimps @{thms norm_assertion_simps}
+      addsimps (Named_Theorems.get ctxt @{named_theorems sep_dflt_simps})
+      |> fold Splitter.del_split @{thms if_split}
+    );
+
+
+  (***********************************)
+  (*         Frame Matcher           *)
+  (***********************************)
+
+  (* Do frame matching
+    imp_solve_tac - tactic used to discharge first assumption of match-rule
+      cf. lemma FI_match.
+  *)
+  fun match_frame_tac imp_solve_tac ctxt = let
+    (* Normalize star-lists *)
+    val norm_tac = simp_tac (
+      put_simpset HOL_basic_ss ctxt addsimps @{thms SLN_normalize});
+
+    (* Strip star-lists *)
+    val strip_tac = 
+      simp_tac (put_simpset HOL_basic_ss ctxt addsimps @{thms SLN_strip}) THEN'
+      simp_tac (put_simpset HOL_basic_ss ctxt addsimps @{thms SLN_def});
+
+    (* Do a match step *)
+    val match_tac = resolve_tac ctxt @{thms FI_match} (* Separate p,q*)
+      THEN' SOLVED' imp_solve_tac (* Solve implication *)
+      THEN' norm_tac;
+
+    (* Do a no-match step *)
+    val nomatch_tac = resolve_tac ctxt @{thms FI_p_nomatch} ORELSE' 
+      (resolve_tac ctxt @{thms FI_q_nomatch} THEN' norm_tac);
+  in
+    resolve_tac ctxt @{thms FI_init} THEN' norm_tac 
+    THEN' REPEAT_DETERM' (FIRST' [
+      CHANGED o dflt_tac ctxt,
+      (match_tac ORELSE' nomatch_tac)])
+    THEN' resolve_tac ctxt @{thms FI_finalize} THEN' strip_tac
   end;
+
+
+
+  (***********************************)
+  (*       Entailment Solver         *)
+  (***********************************)
+
+  (* Extract existential quantifiers from entailment goal *)
+  fun extract_ex_tac ctxt i st = let
+    fun count_ex (Const (@{const_name SepAuto.entails},_)$_$c) = 
+      count_ex c RS @{thm HOL.mp}
+    | count_ex (Const (@{const_name SepAuto.ex_assn},_)$Abs (_,_,t))
+      = count_ex t RS @{thm enorm_exI'}
+    | count_ex _ = @{thm imp_refl};
+
+    val concl = Logic.concl_of_goal (Thm.prop_of st) i |> HOLogic.dest_Trueprop;
+    val thm = count_ex concl;
+  in
+    (TRY o REPEAT_ALL_NEW (match_tac ctxt @{thms ent_ex_preI}) THEN'
+     resolve_tac ctxt [thm]) i st
+  end;
+
+
+  (* Solve Entailment *)
+  fun solve_entails_tac ctxt = let
+    val preprocess_entails_tac = 
+      dflt_tac ctxt 
+      THEN' extract_ex_tac ctxt
+      THEN' simp_tac 
+        (put_simpset HOL_ss ctxt addsimps @{thms solve_ent_preprocess_simps});
+
+    val match_entails_tac =
+      resolve_tac ctxt @{thms entails_solve_init} 
+      THEN' match_frame_tac (resolve_tac ctxt @{thms ent_refl}) ctxt
+      THEN' resolve_tac ctxt @{thms entails_solve_finalize};
+  in
+    preprocess_entails_tac
+    THEN' (TRY o
+      REPEAT_ALL_NEW (match_tac ctxt (rev (Named_Theorems.get ctxt @{named_theorems sep_eintros}))))
+    THEN_ALL_NEW (dflt_tac ctxt THEN' 
+      TRY o (match_tac ctxt @{thms ent_triv} 
+        ORELSE' resolve_tac ctxt @{thms ent_refl}
+        ORELSE' match_entails_tac))
+  end;
+
+
+
+  (***********************************)
+  (*        Automatic Solver         *)
+  (***********************************)
+
+  fun sep_autosolve_tac do_pre do_post ctxt = let
+    val pre_tacs = [
+      CHANGED o clarsimp_tac ctxt,
+      CHANGED o REPEAT_ALL_NEW (match_tac ctxt @{thms ballI allI impI conjI})
+    ];                                
+    val main_tacs = [
+      (* match_tac ctxt @{thms is_hoare_triple} THEN' CHANGED o vcg_tac ctxt, *)
+      match_tac ctxt @{thms is_entails} THEN' CHANGED o solve_entails_tac ctxt
+    ];
+    val post_tacs = [SELECT_GOAL (auto_tac ctxt)];
+    val tacs = (if do_pre then pre_tacs else [])
+      @ main_tacs 
+      @ (if do_post then post_tacs else []);
+  in
+    REPEAT_DETERM' (CHANGED o FIRST' tacs)
+  end;
+
+
+
+end; \<open>struct\<close>
+
+
 \<close> 
+
+
+
+method_setup sep_auto = 
+  {* Scan.lift (Args.mode "nopre" -- Args.mode "nopost" -- Args.mode "plain") 
+      --| Method.sections Seplogic_Auto.sep_auto_modifiers >>
+  (fn ((nopre,nopost),plain) => fn ctxt => SIMPLE_METHOD' (
+    CHANGED o Seplogic_Auto.sep_autosolve_tac 
+      ((not nopre) andalso (not plain)) 
+      ((not nopost) andalso (not plain)) ctxt
+  )) *} "Seplogic: Automatic solver"
+
+method_setup solve_entails = {* 
+  Method.sections Seplogic_Auto.solve_entails_modifiers >>
+  (fn _ => fn ctxt => SIMPLE_METHOD' (
+  CHANGED o Seplogic_Auto.solve_entails_tac ctxt
+)) *} "Seplogic: Entailment Solver"
+
+
+
+
+lemma "A \<Longrightarrow>\<^sub>A A"
+  by solve_entails
+
+
+
+
 
 lemma hand_commute[simp]: "A \<and>\<^sub>A B = B \<and>\<^sub>A A"
 using ent_conjE1 ent_conjE2 ent_conjI ent_iffI by auto
@@ -236,25 +597,6 @@ lemma "h \<Turnstile> F \<and>\<^sub>A \<up> (a' = None) * F' \<Longrightarrow> 
 
 lemma "h \<Turnstile> \<up>t * (F \<and>\<^sub>A \<up> (a' = None) * F') * X \<Longrightarrow> G" apply (simp del:  ) oops
 
-
-lemma ent_pure_pre_iff[simp]: "(P*\<up>b \<Longrightarrow>\<^sub>A Q) \<longleftrightarrow> (b \<longrightarrow> (P \<Longrightarrow>\<^sub>A Q))"
-  unfolding entails_def
-  by (auto   )
-
-lemma ent_pure_pre_iff_sng[simp]: 
-  "(\<up>b \<Longrightarrow>\<^sub>A Q) \<longleftrightarrow> (b \<longrightarrow> (emp \<Longrightarrow>\<^sub>A Q))"
-  using ent_pure_pre_iff[where P=emp]
-  by simp
-
-lemma ent_pure_post_iff[simp]: 
-  "(P \<Longrightarrow>\<^sub>A Q*\<up>b) \<longleftrightarrow> ((\<forall>h. h\<Turnstile>P \<longrightarrow> b) \<and> (P \<Longrightarrow>\<^sub>A Q))"
-  unfolding entails_def
-  by (auto)
-
-lemma ent_pure_post_iff_sng[simp]: 
-  "(P \<Longrightarrow>\<^sub>A \<up>b) \<longleftrightarrow> ((\<forall>h. h\<Turnstile>P \<longrightarrow> b) \<and> (P \<Longrightarrow>\<^sub>A emp))"
-  using ent_pure_post_iff[where Q=emp]
-  by simp 
 
 lemma p_c[simp]: "\<up> P * \<up> Q = \<up> (P \<and> Q)" using pure_conj by simp
 
