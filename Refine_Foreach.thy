@@ -128,22 +128,23 @@ text {*
 *}
 
 text {* We first define a fold-function in the nrest-monad *}
-fun nfoldli where
-  "nfoldli l c f s = (case l of 
+definition nfoldli where
+  "nfoldli l c f s = RECT (\<lambda>D (l,s). (case l of 
     [] \<Rightarrow> RETURNT s 
-    | x#ls \<Rightarrow> if c s then do { s\<leftarrow>f x s; nfoldli ls c f s} else RETURNT s
-  )"
+    | x#ls \<Rightarrow> if c s then do { s\<leftarrow>f x s; D (ls, s)} else RETURNT s
+  )) (l, s)"
 
-
-definition nfoldliIE :: "('d list \<Rightarrow> 'd list \<Rightarrow> 'a \<Rightarrow>  bool) \<Rightarrow> nat \<Rightarrow> 'd list \<Rightarrow> ('a \<Rightarrow> bool) \<Rightarrow> ('d \<Rightarrow> 'a \<Rightarrow> 'a nrest) \<Rightarrow> 'a \<Rightarrow> 'a nrest" where
-  "nfoldliIE I E l c f s = nfoldli l c f s"
 
 lemma nfoldli_simps[simp]:
   "nfoldli [] c f s = RETURNT s"
   "nfoldli (x#ls) c f s = 
     (if c s then do { s\<leftarrow>f x s; nfoldli ls c f s} else RETURNT s)"
-  apply (subst nfoldli.simps, simp)+
-  done
+  unfolding nfoldli_def by (subst RECT_unfold, refine_mono, auto split: nat.split)+
+
+
+definition nfoldliIE :: "('d list \<Rightarrow> 'd list \<Rightarrow> 'a \<Rightarrow>  bool) \<Rightarrow> nat \<Rightarrow> 'd list \<Rightarrow> ('a \<Rightarrow> bool) \<Rightarrow> ('d \<Rightarrow> 'a \<Rightarrow> 'a nrest) \<Rightarrow> 'a \<Rightarrow> 'a nrest" where
+  "nfoldliIE I E l c f s = nfoldli l c f s"
+ 
 
 
 lemma nfoldliIE_rule':
