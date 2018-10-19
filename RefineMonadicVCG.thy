@@ -132,7 +132,12 @@ begin
       and "~b \<Longrightarrow> C\<langle>Suc OC1,(''els'', Suc OC1, []) # (''cond'', IC, []) # CT,OC: valid t Q c2 \<rangle>"
     shows "C\<langle>IC,CT,OC: valid t Q (if b then c1 else c2)\<rangle>"
     using assms(2-) unfolding LABEL_simps by (simp add: valid_def)
-  
+
+
+lemma  "mm3 (E s) (if I s' then Some (E s') else None) = (if I s' \<and> (E s' \<le> E s) then Some (E s - E s') else None)"
+  unfolding mm3_def apply (cases "I s'") apply simp
+  by simp
+
 lemma While:
   assumes  "I s0"  "(\<And>s. I s \<Longrightarrow> b s \<Longrightarrow> Some 0 \<le> TTT (\<lambda>s'. mm3 (E s) (if I s' then Some (E s') else None)) (C s))"
      "(\<And>s. progress (C s))"
@@ -144,7 +149,315 @@ lemma While:
   subgoal using assms(1) by simp
   subgoal for x using assms(4) apply(cases "I x") by(auto simp: Some_eq_mm3_Some_conv' split: if_splits)    
   done
-    
+
+
+term whileT
+term monadic_WHILEIT
+
+definition  monadic_WHILEIET :: "('b \<Rightarrow> bool) \<Rightarrow> 'a \<Rightarrow> ('b \<Rightarrow> bool nrest) \<Rightarrow> ('b \<Rightarrow> 'b nrest) \<Rightarrow> 'b \<Rightarrow> 'b nrest"  where
+  "monadic_WHILEIET I E b c s = monadic_WHILEIT I b c s"
+
+definition "monadic_WHILE b f s \<equiv> do {
+  RECT (\<lambda>D s. do { 
+    bv \<leftarrow> b s;
+    if bv then do {
+      s \<leftarrow> f s;
+      D s
+    } else do {RETURNT s}
+  }) s
+}"
+
+lemma " TTT Q (c x) = Some t \<Longrightarrow> Some t \<le> TTT Q' (c x)"
+      apply(rule T_conseq6) oops
+
+
+lemma TbindT_I2: "tt \<le>  TTT (\<lambda>y. TTT Q (f y)) M \<Longrightarrow>  tt \<le> TTT Q (M \<bind> f)"
+  by (simp add: T_bindT)
+
+thm RECT_wf_induct
+thm whileT_rule''
+
+
+
+lemma T_conseq7:
+  assumes 
+    "TTT Q' f \<ge> tt"
+    "\<And>x t'' M. f = SPECT M \<Longrightarrow> M x \<noteq> None \<Longrightarrow> Q' x = Some t'' \<Longrightarrow> (Q x) \<ge> Some ( t'')" 
+  shows "TTT Q f \<ge> tt"
+  apply(cases tt) apply simp
+  apply simp
+  apply(rule T_conseq6) using assms by auto
+
+lemma
+  assumes "monadic_WHILE bm c s = r"
+  assumes IS[vcg_rules]: "\<And>s.  
+   TTT (\<lambda>b. if b then TTT (\<lambda>s'. if (s',s)\<in>R then I s' else None) (c s) else Q s) (bm s) \<ge> I s"
+    (*  "T (\<lambda>x. T I (c x)) (SPECT (\<lambda>x. if b x then I x else None)) \<ge> Some 0" *)
+  assumes wf: "wf R"
+  shows monadic_WHILE_ruleaaa'': "TTT Q r \<ge> I s"
+  using assms(1)
+  unfolding monadic_WHILE_def
+(*
+  here I always means the 
+*)
+proof (induction rule: RECT_wf_induct[where R="R"])
+  case 1  
+  show ?case by fact
+next
+  case 2
+  then show ?case by refine_mono
+next
+  case step: (3 x D r ) 
+  note IH[vcg_rules] = step.IH[OF _ refl] 
+  note step.hyps[symmetric, simp]   
+
+  from step.prems
+  show ?case 
+    apply clarsimp  
+    apply (rule TbindT_I2)
+    apply(rule T_conseq7)
+     apply (rule IS) apply simp    
+    apply(auto split: if_splits)
+    subgoal
+     apply (rule TbindT_I)
+      apply(rule T_conseq6[where Q'="(\<lambda>s'. if (s', x) \<in> R then I s' else None)"])
+      subgoal by simp 
+      apply(auto split: if_splits)
+      apply(frule IH) by simp_all
+    subgoal apply(simp add: T_RETURNT) done
+    done
+qed
+
+thm RECT_wf_induct
+thm whileT_rule''
+lemma
+  assumes "monadic_WHILE bm c s = r"
+ assumes IS[vcg_rules]: "\<And>s t'. I s = Some t' 
+           \<Longrightarrow>  TTT (\<lambda>b. if b then TTT (\<lambda>s'. if (s',s)\<in>R then I s' else None) (c s) else Q s) (bm s) \<ge> Some t'"
+    (*  "T (\<lambda>x. T I (c x)) (SPECT (\<lambda>x. if b x then I x else None)) \<ge> Some 0" *)
+  assumes "I s = Some t"
+  assumes wf: "wf R"
+  shows monadic_WHILE_rule'': "TTT Q r \<ge> Some t"
+  using assms(1,3)
+  unfolding monadic_WHILE_def
+proof (induction arbitrary: t rule: RECT_wf_induct[where R="R"])
+  case 1  
+  show ?case by fact
+next
+  case 2
+  then show ?case by refine_mono
+next
+  case step: (3 x D r t') 
+  note IH[vcg_rules] = step.IH[OF _ refl] 
+  note step.hyps[symmetric, simp]   
+
+  from step.prems
+  show ?case 
+    apply clarsimp  
+    apply (rule TbindT_I)
+    apply(rule T_conseq6)
+     apply (rule IS) apply simp    
+    apply(auto split: if_splits)
+    subgoal
+     apply (rule TbindT_I)
+      apply(rule T_conseq6[where Q'="(\<lambda>s'. if (s', x) \<in> R then I s' else None)"])
+      subgoal by simp 
+      apply(auto split: if_splits)
+      apply(rule IH) by simp_all
+    subgoal apply(vcg') done
+    done
+qed
+        
+thm whileT_rule'''
+
+
+lemma
+  fixes I :: "'a \<Rightarrow> nat option"
+  assumes "whileT b c s0 = r"
+  assumes progress: "\<And>s. progress (c s)" 
+  assumes IS[vcg_rules]: "\<And>s t t'. I s = Some t \<Longrightarrow>  b s  \<Longrightarrow> 
+           TTT (\<lambda>s'. mm3 t (I s') ) (c s) \<ge> Some 0"
+    (*  "T (\<lambda>x. T I (c x)) (SPECT (\<lambda>x. if b x then I x else None)) \<ge> Some 0" *) 
+  assumes [simp]: "I s0 = Some t0" 
+    (*  assumes wf: "wf R" *)                         
+  shows whileT_rule''': "TTT (\<lambda>x. if b x then None else mm3 t0 (I x)) r \<ge> Some 0"  
+  apply(rule T_conseq4)
+   apply(rule whileT_rule''[where I="\<lambda>s. mm3 t0 (I s)"
+        and R="measure (the_enat o the o I)", OF assms(1)])
+     apply auto
+  subgoal for s t'
+    apply(cases "I s"; simp)
+    subgoal for ti
+      using IS[of s ti]  
+      apply (cases "c s"; simp) 
+      subgoal for M
+        using progress[of s, THEN progressD, of M]
+        apply(auto simp: T_pw) 
+        apply(auto simp: mm3_Some_conv mii_alt mm2_def mm3_def split: option.splits if_splits)
+            apply fastforce 
+        subgoal 
+          by (metis enat_ord_simps(1) le_diff_iff le_less_trans option.distinct(1)) 
+        subgoal 
+          by (metis diff_is_0_eq' leI less_option_Some option.simps(3) zero_enat_def) 
+        subgoal 
+          by (smt Nat.add_diff_assoc enat_ile enat_ord_code(1) idiff_enat_enat leI le_add_diff_inverse2 nat_le_iff_add option.simps(3)) 
+        subgoal 
+          using dual_order.trans by blast 
+        done
+      done
+    done
+  done
+
+thm monadic_WHILE_rule''[where I="\<lambda>s. mm3 t0 (I s)"
+        and R="measure (the_enat o the o I)", simplified]
+
+
+fun Someplus where
+  "Someplus None _ = None"
+| "Someplus _ None = None"
+| "Someplus (Some a) (Some b) = Some (a+b)"
+
+lemma l: "~ (a::enat) < b \<longleftrightarrow> a \<ge> b" by auto
+
+lemma kk: "a\<ge>b \<Longrightarrow> (b::enat) + (a -b) = a" apply(cases a) apply auto
+  apply(cases b) by auto
+
+lemma Tea: "Someplus A B = Some t \<longleftrightarrow> (\<exists>a b. A = Some a \<and> B = Some b \<and> t = a + b)"
+  apply(cases A) apply (cases B) apply (auto)
+ apply (cases B) by (auto)
+
+term TTT
+
+lemma TTT_Some_nofailT: "TTT Q c = Some l \<Longrightarrow> c \<noteq> FAILT"
+  unfolding T_def mii_alt   by auto 
+
+lemma GRR: assumes "TTT Q (SPECT Mf) = Some l"
+  shows "Mf x = None \<or> (Q x\<noteq> None \<and> (Q x) \<ge> Mf x) "
+proof - 
+  from assms have "None \<notin> {mii Q (SPECT Mf) x |x. True}" 
+  unfolding T_def    
+  unfolding Inf_option_def by (auto split: if_splits)   
+  then have "None \<noteq> (case Mf x of None \<Rightarrow> Some \<infinity> | Some mt \<Rightarrow> case Q x of None \<Rightarrow> None | Some rt \<Rightarrow> if rt < mt then None else Some (rt - mt))"
+  unfolding mii_alt mm2_def
+  by (auto)
+  then show ?thesis by (auto split: option.splits if_splits)
+qed
+
+
+lemma "TTT Q c = Some l \<Longrightarrow> Someplus (Some t) (TTT Q c) = TTT (\<lambda>a. Someplus (Some t) (Q a)) c"
+  unfolding T_def mii_alt
+  oops
+
+lemma Someplus_None: "Someplus A B = None \<longleftrightarrow> (A = None \<or> B = None)" apply(cases A; cases B) by auto
+
+lemma Somemm3: "A \<ge> B \<Longrightarrow> mm3 A (Some B) = Some (A - B)" unfolding mm3_def by auto
+
+lemma assumes "monadic_WHILE bm c s0 = r"
+  and step: "\<And>s. I s  \<Longrightarrow>
+    Some 0 \<le> TTT (\<lambda>b. if b
+                   then TTT (\<lambda>s'. (if I s' \<and> (E s' \<le> E s) then Some (enat (E s - E s')) else None)) (c s)
+                   else mm2 (Q s) (Someplus (Some t) (mm3 (E s0) (Some (E s))))  )
+       (bm s)"
+  and progress: "\<And>s. progress (c s)"
+ (* "mm3 (E s0) (if I s0 then Some (E s0) else None) = Some t" *)
+ and I0: "I s0" 
+shows neueWhile_rule: "Some t \<le> TTT Q r"
+proof -
+
+  show "Some t \<le> TTT Q r"
+    apply (rule monadic_WHILE_rule''[where I="\<lambda>s. Someplus (Some t) (mm3 (E s0) ((\<lambda>e. if I e
+                then Some (E e) else None) s))"  and R="measure (the_enat o the o (\<lambda>e. if I e
+                then Some (E e) else None))", simplified])
+      apply fact
+    subgoal for s t'
+      apply(auto split: if_splits)  
+      apply(rule T_conseq4)
+       apply(rule step) apply simp
+      apply auto
+    proof (goal_cases)
+      case (1 b t'')
+      from 1(3) TTT_Some_nofailT obtain M where cs: "c s = SPECT M" by force
+      { assume A: "\<And>x. M x = None"
+        with A have "?case" apply auto unfolding cs T_def mii_alt using A by simp
+      }
+      moreover 
+      { assume "\<exists>x. M x \<noteq> None"
+        then obtain x where i: "M x \<noteq> None" by blast
+
+        let ?T = "TTT (\<lambda>s'. if I s' \<and> E s' \<le> E s then Some (enat (E s - E s')) else None) (c s)"
+
+        from GRR[OF 1(3)[unfolded cs], where x=x] 
+         i have "(if I x \<and> E x \<le> E s then Some (enat (E s - E x)) else None) \<noteq> None \<and> M x \<le> (if I x \<and> E x \<le> E s then Some (enat (E s - E x)) else None)"
+          by simp
+        then have pf: " I x" "E x \<le> E s" "M x \<le>   Some (enat (E s - E x))  " by (auto split: if_splits)
+
+
+        then have "M x < Some \<infinity>"  
+          using enat_ord_code(4) le_less_trans less_option_Some by blast
+
+        have "Some t'' = ?T" using 1(3) by simp
+        also have oo: "?T  \<le>  mm2 (Some (enat (E s - E x))) (M x)"
+          unfolding T_def apply(rule Inf_lower) apply (simp add: mii_alt cs) apply(rule exI[where x=x])
+          using pf by simp
+  
+        also from i have o: "\<dots> < Some \<infinity>"  unfolding mm2_def 
+          apply auto  
+          using fl by blast
+        finally  have tni: "t'' < \<infinity>" by auto
+        then have tt: "t' + t'' - t'' = t'" apply(cases t''; cases t') by auto  
+  
+      have ka: "\<And>x. mii (\<lambda>s'. if I s' \<and> E s' \<le> E s then Some (enat (E s - E s')) else None) (c s) x \<ge> Some t''" unfolding T_def 
+        using "1"(3) T_pw by fastforce
+
+      { fix x assume nN: "M x \<noteq> None"
+        with progress[of s, unfolded cs progress_def] have strict: "Some 0 < M x" by auto
+        from ka[of x] nN  have "E x  < E s" unfolding mii_alt cs progress_def mm2_def
+          apply (auto split: if_splits) using  strict apply(simp add: l) 
+          using less_le zero_enat_def by force
+      } note strict = this
+      have ?case 
+        apply(rule T_conseq5[where Q'="(\<lambda>s'. if I s' \<and> E s' \<le> E s then Some (enat (E s - E s')) else None)"])
+        using 1(3) apply(auto) [] using 1(2)
+        apply (auto simp add: tt  Tea split: if_splits)
+        subgoal apply(auto simp add: Some_eq_mm3_Some_conv')
+          apply(rule strict) using cs by simp 
+        subgoal by(simp add: Some_eq_mm3_Some_conv' Somemm3) 
+        done
+    }
+    ultimately show ?case by blast
+    next
+      case (2 x t'')
+      then show ?case unfolding mm3_def mm2_def apply (auto split: if_splits) apply(cases "Q s")
+         apply (auto split: if_splits)  by(simp add: l kk)   
+    qed  
+    subgoal
+      using I0 by simp
+    done
+qed
+
+
+
+thm neueWhile_rule[no_vars]
+
+definition monadic_WHILEIE where
+  "monadic_WHILEIE I E bm c s = monadic_WHILE bm c s" 
+
+lemma 
+  fixes s0 :: 'a and I :: "'a \<Rightarrow> bool" and E :: "'a \<Rightarrow> nat"
+  assumes
+  step: "(\<And>s. I s \<Longrightarrow> Some 0 \<le> TTT (\<lambda>b. if b then TTT (\<lambda>s'. if I s' \<and> E s' \<le> E s then Some (enat (E s - E s')) else None) (c s) else mm2 (Q s) (Someplus (Some t) (mm3 (E s0) (Some (E s))))) (bm s))"
+ and  progress: "\<And>s. progress (c s)"
+ and  i: "I s0"
+shows neueWhile_rule': "Some t \<le> TTT Q (monadic_WHILEIE I E bm c s0)"
+  unfolding monadic_WHILEIE_def 
+  apply(rule neueWhile_rule[OF refl]) by fact+
+
+
+
+
+
+
+
 
   lemma LWhileRule:
     fixes IC CT  

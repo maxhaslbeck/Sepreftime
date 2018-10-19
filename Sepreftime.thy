@@ -1287,6 +1287,35 @@ proof -
   thus ?thesis
     unfolding T_pw ..
 qed
+(*
+lemma T_conseq44:
+  assumes 
+    "T Q' f \<ge> Some t'"
+    "\<And>x t'' M. Q' x = Some t'' \<Longrightarrow> (Q x) \<ge> Some ((t - t') + t'')" 
+  shows "T Q f \<ge> Some t"
+proof -
+  { assume "T Q f = Some \<infinity>"
+    then have "False" unfolding T_def 
+
+  {
+    fix x
+    from assms(1)[unfolded T_pw] have i: "Some t' \<le> mii Q' f x" by auto
+    from assms(2) have ii: "\<And>t''. Q' x = Some t'' \<Longrightarrow> (Q x) \<ge> Some ((t - t') + t'')" by auto
+    from i ii have "Some t \<le> mii Q f x"
+      unfolding mii_alt apply(auto split: nrest.splits)
+      subgoal for x2 apply(cases "x2 x") apply simp
+        apply(simp add: aux1)  
+        apply(cases "Q' x") apply simp
+        apply auto 
+        apply(cases "Q x") apply auto 
+        subgoal for a b c apply(cases t; cases t'; cases a; cases b; cases c) apply auto
+          using le_add2 by force
+        done
+      done
+  } 
+  thus ?thesis
+    unfolding T_pw ..
+qed*)
 
 
 lemma T_conseq6:
@@ -1667,6 +1696,37 @@ next
 qed
 
 
+lemma
+  assumes "whileT b c s = r"
+  assumes IS[vcg_rules]: "\<And>s t'. I s = Some t' \<Longrightarrow> b s 
+           \<Longrightarrow>    T (\<lambda>s'. if (s',s)\<in>R then I s' else None) (c s) \<ge> Some t'"
+    (*  "T (\<lambda>x. T I (c x)) (SPECT (\<lambda>x. if b x then I x else None)) \<ge> Some 0" *) 
+  assumes "I s = Some t"
+  assumes wf: "wf R"
+  assumes exit: "\<And>s t'. I s = Some t' \<Longrightarrow> \<not>b s \<Longrightarrow> Q s \<ge> Some t'"
+  shows whileT_rule''a_: "T Q r \<ge> Some t"
+  using assms(1,3)
+  unfolding whileT_def
+proof (induction arbitrary: t rule: RECT_wf_induct[where R="R"])
+  case 1  
+  show ?case by fact
+next
+  case 2
+  then show ?case by refine_mono
+next
+  case step: (3 x D r t') 
+  note IH[vcg_rules] = step.IH[OF _ refl] 
+  note step.hyps[symmetric, simp]   
+
+  from step.prems
+  show ?case 
+    apply clarsimp
+    apply safe 
+    apply vcg'   using exit by simp
+qed
+
+
+
 lemma mm2_refl: "A < \<infinity> \<Longrightarrow> mm2 (Some A) (Some A) = Some 0"
   unfolding mm2_def by auto
  
@@ -1753,6 +1813,9 @@ next
 qed
 
 
+lemma mm2SomeleSome_conv: "mm2 (Qf) (Some t) \<ge> Some 0 \<longleftrightarrow> Qf \<ge> Some t"
+  unfolding mm2_def  by (auto split: option.split)                              
+ 
 
 
 lemma
