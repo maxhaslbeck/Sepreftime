@@ -1,6 +1,6 @@
 theory MonadicWhileExample
 imports "../Refine_Imperative_HOL/Sepref" "../RefineMonadicVCG"
-    "../Refine_Imperative_HOL/IICF/Impl/IICF_Rbt_Set"  
+    "../Refine_Imperative_HOL/IICF/Impl/IICF_Rbt_Set"   Complex_Main "HOL-Decision_Procs.Approximation"
 begin
 
 
@@ -27,10 +27,16 @@ lemma pff: "x \<in> s \<Longrightarrow> finite s \<Longrightarrow> card s > 0"
 lemma mm2_some_leq: "Some a \<le> mm2 (Some b) (Some c) \<longleftrightarrow> (c \<le> b \<and> a \<le> b - c )"
   unfolding mm2_def by(auto)
 
+
+lemma F: "160 *  (\<lceil>2 * log 2 11\<rceil> + 1) \<le> 1991"
+  by (approximation 10)
+lemma G: "10 \<le> 99550 - 8000 * (\<lceil>2 * log 2 11\<rceil> + 1)"
+  by (approximation 10)
+
 lemma z: "cs \<le> 10 \<Longrightarrow> rbt_delete_time_logN (Suc cs) \<le> rbt_delete_time_logN (Suc 10)"
   apply(rule rbt_delete_time_logN_mono) by auto
 
-lemma "Prog \<le> SPECT [ {} \<mapsto> enat 1000 ]"
+lemma "Prog \<le> SPECT [ {} \<mapsto> enat 100000 ]"
   unfolding Prog_def
   apply(rule T_specifies_I)
   apply (vcg'\<open>-\<close> rules: mop_set_empty mop_set_insert neueWhile_rule' mop_set_isempty  )  
@@ -43,7 +49,12 @@ lemma "Prog \<le> SPECT [ {} \<mapsto> enat 1000 ]"
     apply(simp add: bodytime_def )
     apply(frule z) by simp
   subgoal  by (auto )  
-  subgoal apply (auto simp: mm2_some_leq rbt_insert_logN_def rbt_insert_time_def rbt_ins_time_def rbt_absch_def  )  sorry
+  subgoal apply (auto simp: bodytime_def mm2_some_leq rbt_insert_logN_def rbt_delete_time_def btree_del_time_def rbt_delete_time_logN_def rbt_insert_time_def rbt_ins_time_def rbt_absch_def  )
+    subgoal 
+      using F by simp
+    subgoal 
+      using G by simp
+    done
   subgoal by simp
   done
 
