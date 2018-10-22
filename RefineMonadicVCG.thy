@@ -153,6 +153,7 @@ lemma While:
 
 term whileT
 term monadic_WHILEIT
+thm monadic_WHILEIT_def 
 
 definition  monadic_WHILEIET :: "('b \<Rightarrow> bool) \<Rightarrow> 'a \<Rightarrow> ('b \<Rightarrow> bool nrest) \<Rightarrow> ('b \<Rightarrow> 'b nrest) \<Rightarrow> 'b \<Rightarrow> 'b nrest"  where
   "monadic_WHILEIET I E b c s = monadic_WHILEIT I b c s"
@@ -166,6 +167,10 @@ definition "monadic_WHILE b f s \<equiv> do {
     } else do {RETURNT s}
   }) s
 }"
+
+lemma monadic_WHILE_aux: "monadic_WHILE b f s = monadic_WHILEIT (\<lambda>_. True) b f s"
+  unfolding monadic_WHILEIT_def monadic_WHILE_def 
+  by simp
 
 lemma " TTT Q (c x) = Some t \<Longrightarrow> Some t \<le> TTT Q' (c x)"
       apply(rule T_conseq6) oops
@@ -197,9 +202,6 @@ lemma
   shows monadic_WHILE_ruleaaa'': "TTT Q r \<ge> I s"
   using assms(1)
   unfolding monadic_WHILE_def
-(*
-  here I always means the 
-*)
 proof (induction rule: RECT_wf_induct[where R="R"])
   case 1  
   show ?case by fact

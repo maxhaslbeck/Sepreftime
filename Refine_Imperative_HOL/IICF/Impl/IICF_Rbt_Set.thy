@@ -1,6 +1,6 @@
 theory IICF_Rbt_Set
   imports "SepLogicTime_RBTreeBasic.RBTree_Impl" 
-      "../Intf/IICF_Set" 
+      "../Intf/IICF_Set"  "../../../RefineMonadicVCG"
 begin
 
 hide_const R B
@@ -44,7 +44,88 @@ definition [rewrite]: "rbt_set_insert k b = rbt_insert k () b"
 lemma g[rewrite]: "card (keys_of M) + 1 = sizeM1 M"
      by (auto simp: sizeM1_def)
 
-setup {* fold del_prfstep_thm @{thms rbt_map_assn_def} *}  
+
+definition rbt_pick where   "rbt_pick p = do {(case p of 
+     None \<Rightarrow> return None |
+     Some pp \<Rightarrow> do {
+     t \<leftarrow> !pp;
+     return (Some (key t))
+   }) }"
+
+lemma rbt_pick_rule [hoare_triple]:
+  "<btree t p *$2>
+   rbt_pick  p
+   <\<lambda>r. btree t p * \<up>( (t = Leaf \<longrightarrow> r = None) \<and> (t\<noteq>Leaf \<longrightarrow> the r \<in> rbt_set t) )>\<^sub>t"
+@proof @case "t = Leaf"  @qed
+
+definition  rbt_map_pick where    "rbt_map_pick p = rbt_pick p"
+
+lemma rbt_map_Leaf: "rbt_map (Leaf) = empty_map"
+  by (simp add: rbt_map_def)
+
+lemma neq_ext: "(\<exists>x. f x \<noteq>  g x ) \<Longrightarrow> f \<noteq> g" by auto
+
+
+lemma meval_ext_neg: " M\<langle>x\<rangle> \<noteq> N\<langle>x\<rangle> \<Longrightarrow> M \<noteq> N"
+  apply (cases M) apply (cases N) by auto
+ 
+  
+
+
+lemma rbt_map_Leaf_conv: "M = rbt_map t \<Longrightarrow> (t = Leaf) = (M = empty_map)"
+  apply(cases t) apply (simp_all add: rbt_map_def empty_map_def) 
+  subgoal for c l k v r apply(rule meval_ext_neg[where x=k])
+    apply(simp only:  meval.simps)
+    apply(simp only: map_of_alist_nil'[symmetric]) by simp 
+  done
+
+lemma empty_rbt_map_is_Leaf: "rbt_map t = empty_map \<Longrightarrow> t = Leaf"
+  by(simp add: rbt_map_Leaf_conv)
+
+lemma rbt_map_Leaf_is_empty_map: "rbt_map Leaf = empty_map "
+  by(simp add: rbt_map_def)
+
+lemma dd: "M= rbt_map t \<Longrightarrow> t = Leaf \<Longrightarrow> M = empty_map"
+  by(simp add: rbt_map_def)
+
+declare rbt_set_keys_of [forward]
+
+lemma rbt_map_pick_rule [hoare_triple]:
+  "<rbt_map_assn M p * $ 2>
+   rbt_map_pick  p
+   <\<lambda>r. rbt_map_assn M p * \<up>( (M = empty_map \<longrightarrow> r = None) \<and> (M\<noteq>empty_map \<longrightarrow> the r \<in> keys_of M))>\<^sub>t"
+  by auto2
+
+
+
+thm tree_is_empty_rule
+declare tree_is_empty_rule [hoare_triple]
+
+definition "rbt_map_isempty b = tree_is_empty b"
+ 
+
+lemma rbt_map_isempty_rule[hoare_triple]: "<rbt_map_assn M b * $1> rbt_map_isempty b <\<lambda>r. rbt_map_assn M b * \<up> (r \<longleftrightarrow> (M = empty_map))>\<^sub>t"
+  by auto2
+
+setup {* fold del_prfstep_thm @{thms rbt_map_assn_def} *}   
+
+
+
+
+definition  rbt_set_pick where    "rbt_set_pick p = do {
+        s \<leftarrow> rbt_map_pick p;
+        return (the s) }"
+
+ 
+theorem rbt_set_pick_rule [hoare_triple]:
+  "S\<noteq>{} \<Longrightarrow> <rbt_set_assn S b * $4> rbt_set_pick b <\<lambda>r. rbt_set_assn S b * \<up>(r \<in> S)>\<^sub>t"
+  by auto2
+
+definition  rbt_set_isempty where    "rbt_set_isempty p =rbt_map_isempty p"
+
+lemma rbt_set_isempty_rule: "<rbt_set_assn S b * $1> rbt_set_isempty b <\<lambda>r. rbt_set_assn S b * \<up> (r \<longleftrightarrow> (S = {}))>\<^sub>t"
+  by auto2
+
 
 declare [[print_trace]]
 thm rbt_insert_rule rbt_insert_rule'
@@ -54,6 +135,10 @@ theorem rbt_insert_rule_abs [hoare_triple]:
 
 lemma a[rewrite]: "S = keys_of M \<Longrightarrow> M\<langle>x\<rangle> = Some () \<longleftrightarrow> x \<in> S"  
   by (simp add: keys_of_iff)  
+
+
+
+
 
 (*
 theorem rbt_search_abs [hoare_triple]:
@@ -70,6 +155,23 @@ definition rbt_mem :: "nat \<Rightarrow> (nat, unit) rbt_node ref option \<Right
 theorem rbt_mem_rule [hoare_triple]:
   "<rbt_set_assn S b * $(rbt_search_time_logN (card S + 1) + 1)> rbt_mem x b <\<lambda>r. rbt_set_assn S b * \<up>(r = (x \<in> S))>\<^sub>t"
   by auto2
+
+
+
+definition paint :: "color \<Rightarrow> ('a::heap, 'b::heap) btree \<Rightarrow> unit Heap" where
+  "paint c p = (case p of
+    None \<Rightarrow> return ()
+  | Some pp \<Rightarrow> do {
+     t \<leftarrow> !pp;
+     pp := Node (lsub t) c (key t) (val t) (rsub t)
+   })"
+  
+lemma paint_rule [hoare_triple]:
+  "<btree t p *$2>
+   paint c p
+   <\<lambda>_. btree (RBTree.paint c t) p>\<^sub>t"
+@proof @case "t = Leaf" @qed
+
 
 definition "set_empty = tree_empty"
 
@@ -290,5 +392,47 @@ lemma mop_mem_set_rule[sepref_fr_rules]:
   apply rotater
    apply(rule match_first) apply (simp add: pure_def)   apply safe
     apply(rule inst_ex_assn[where x="x \<in> S"])  by auto 
-                                                  
+
+
+thm rbt_set_isempty_rule
+
+
+lemma mop_set_isempty_rule[sepref_fr_rules]:
+  "1 \<le> t S \<Longrightarrow>
+    hn_refine (hn_ctxt rbt_set_assn S p)
+     (rbt_set_isempty  p)
+     (hn_ctxt rbt_set_assn S p) id_assn ( PR_CONST (mop_set_isempty t) $ S)"
+
+  unfolding autoref_tag_defs mop_set_isempty_def             
+  apply (rule extract_cost_otherway[OF _  rbt_set_isempty_rule, where F="emp" ]) unfolding mult.assoc
+  unfolding hn_ctxt_def  apply(rule match_first) apply simp      
+     apply (rule entails_triv)
+   apply(rule match_first)   apply clarsimp   
+   apply (simp add: pure_def)    
+    apply(rule inst_ex_assn[where x="S = {}"]) apply (simp add: dom_emb'_eq)
+  by (auto split: if_splits simp add: ran_def emb'_def)
+
+
+
+lemma mop_set_pick_rule[sepref_fr_rules]:
+  "4 \<le> t S \<Longrightarrow>
+    hn_refine (hn_ctxt rbt_set_assn S p)
+     (rbt_set_pick  p)
+     (hn_ctxt rbt_set_assn S p) id_assn ( PR_CONST (mop_set_pick t) $ S)"
+
+  unfolding autoref_tag_defs mop_set_pick_def
+  apply(rule hnr_ASSERT)
+  apply (rule extract_cost_otherway[OF _  rbt_set_pick_rule, where F = emp]) unfolding mult.assoc
+  unfolding hn_ctxt_def  apply(rule match_first) apply simp      
+     apply (rule entails_triv)
+  apply simp 
+   apply(rule match_first) apply clarsimp
+   
+   apply (simp add: pure_def)   subgoal for r
+    apply(rule inst_ex_assn[where x="r"]) by (simp add: dom_emb'_eq)
+  by (auto split: if_splits simp add: ran_def emb'_def)
+
+  
+
+
 end

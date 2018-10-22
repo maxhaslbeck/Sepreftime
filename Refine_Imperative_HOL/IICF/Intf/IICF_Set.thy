@@ -45,13 +45,15 @@ end
 context
   fixes t ::  "'c set \<Rightarrow> nat"
 begin
-  definition "mop_set_pick S = SPECT (emb (\<lambda>x. x\<in>S) (t S))"
+  definition "mop_set_pick S = do { ASSERT (S\<noteq>{}); SPECT (emb (\<lambda>x. x\<in>S) (t S)) }"
 
   lemma  mop_set_pick: "tt \<le> TTT Q (SPECT (emb (\<lambda>x. x\<in>S) (t S))) 
-        \<Longrightarrow> tt \<le> TTT Q (mop_set_pick S)" unfolding mop_set_pick_def by simp
+        \<Longrightarrow> S \<noteq> {} \<Longrightarrow> tt \<le> TTT Q (mop_set_pick S)" unfolding mop_set_pick_def by simp
+
+  thm progress_rules
 
   lemma progress_mop_set_pick[progress_rules]: "t S > 0 \<Longrightarrow> progress (mop_set_pick S)"
-    unfolding mop_set_pick_def by (auto intro: progress_rules simp add:   zero_enat_def) 
+    unfolding mop_set_pick_def by (auto intro!: progress_rules simp add:   zero_enat_def) 
 
   sepref_register "mop_set_pick" 
   print_theorems 
