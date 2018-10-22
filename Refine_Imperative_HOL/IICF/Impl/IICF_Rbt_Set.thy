@@ -36,7 +36,8 @@ lemma set_init_hnr:
 definition rbt_map_assn' where "rbt_map_assn' a c =
         (\<exists>\<^sub>AM. rbt_map_assn M c * \<up>((M,a)\<in>Z))"
 
-definition rbt_set_assn where [rewrite_ent]: "rbt_set_assn S p =
+definition rbt_set_assn :: "_ set \<Rightarrow> (_, unit) rbt_node ref option \<Rightarrow> assn"  where [rewrite_ent]:
+  "rbt_set_assn S p =
         (\<exists>\<^sub>AM. rbt_map_assn M p * \<up>(S = keys_of M))"
 
 definition [rewrite]: "rbt_set_insert k b = rbt_insert k () b"
@@ -138,6 +139,13 @@ lemma a[rewrite]: "S = keys_of M \<Longrightarrow> M\<langle>x\<rangle> = Some (
 
 
 
+definition [rewrite]: "rbt_set_delete b k = rbt_delete k  b"
+
+theorem rbt_delete_rule_abs [hoare_triple]:
+  "<rbt_set_assn S p * $(rbt_delete_time_logN (card S + 1))> rbt_set_delete p x <rbt_set_assn (S -  {x})>\<^sub>t"
+  by auto2 
+
+thm rbt_delete_rule
 
 
 (*
@@ -362,6 +370,29 @@ lemma mop_set_insert_rule[sepref_fr_rules]:
 
   unfolding mop_set_insert_def autoref_tag_defs
   apply (rule extract_cost_otherway[OF _  rbt_insert_rule_abs, where F="hn_val Id x x' * hn_invalid rbt_set_assn S p" ])
+  unfolding mult.assoc
+    apply(rotatel)
+    apply rotater  apply rotater  apply rotater   apply taker apply(rule isolate_first)
+  apply (simp add: gr_def hn_ctxt_def)  apply(rule invalidate_clone)
+  unfolding hn_ctxt_def
+    apply(rule match_first)  apply (rule entails_triv)
+
+   apply rotatel apply rotatel apply swapl apply takel apply swapr apply taker 
+   apply(rule isolate_first) 
+  unfolding gr_def apply(simp only: ex_distrib_star' pure_def)
+    apply(rule inst_ex_assn) apply simp apply safe prefer 4 
+     apply(rule entails_triv) 
+  by (auto) 
+
+
+lemma mop_set_delete_rule[sepref_fr_rules]:
+  "rbt_delete_time_logN (card S + 1) \<le> t S \<Longrightarrow> 
+      hn_refine (hn_val Id x x' * hn_ctxt rbt_set_assn S p)
+       (rbt_set_delete p x')
+       (hn_val Id x x' * hn_invalid rbt_set_assn S p) rbt_set_assn ( PR_CONST (mop_set_del t) $ S $ x)"
+
+  unfolding mop_set_del_def autoref_tag_defs
+  apply (rule extract_cost_otherway[OF _  rbt_delete_rule_abs, where F="hn_val Id x x' * hn_invalid rbt_set_assn S p" ])
   unfolding mult.assoc
     apply(rotatel)
     apply rotater  apply rotater  apply rotater   apply taker apply(rule isolate_first)
