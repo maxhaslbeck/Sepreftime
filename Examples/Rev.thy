@@ -50,16 +50,18 @@ lemma myfun2_simps:
 definition "oappend x' xs' = return (x'#xs')" 
 
 lemma mop_lookup_list_as_array_rule[sepref_fr_rules]:
-  "1 \<le> t xs \<Longrightarrow>  
-    hn_refine (hn_ctxt (pure Id) xs xs' * hn_val Id x x')
+  "\<And>R. 1 \<le> t xs \<Longrightarrow>  
+    hn_refine (hn_ctxt (list_assn R) xs xs' * hn_ctxt R x x')
      (oappend x' xs')
-     (hn_invalid (pure Id) xs xs' * hn_ctxt (pure Id) x x') (pure Id) ( PR_CONST (mop_append t) $  x $ xs)"
+     (hn_invalid (list_assn R) xs xs' * hn_invalid R x x') (list_assn R) ( PR_CONST (mop_append t) $  x $ xs)"
   unfolding autoref_tag_defs mop_append_def oappend_def
   unfolding hn_refine_def
   apply (auto simp: execute_return pure_def hn_ctxt_def invalid_assn_def relH_def top_assn_rule)
   apply(rule exI[where x=1] ) apply auto
-  subgoal  
-    using vassn_tag_def vassn_tag_simps(1) by auto 
+  subgoal    
+    by (metis mod_star_trueI pf) 
+  subgoal using mod_starD by auto 
+  subgoal using mod_starD by blast
   done
 
    
@@ -78,6 +80,10 @@ context
   notes [[sepref_register_adhoc n]]
   notes [sepref_import_param] = IdI[of n] 
 begin 
+
+lemma ff: "hn_ctxt (list_assn nat_assn) a c \<Longrightarrow>\<^sub>t hn_val Id a c"
+  unfolding hn_ctxt_def   
+  by (simp add: list_assn_pure_conv)  
 
 sepref_definition synth_myfun is "uncurry0 (myfun2 n [])" :: "unit_assn\<^sup>k \<rightarrow>\<^sub>a pure Id" 
   using [[goals_limit = 3]]
@@ -98,7 +104,7 @@ sepref_definition synth_myfun is "uncurry0 (myfun2 n [])" :: "unit_assn\<^sup>k 
   apply sepref_dbg_opt 
   apply sepref_dbg_cons_solve \<comment> \<open>Frame rule, recovering the invalidated list 
     or pure elements, propagating recovery over the list structure\<close>
-  apply sepref_dbg_cons_solve \<comment> \<open>Trivial frame rule\<close>
+   (* apply sepref_dbg_cons_solve \<comment> \<open>Trivial frame rule\<close> *) apply(rule ff)
   apply sepref_dbg_constraints
   done
 
