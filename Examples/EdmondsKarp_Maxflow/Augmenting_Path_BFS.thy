@@ -876,10 +876,11 @@ proof -
     
 
     term valid_PRED_impl.Ter 
-    definition (in -) "extract_rpath src dst PRED map_lookup_time list_append_time   \<equiv> do {
+    definition (in -) "extract_rpath src dst PRED map_lookup_time list_append_time V   \<equiv> do {
       (d,p) \<leftarrow> whileT        
         (\<lambda>(v,p). v\<noteq>src) (\<lambda>(v,p). do {
         ASSERT (v\<in>dom PRED);
+        ASSERT (card (dom PRED) \<le> card V);
         u \<leftarrow> mop_map_lookup (\<lambda>_. map_lookup_time) PRED v;
         p \<leftarrow> mop_append (\<lambda>_. list_append_time) (u,v) p;
         v \<leftarrow> RETURNT u;
@@ -891,10 +892,18 @@ proof -
   end  
 
   context valid_PRED_impl begin
-  
+
+  thm FIN_V
+  lemma domPREDV: "dom PRED \<subseteq> V"
+    apply auto subgoal for x y 
+      apply(cases "x=src") using SRC_IN_V apply simp
+      apply(frule PRED_E) apply simp unfolding V_def by auto
+    done
+
+
     lemma extract_rpath_correct':
-      assumes "dst\<in>dom PRED"
-      shows "extract_rpath src dst PRED   map_lookup_time list_append_time  
+      assumes "dst\<in>dom PRED" 
+      shows "extract_rpath src dst PRED   map_lookup_time list_append_time V
         \<le> SPECT (emb (\<lambda>p. isSimplePath src p dst \<and> length p = ndist dst) extract_rpath_time')"
       using assms unfolding extract_rpath_def isSimplePath_def  
       apply(subst whileIET_def[symmetric, where I="extract_rpath_inv src dst PRED" and E =Ter  ])
@@ -902,14 +911,14 @@ proof -
       apply(rule T_specifies_I) 
       apply (vcg'\<open>-\<close> rules: mop_map_lookup mop_append)   
 
-      by (auto simp: Some_le_mm3_Some_conv Some_le_emb'_conv
+      apply (auto simp: Some_le_mm3_Some_conv Some_le_emb'_conv
                           extract_rpath_time'_def extract_rpath_inv_def
                                PRED_closed[THEN domD] PRED_E PRED_dist Ter_def)
-
+      apply(rule card_mono) by (simp_all add: domPREDV)
 
     lemma extract_rpath_correct:
       assumes "dst\<in>dom PRED"
-      shows "extract_rpath  src dst PRED map_lookup_time list_append_time 
+      shows "extract_rpath  src dst PRED map_lookup_time list_append_time V
         \<le> SPECT (emb (\<lambda>p. isSimplePath src p dst \<and> length p = ndist dst) (extract_rpath_time (card V)))"
       apply(rule dual_order.trans[OF _ extract_rpath_correct'])
       apply (auto simp add: emb_le_emb extract_rpath_time_def extract_rpath_time'_def intro!: ndist_le_V)
@@ -938,7 +947,7 @@ interpretation pre: Pre_BFS_Impl c set_insert_time map_dom_member_time set_delet
         case br of
           None \<Rightarrow> RETURNT None
         | Some (d,PRED) \<Rightarrow> do {
-            p \<leftarrow> extract_rpath src dst PRED map_lookup_time list_append_time;
+            p \<leftarrow> extract_rpath src dst PRED map_lookup_time list_append_time V;
             RETURNT (Some p)
           }  
       }    
@@ -1210,7 +1219,7 @@ interpretation pre: Pre_BFS_Impl c set_insert_time map_dom_member_time set_delet
         case br of
           None \<Rightarrow> RETURNT None
         | Some (d,PRED) \<Rightarrow> do {
-            p \<leftarrow> extract_rpath  src dst PRED  map_lookup_time list_append_time;
+            p \<leftarrow> extract_rpath  src dst PRED  map_lookup_time list_append_time V;
             RETURNT (Some p)
           }  
       }    

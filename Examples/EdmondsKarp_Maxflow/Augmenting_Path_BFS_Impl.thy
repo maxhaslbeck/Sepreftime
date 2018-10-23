@@ -19,10 +19,10 @@ context Impl_Succ begin
 
     lemma [simp]: "set_pick_time > (0::nat)" unfolding set_pick_time_def by auto
 
-
-lemma A: "Augmenting_Path_BFS set_pick_time map_lookup_time"
-  unfolding Augmenting_Path_BFS_def by simp
-    thm Augmenting_Path_BFS.bfs2_def
+definition "map_lookup_time cf = rbt_search_time_logN (1 +  card (Graph.V cf)) + 1" 
+lemma [simp]: "map_lookup_time cf > 0" unfolding map_lookup_time_def by simp
+ 
+ 
 
 
 
@@ -43,11 +43,11 @@ definition "set_delete_time cf = rbt_delete_time_logN (card (Graph.V cf) + 1)"
 definition "map_dom_member_time cf = rbt_search_time_logN (1 + card (Graph.V cf)) + 1"
 definition "map_update_time cf = rbt_insert_logN (1 + card (Graph.V cf))" 
 definition "set_empty_time = (10::nat)"
-
+definition "list_append_time = (1::nat)"
 
     abbreviation "bfs2 cf SS IS s t == Augmenting_Path_BFS.bfs2 cf
                        (set_insert_time cf) (map_dom_member_time cf)  (set_delete_time cf) (map_update_time cf)
-                      set_pick_time list_append_time map_lookup_time set_empty_time set_isempty_time SS IS s t"
+                      set_pick_time list_append_time (map_lookup_time cf) set_empty_time set_isempty_time SS IS s t"
 
     term WHILE_monadi
 
@@ -110,15 +110,26 @@ lemma (in -) hn_refine_Some[sepref_fr_rules]: " hn_refine (hn_val Id s' s)
        (pure Id) (RETURNT $ (Some $ s'))"
   unfolding hn_refine_def apply (auto simp:   mult.assoc  execute_ureturn pure_def hn_ctxt_def)
   by (auto simp: top_assn_rule zero_enat_def relH_def  elim: pureD )
+ 
 
-lemma (in -) hn_refine_Some_list[sepref_fr_rules]: " hn_refine (hn_ctxt (list_assn S) s' s)
-           (ureturn (Some s))
-       (hn_invalid (list_assn S) s' s)
-       ((option_assn (list_assn S))) (RETURNT $ (Some $ s'))" (*
-  unfolding hn_refine_def apply (auto simp:   mult.assoc  execute_ureturn pure_def hn_ctxt_def)
-  apply (auto simp: top_assn_rule zero_enat_def relH_def  elim: pureD )    
-  by (simp add: mod_star_trueI) *) sorry
 
+ 
+definition  "oappend x' xs' = return (x'#xs')" 
+
+lemma mop_lookup_list_as_array_rule[sepref_fr_rules]:
+  "\<And>R. 1 \<le> t xs \<Longrightarrow>  
+    hn_refine (hn_ctxt (list_assn R) xs xs' * hn_ctxt R x x')
+     (oappend x' xs')
+     (hn_invalid (list_assn R) xs xs' * hn_invalid R x x') (list_assn R) ( PR_CONST (mop_append t) $  x $ xs)"
+  unfolding autoref_tag_defs mop_append_def oappend_def
+  unfolding hn_refine_def
+  apply (auto simp: execute_return pure_def hn_ctxt_def invalid_assn_def relH_def top_assn_rule)
+  apply(rule exI[where x=1] ) apply auto
+  subgoal    
+    by (metis mod_star_trueI pf) 
+  subgoal using mod_starD by auto 
+  subgoal using mod_starD by blast
+  done
 
 
 declare rbt_search_time_logN_mono [intro]
@@ -142,13 +153,15 @@ declare rbt_delete_time_logN_mono [intro]
         hn_ctxt (isG) c ci 
       * hn_val nat_rel s si 
       * hn_val nat_rel t ti) (?c::?'c Heap) ?\<Gamma>' ?R (PR_CONST op_bfs c s t)"
-      unfolding op_bfs_def PR_CONST_def
-      unfolding Augmenting_Path_BFS.bfs2_def[OF A] unfolding Pre_BFS_Impl.pre_bfs2_def[OF PP]
+      unfolding op_bfs_def PR_CONST_def      
+      apply(subst Augmenting_Path_BFS.bfs2_def) apply(simp add: Augmenting_Path_BFS_def)
+      unfolding Pre_BFS_Impl.pre_bfs2_def[OF PP]
       unfolding Pre_BFS_Impl.inner_loop_def[OF PP]  unfolding  extract_rpath_def nfoldliIE_def nfoldli_def 
       using [[id_debug, goals_limit = 2]]
       unfolding monadic_WHILE_aux Pre_BFS_Impl.loopguard_def[OF PP] 
       unfolding set_pick_time_def set_isempty_time_def set_delete_time_def map_dom_member_time_def
-          map_update_time_def set_insert_time_def set_empty_time_def
+          map_update_time_def set_insert_time_def set_empty_time_def map_lookup_time_def list_append_time_def
+
   apply sepref_dbg_preproc
   apply sepref_dbg_cons_init
   apply sepref_dbg_id 
@@ -156,273 +169,8 @@ declare rbt_delete_time_logN_mono [intro]
 
      apply sepref_dbg_opt_init
                                         
-  apply sepref_dbg_trans_step           
-  apply sepref_dbg_trans_step           
-  apply sepref_dbg_trans_step           
-  apply sepref_dbg_trans_step           
-  apply sepref_dbg_trans_step           
-  apply sepref_dbg_trans_step           
-  apply sepref_dbg_trans_step           
-  apply sepref_dbg_trans_step           
-  apply sepref_dbg_trans_step           
-  apply sepref_dbg_trans_step           
-  apply sepref_dbg_trans_step           
-  apply sepref_dbg_trans_step            
-  apply sepref_dbg_trans_step            
-  apply sepref_dbg_trans_step            
-  apply sepref_dbg_trans_step            
-  apply sepref_dbg_trans_step            
-  apply sepref_dbg_trans_step            
-  apply sepref_dbg_trans_step            
-  apply sepref_dbg_trans_step            
-  apply sepref_dbg_trans_step            
-  apply sepref_dbg_trans_step            
-  apply sepref_dbg_trans_step            
-  apply sepref_dbg_trans_step            
-  apply sepref_dbg_trans_step           
-  apply sepref_dbg_trans_step                
-  apply sepref_dbg_trans_step           
-  apply sepref_dbg_trans_step           
-  apply sepref_dbg_trans_step           
-  apply sepref_dbg_trans_step           
-  apply sepref_dbg_trans_step           
-  apply sepref_dbg_trans_step                    
-  apply sepref_dbg_trans_step                    
-  apply sepref_dbg_trans_step                    
-  apply sepref_dbg_trans_step                    
-  apply sepref_dbg_trans_step                    
-  apply sepref_dbg_trans_step                    
-  apply sepref_dbg_trans_step                    
-  apply sepref_dbg_trans_step                    
-  apply sepref_dbg_trans_step                    
-  apply sepref_dbg_trans_step                    
-  apply sepref_dbg_trans_step                    
-  apply sepref_dbg_trans_step                    
-  apply sepref_dbg_trans_step                    
-  apply sepref_dbg_trans_step                    
-  apply sepref_dbg_trans_step                    
-  apply sepref_dbg_trans_step                    
-  apply sepref_dbg_trans_step                    
-  apply sepref_dbg_trans_step                    
-  apply sepref_dbg_trans_step                    
-  apply sepref_dbg_trans_step                    
-  apply sepref_dbg_trans_step                    
-  apply sepref_dbg_trans_step                    
-  apply sepref_dbg_trans_step                    
-  apply sepref_dbg_trans_step                      
-  apply sepref_dbg_trans_step                      
-  apply sepref_dbg_trans_step                      
-  apply sepref_dbg_trans_step                      
-  apply sepref_dbg_trans_step                      
-  apply sepref_dbg_trans_step                      
-  apply sepref_dbg_trans_step                      
-  apply sepref_dbg_trans_step                      
-  apply sepref_dbg_trans_step                      
-  apply sepref_dbg_trans_step                      
-  apply sepref_dbg_trans_step                      
-  apply sepref_dbg_trans_step                      
-  apply sepref_dbg_trans_step                      
-  apply sepref_dbg_trans_step                      
-  apply sepref_dbg_trans_step                      
-  apply sepref_dbg_trans_step                      
-  apply sepref_dbg_trans_step                      
-  apply sepref_dbg_trans_step                      
-  apply sepref_dbg_trans_step                      
-  apply sepref_dbg_trans_step                      
-  apply sepref_dbg_trans_step                      
-  apply sepref_dbg_trans_step                      
-  apply sepref_dbg_trans_step                      
-  apply sepref_dbg_trans_step                      
-  apply sepref_dbg_trans_step                      
-  apply sepref_dbg_trans_step                      
-  apply sepref_dbg_trans_step                      
-  apply sepref_dbg_trans_step                      
-  apply sepref_dbg_trans_step                      
-  apply sepref_dbg_trans_step                      
-  apply sepref_dbg_trans_step                      
-  apply sepref_dbg_trans_step                      
-  apply sepref_dbg_trans_step                          
-  apply sepref_dbg_trans_step                      
-  apply sepref_dbg_trans_step                      
-  apply sepref_dbg_trans_step                      
-  apply sepref_dbg_trans_step                      
-  apply sepref_dbg_trans_step                      
-  apply sepref_dbg_trans_step                      
-  apply sepref_dbg_trans_step                      
-  apply sepref_dbg_trans_step                      
-  apply sepref_dbg_trans_step                      
-  apply sepref_dbg_trans_step                      
-  apply sepref_dbg_trans_step                         
-  apply sepref_dbg_trans_step                      
-  apply sepref_dbg_trans_step                      
-  apply sepref_dbg_trans_step                      
-  apply sepref_dbg_trans_step                      
-  apply sepref_dbg_trans_step                      
-  apply sepref_dbg_trans_step                      
-  apply sepref_dbg_trans_step                      
-  apply sepref_dbg_trans_step                      
-  apply sepref_dbg_trans_step                      
-  apply sepref_dbg_trans_step                      
-  apply sepref_dbg_trans_step                      
-  apply sepref_dbg_trans_step                     
-  apply sepref_dbg_trans_step                     
-  apply sepref_dbg_trans_step                     
-  apply sepref_dbg_trans_step                     
-  apply sepref_dbg_trans_step                     
-  apply sepref_dbg_trans_step                     
-  apply sepref_dbg_trans_step                     
-  apply sepref_dbg_trans_step                     
-  apply sepref_dbg_trans_step                     
-  apply sepref_dbg_trans_step                     
-  apply sepref_dbg_trans_step                    
-  apply sepref_dbg_trans_step                     
-  apply sepref_dbg_trans_step                     
-  apply sepref_dbg_trans_step                     
-  apply sepref_dbg_trans_step                     
-  apply sepref_dbg_trans_step                     
-  apply sepref_dbg_trans_step                     
-  apply sepref_dbg_trans_step                     
-  apply sepref_dbg_trans_step                     
-  apply sepref_dbg_trans_step                    
-  apply sepref_dbg_trans_step                     
-  apply sepref_dbg_trans_step                     
-  apply sepref_dbg_trans_step                     
-  apply sepref_dbg_trans_step                     
-  apply sepref_dbg_trans_step                     
-  apply sepref_dbg_trans_step                     
-  apply sepref_dbg_trans_step                     
-  apply sepref_dbg_trans_step                     
-  apply sepref_dbg_trans_step                     
-  apply sepref_dbg_trans_step                     
-  apply sepref_dbg_trans_step                     
-  apply sepref_dbg_trans_step                 
-  apply sepref_dbg_trans_step                 
-  apply sepref_dbg_trans_step                 
-  apply sepref_dbg_trans_step                 
-  apply sepref_dbg_trans_step                 
-  apply sepref_dbg_trans_step                 
-  apply sepref_dbg_trans_step                 
-  apply sepref_dbg_trans_step                 
-  apply sepref_dbg_trans_step                 
-  apply sepref_dbg_trans_step                 
-  apply sepref_dbg_trans_step                     
-  apply sepref_dbg_trans_step                     
-  apply sepref_dbg_trans_step                     
-  apply sepref_dbg_trans_step                     
-  apply sepref_dbg_trans_step                     
-  apply sepref_dbg_trans_step                     
-  apply sepref_dbg_trans_step                     
-  apply sepref_dbg_trans_step                 
-  apply sepref_dbg_trans_step                 
-  apply sepref_dbg_trans_step                 
-  apply sepref_dbg_trans_step                 
-  apply sepref_dbg_trans_step                 
-  apply sepref_dbg_trans_step                 
-  apply sepref_dbg_trans_step                 
-  apply sepref_dbg_trans_step                 
-  apply sepref_dbg_trans_step                 
-  apply sepref_dbg_trans_step                 
-  apply sepref_dbg_trans_step                     
-  apply sepref_dbg_trans_step                     
-  apply sepref_dbg_trans_step                     
-  apply sepref_dbg_trans_step                     
-  apply sepref_dbg_trans_step                     
-  apply sepref_dbg_trans_step                     
-  apply sepref_dbg_trans_step              
-  apply sepref_dbg_trans_step                     
-  apply sepref_dbg_trans_step                     
-  apply sepref_dbg_trans_step                     
-  apply sepref_dbg_trans_step                     
-  apply sepref_dbg_trans_step                     
-  apply sepref_dbg_trans_step                     
-  apply sepref_dbg_trans_step              
-  apply sepref_dbg_trans_step                     
-  apply sepref_dbg_trans_step                     
-  apply sepref_dbg_trans_step                     
-  apply sepref_dbg_trans_step                     
-  apply sepref_dbg_trans_step                     
-  apply sepref_dbg_trans_step                     
-  apply sepref_dbg_trans_step              
-  apply sepref_dbg_trans_step                     
-  apply sepref_dbg_trans_step                     
-  apply sepref_dbg_trans_step                     
-  apply sepref_dbg_trans_step                     
-  apply sepref_dbg_trans_step                     
-  apply sepref_dbg_trans_step                     
-  apply sepref_dbg_trans_step             
-  apply sepref_dbg_trans_step                     
-  apply sepref_dbg_trans_step                     
-  apply sepref_dbg_trans_step                     
-  apply sepref_dbg_trans_step                     
-  apply sepref_dbg_trans_step                     
-  apply sepref_dbg_trans_step                     
-  apply sepref_dbg_trans_step              
-  apply sepref_dbg_trans_step                     
-  apply sepref_dbg_trans_step                     
-  apply sepref_dbg_trans_step                     
-  apply sepref_dbg_trans_step                     
-  apply sepref_dbg_trans_step                     
-  apply sepref_dbg_trans_step                     
-  apply sepref_dbg_trans_step              
-  apply sepref_dbg_trans_step                     
-  apply sepref_dbg_trans_step                     
-  apply sepref_dbg_trans_step                     
-  apply sepref_dbg_trans_step                     
-  apply sepref_dbg_trans_step                     
-  apply sepref_dbg_trans_step                     
-  apply sepref_dbg_trans_step            
-  apply sepref_dbg_trans_step                     
-  apply sepref_dbg_trans_step                     
-  apply sepref_dbg_trans_step                     
-  apply sepref_dbg_trans_step                     
-  apply sepref_dbg_trans_step                     
-  apply sepref_dbg_trans_step                     
-  apply sepref_dbg_trans_step              
-  apply sepref_dbg_trans_step                     
-  apply sepref_dbg_trans_step                     
-  apply sepref_dbg_trans_step                     
-  apply sepref_dbg_trans_step                     
-  apply sepref_dbg_trans_step                     
-  apply sepref_dbg_trans_step                     
-  apply sepref_dbg_trans_step              
-  apply sepref_dbg_trans_step                     
-  apply sepref_dbg_trans_step                     
-  apply sepref_dbg_trans_step                     
-  apply sepref_dbg_trans_step                     
-  apply sepref_dbg_trans_step                     
-  apply sepref_dbg_trans_step                     
-  apply sepref_dbg_trans_step              
-  apply sepref_dbg_trans_step                     
-  apply sepref_dbg_trans_step                     
-  apply sepref_dbg_trans_step                     
-  apply sepref_dbg_trans_step                     
-  apply sepref_dbg_trans_step                     
-  apply sepref_dbg_trans_step                     
-  apply sepref_dbg_trans_step              
-  apply sepref_dbg_trans_step                     
-  apply sepref_dbg_trans_step                     
-  apply sepref_dbg_trans_step                     
-  apply sepref_dbg_trans_step                     
-  apply sepref_dbg_trans_step                     
-  apply sepref_dbg_trans_step                     
-  apply sepref_dbg_trans_step              
-  apply sepref_dbg_trans_step                     
-  apply sepref_dbg_trans_step                     
-  apply sepref_dbg_trans_step                     
-  apply sepref_dbg_trans_step                     
-  apply sepref_dbg_trans_step                     
-  apply sepref_dbg_trans_step                     
-  apply sepref_dbg_trans_step              
-  apply sepref_dbg_trans_step                     
-  apply sepref_dbg_trans_step                     
-  apply sepref_dbg_trans_step                     
-  apply sepref_dbg_trans_step                     
-  apply sepref_dbg_trans_step                     
-  apply sepref_dbg_trans_step                     
-  apply sepref_dbg_trans_step              
-  apply sepref_dbg_trans_step             
-  apply sepref_dbg_trans_step_keep 
-      oops
+  apply sepref_dbg_trans_keep 
+
   apply sepref_dbg_opt
   apply sepref_dbg_cons_solve \<comment> \<open>Frame rule, recovering the invalidated list 
     or pure elements, propagating recovery over the list structure\<close>
