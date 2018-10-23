@@ -106,6 +106,7 @@ definition "map_dom_member m k = do {
 lemma M[rewrite]: "M\<langle>x\<rangle>\<noteq>None \<longleftrightarrow> x:dom (meval M)"
   unfolding keys_of_iff[symmetric] keys_of_dom_meval by simp
 
+
 thm return_rule
 thm SepAuto.return_rule
 theorem map_dom_member_rule [hoare_triple]:
@@ -131,6 +132,51 @@ lemma mop_mem_set_rule[sepref_fr_rules]:
   apply rotater
    apply(rule match_first) apply (simp add: pure_def)   apply safe
     apply(rule inst_ex_assn[where x="x \<in> dom M"])  by (auto simp: emb'_def) 
+
+
+subsubsection "lookup map via rbtree search"
+
+
+thm rbt_search
+
+definition "map_lookup m k = do {
+                  v \<leftarrow> rbt_search k m;
+                  return (the v) }"
+ 
+
+lemma "x \<in> dom M \<Longrightarrow> M = meval Ma \<Longrightarrow>  v = Ma\<langle>x\<rangle> \<Longrightarrow> xa = the v \<Longrightarrow> xa =
+                     the (M x)"  
+  by simp
+   
+thm return_rule
+thm SepAuto.return_rule
+theorem map_lookup_rule [hoare_triple]:
+  "x\<in>dom M \<Longrightarrow> <rbt_map_map_assn M m * $ (rbt_search_time_logN (sizeM1' M)+1)>
+           map_lookup m x  
+   <\<lambda>r. rbt_map_map_assn M m * \<up>(r=the (M x))>\<^sub>t"
+  unfolding map_dom_member_def
+  sorry (* by auto2 *)
+
+
+
+
+
+lemma mop_map_lookup_rule[sepref_fr_rules]:
+  "rbt_search_time_logN (sizeM1' M) + 1 \<le> t M \<Longrightarrow>
+    hn_refine (hn_val Id x x' * hn_ctxt rbt_map_map_assn M p)
+     (map_lookup p x')
+     (hn_ctxt (pure Id) x x' * hn_ctxt rbt_map_map_assn M p) id_assn ( PR_CONST (mop_map_lookup t) $ M $ x)"
+
+  unfolding autoref_tag_defs mop_map_lookup_def 
+  apply(rule hnr_ASSERT) apply(rule hn_refine_preI)
+  apply (rule extract_cost_otherway[OF _ map_lookup_rule] ) unfolding mult.assoc
+  unfolding hn_ctxt_def
+    apply rotatel apply(rule match_first) apply(rule match_first)       
+     apply (rule entails_triv)
+  subgoal by (simp add: pure_def )
+  apply rotater
+   apply(rule match_first) apply (simp add: pure_def)   apply safe
+    apply(rule inst_ex_assn[where x="the (M x)"])  by (auto simp: emb'_def) 
 
 
 
