@@ -105,6 +105,9 @@ begin
 
   lemma mop_append: "tt \<le> TTT Q (SPECT [ (x#xs) \<mapsto> t xs]) \<Longrightarrow> tt
            \<le> TTT Q (mop_append x xs)" unfolding mop_append_def by simp
+
+
+  sepref_register "mop_append" 
 end
 
 
@@ -236,7 +239,7 @@ begin
   lemma max_dist_ub: "src\<in>V \<Longrightarrow> max_dist src \<le> card V" sorry
 
   definition body_time :: "nat \<Rightarrow> nat" where
-    "body_time cV = set_pick_time + set_delete_time + set_isempty_time + set_empty_time
+    "body_time cV = set_isempty_time + set_pick_time + set_delete_time + set_isempty_time + set_empty_time
                + get_succs_list_time + add_succs_spec_time cV"
 
   definition Te :: "node \<Rightarrow> bool \<times> (nat \<Rightarrow> nat option) \<times> nat set \<times> nat set \<times> nat
@@ -248,14 +251,19 @@ begin
   definition pre_bfs :: "node \<Rightarrow> node \<Rightarrow> (nat \<times> (node\<rightharpoonup>node)) option nrest"
     where "pre_bfs src dst \<equiv> do {
         s \<leftarrow> SPECT [(False,[src\<mapsto>src],{src},{},0::nat) \<mapsto> init_state_time];
-    (f,PRED,_,_,d) \<leftarrow> whileIET (outer_loop_invar src dst) (Te src)
-      (\<lambda>(f,PRED,C,N,d). f=False \<and> C\<noteq>{})
+    (f,PRED,_,_,d) \<leftarrow> monadic_WHILEIE (outer_loop_invar src dst) (Te src)
+      (\<lambda>(f,PRED,C,N,d). SPECT [ f=False \<and> C\<noteq>{} \<mapsto> set_isempty_time])
       (\<lambda>(f,PRED,C,N,d). do {
         v \<leftarrow> mop_set_pick (\<lambda>_. set_pick_time) C;
+        ASSERT (card C\<le>card V);
         C \<leftarrow> mop_set_del (\<lambda>_. set_delete_time) C v;
         ASSERT (v\<in>V);
         succ \<leftarrow> SPECT (emb (\<lambda>l. distinct l \<and> set l = E``{v}) (enat get_succs_list_time)); 
         ASSERT (distinct succ);
+        ASSERT (finite V);
+        ASSERT (dom PRED \<subseteq> V);
+        ASSERT (set succ \<subseteq> V);
+        ASSERT (N \<subseteq> V);
         (f,PRED,N) \<leftarrow> add_succs_spec dst (set succ) v PRED N;
         if f then
           RETURNT (f,PRED,C,N,d+1)
@@ -499,14 +507,14 @@ begin
 
 
   definition pre_bfs_time'   where
-    "pre_bfs_time' src = init_state_time + (1 + card V + card V * max_dist src) * body_time (card V)"
+    "pre_bfs_time' src = init_state_time + set_isempty_time +  (1 + card V + card V * max_dist src) * body_time (card V)"
   definition pre_bfs_time  where
-    "pre_bfs_time cV = init_state_time + (1 + cV + cV * cV) * body_time cV"
+    "pre_bfs_time cV = init_state_time + set_isempty_time +  (1 + cV + cV * cV) * body_time cV"
 
 lemma body_time_progress: "body_time cV > 0" unfolding body_time_def by simp
 lemma pre_bfs_time_progress: "pre_bfs_time cV > 0" using body_time_progress pre_bfs_time_def by simp
 
-lemma Te_start_ub: "src \<in> V \<Longrightarrow> init_state_time + (Te src (False, [src \<mapsto> src], {src}, {}, 0)) \<le> pre_bfs_time (card V)"
+lemma Te_start_ub: "src \<in> V \<Longrightarrow> set_isempty_time +  init_state_time + (Te src (False, [src \<mapsto> src], {src}, {}, 0)) \<le> pre_bfs_time (card V)"
   apply (auto simp add: Te_def pre_bfs_time_def) apply(rule max_dist_ub) by simp
 
 lemma Te_start_ub': "(Te src (False, [src \<mapsto> src], {src}, {}, 0)) \<le> pre_bfs_time' src"
@@ -548,14 +556,14 @@ lemma   Te_decr_succ_step: "nf_invar c src dst PRED C N d \<Longrightarrow>
 lemma [simp]: "nf_invar c src dst PRED C N d \<Longrightarrow> finite V"
   using nf_invar'_def nf_invar.axioms(1) valid_PRED.FIN_V by blast  
 
-lemma  add_succs_spec_ub: "finite V \<Longrightarrow> set_pick_time + set_delete_time + get_succs_list_time + add_succs_spec_time (card (E `` {x})) + set_isempty_time + set_empty_time
+lemma  add_succs_spec_ub: "finite V \<Longrightarrow> set_isempty_time + set_pick_time + set_delete_time + get_succs_list_time + add_succs_spec_time (card (E `` {x})) + set_isempty_time + set_empty_time
         \<le> body_time (card V)"
   apply (simp add: body_time_def) apply(rule add_succs_spec_time_mono)  
   apply(rule card_mono) by (auto simp add: succ_ss_V)  
 lemma hl: "x \<in> C \<Longrightarrow> C \<noteq> {}" by auto
 lemma   Te_pays_succ_step: "nf_invar c src dst PRED C N d \<Longrightarrow> 
     x \<in> C \<Longrightarrow>   
-    set_pick_time + set_delete_time + get_succs_list_time + add_succs_spec_time (card (E `` {x}))  + set_isempty_time + set_empty_time
+    set_isempty_time + set_pick_time + set_delete_time + get_succs_list_time + add_succs_spec_time (card (E `` {x}))  + set_isempty_time + set_empty_time
     \<le> Te src (False, PRED, C, N, d) -
        Te src
         (False, map_mmupd PRED (E `` {x} - dom PRED) x, N \<union> (E `` {x} - dom PRED), {}, Suc d)"
@@ -586,7 +594,7 @@ lemma Te_decr_level_step: "nf_invar c src dst PRED C N d \<Longrightarrow> C \<n
 lemma  Te_pays_level_step: "nf_invar c src dst PRED C N d \<Longrightarrow>  
     C \<noteq> {} \<Longrightarrow> 
     x \<in> C \<Longrightarrow> 
-    set_pick_time + set_delete_time + get_succs_list_time + add_succs_spec_time (card (E `` {x}))  + set_isempty_time
+    set_isempty_time + set_pick_time + set_delete_time + get_succs_list_time + add_succs_spec_time (card (E `` {x}))  + set_isempty_time
        \<le> Te src (False, PRED, C, N, d) -
           Te src
            (False, map_mmupd PRED (E `` {x} - dom PRED) x, C - {x},
@@ -603,7 +611,7 @@ lemma (in nf_invar) Cge1: "x \<in> C \<Longrightarrow> card C \<ge> 1"
   using card_0_eq finite_C by force  
 
 lemma   Te_pays_exit: "nf_invar c src dst PRED C N d \<Longrightarrow>   x \<in> C \<Longrightarrow> 
-     set_pick_time + set_delete_time + get_succs_list_time + add_succs_spec_time (card (E `` {x}))
+     set_isempty_time + set_pick_time + set_delete_time + get_succs_list_time + add_succs_spec_time (card (E `` {x}))
        \<le> Te src (False, PRED, C, N, d) - Te src (True, PRED', C - {x}, N', Suc d)"
   apply(rule dual_order.trans[OF _ _]) 
   apply(rule dual_order.trans[OF _ add_succs_spec_ub[where x=x]]) 
@@ -612,24 +620,34 @@ lemma   Te_pays_exit: "nf_invar c src dst PRED C N d \<Longrightarrow>   x \<in>
 
 ML \<open>map_filter \<close>
 
+(*
 theorem pre_bfs_correct':
     assumes [simp]: "src\<in>V" "src\<noteq>dst"       
     assumes [simp]: "finite V"
     shows "pre_bfs src dst \<le> SPECT (emb (bfs_spec src dst) (pre_bfs_time (card V)))"
-unfolding pre_bfs_def add_succs_spec_def 
-proof (casified_VCG rules: mop_set_pick_def mop_set_del_def  mop_set_empty_def mop_set_isempty_def) 
-  case while {
+  unfolding pre_bfs_def add_succs_spec_def  
+  apply(labeled_VCG rules: mop_set_pick_def mop_set_del_def  mop_set_empty_def mop_set_isempty_def)                                                                                  
+proof casify
+  case monwhile {
     case progress then show ?case by(progress\<open>simp\<close>)
     case precondition then show ?case by (auto simp: invar_init)
     case invariant {
-      case ASSERT   then show ?case by (auto simp: nf_invar.invar_C_ss_V)
-      case ASSERTa  then show ?case by simp
-      case ASSERTb  then show ?case by (auto  simp: nf_invar.invar_N_ss_Vis)  
-      case cond {
+      case cond2 {
         case the {
-          case time then show ?case by(auto simp: Te_pays_exit)
-          case func then show ?case by(auto simp: nf_invar.invar_exit') 
-        }
+          case ASSERT   then show ?case by (auto simp: nf_invar.invar_C_ss_V)
+          case ASSERTa  then show ?case by (auto simp: nf_invar.invar_C_ss_V)
+          case ASSERTb  then show ?case by (auto simp: nf_invar.invar_C_ss_V)
+          case ASSERTc  then show ?case by (auto  simp: nf_invar.invar_N_ss_Vis)  
+          case cond {
+            case the {
+              case cond2 {
+                case (the ) { 
+                  case (time s a b ca d e x xa xb aa ba caa )  then show ?case by(auto simp: Te_pays_exit)
+                }
+
+                case func then show ?case by(auto simp: nf_invar.invar_exit') 
+              }
+            }
       next
         case els {
           case ASSERT then show ?case by (simp add: nf_invar.invar_succ_step )
@@ -662,7 +680,68 @@ proof (casified_VCG rules: mop_set_pick_def mop_set_del_def  mop_set_empty_def m
     }
   }
 qed
+*)
 
+thm if_split 
+
+lemma if_splitI: "(b \<Longrightarrow> t \<le> A) \<Longrightarrow> (~b \<Longrightarrow> t \<le> B) \<Longrightarrow> t \<le> (if b then A else B)"
+  by auto
+
+lemma GI: "(b \<Longrightarrow> t \<le> t') \<Longrightarrow> (b) \<Longrightarrow> Some t \<le> G b t'"
+  by (auto simp: G_def)
+
+
+lemma rr: "A \<le> B \<Longrightarrow> a \<le> A \<Longrightarrow> (A::enat)-a \<le> B -a"
+  by (simp add: helper) 
+
+lemma r: "(a + enat b) - enat b = (a::enat)"  apply(cases a) by auto 
+
+lemma HI: "((Es0 \<ge> Es) \<Longrightarrow> Some (t' + t + (Es0 - Es)) \<le> Qs)  \<Longrightarrow> (Es0 \<ge> Es) \<Longrightarrow> Some t' \<le> H Qs t Es0 Es"
+  unfolding H_def unfolding mm3_def apply simp
+  unfolding mm2_def apply simp apply(cases Qs)   apply auto
+  subgoal  
+    using leD less_le_trans by fastforce  
+  subgoal for i apply(cases t) defer apply simp 
+    apply simp
+proof (goal_cases)
+  case (1 a)
+  from 1(2) have gl: "a + (Es0 - Es) = a + Es0 - Es" by auto
+  thm rr[OF 1(1), where a="t + enat (Es0 - Es)"]
+  have "t' = (t' + enat (a + (Es0 - Es))) - (enat (a + (Es0 - Es)))" by(simp add: r)   
+  also have "\<dots> \<le> i - (enat (a + (Es0 - Es)))"
+    apply(rule rr)
+    subgoal using 1(1) by (simp add: add.assoc)  
+    by simp 
+  finally show ?case unfolding gl .
+qed 
+  done
+
+
+lemma Te_decr: "Te src (False, b, {}, d, e) \<le> Te src (False, [src \<mapsto> src], {src}, {}, 0)"
+  unfolding Te_def apply clarsimp
+proof (goal_cases)
+  case 1
+  have i:"(Suc (max_dist src) - e) \<le>  (Suc (max_dist src))" by auto
+  have "card V * (Suc (max_dist src) - e) * body_time (card V) = (Suc (max_dist src) - e) * (card V  * body_time (card V))"
+    by simp
+  also   have "\<dots> \<le>  (Suc (max_dist src)) *(card V * body_time (card V))"  
+    using i mult_le_mono1 by blast  
+  also have "\<dots> = ((Suc (max_dist src)) *(card V)) * body_time (card V)"  
+    by linarith  
+  also have "\<dots> \<le> (card V + card V * max_dist src) * body_time (card V)" by auto
+  also have "\<dots> \<le>  body_time (card V) + (card V + card V * max_dist src) * body_time (card V)" by auto
+  finally show ?case  .
+qed
+     
+             
+lemma (in nf_invar') domPREDV: "dom PRED \<subseteq> V"
+  unfolding VIS_eq N_eq Vd_def V_def apply auto  
+  by (smt Graph.min_dist_is_dist SRC_IN_V V_def dist_cases mem_Collect_eq)   
+
+
+             
+lemma (in nf_invar') N_V: "N \<subseteq> V"
+  unfolding   N_eq Vd_def V_def by auto 
 
 theorem pre_bfs_correct:
     assumes [simp]: "src\<in>V" "src\<noteq>dst"       
@@ -671,8 +750,7 @@ theorem pre_bfs_correct:
     unfolding pre_bfs_def add_succs_spec_def
     apply(rule T_specifies_I) 
 
-    apply(vcg' \<open>clarsimp\<close> rules: mop_set_pick mop_set_del  mop_set_empty mop_set_isempty)
-
+    apply(vcg' \<open>clarsimp\<close> rules: if_splitI GI HI  mop_set_pick mop_set_del  mop_set_empty mop_set_isempty)
     apply (simp_all split: bool.splits add: Some_le_mm3_Some_conv Some_le_emb'_conv)
     apply safe 
 
@@ -693,17 +771,23 @@ theorem pre_bfs_correct:
             nf_invar.finite_succ
             nf_invar.invar_N_ss_Vis)  
     subgoal by (auto intro:   nf_invar'.invar_shift  nf_invar.invar_succ_step )  
-    subgoal by (auto intro:   nf_invar'.invar_shift  nf_invar.invar_succ_step )  
-    subgoal by (auto intro:   nf_invar'.invar_restore   nf_invar.invar_succ_step )  
-    subgoal by(auto intro: Te_decr_level_step)  
+    subgoal by (auto intro:   nf_invar'.invar_shift  nf_invar.invar_succ_step )   
+    subgoal by (auto intro: Te_pays_level_step)
     subgoal by (auto intro: Te_pays_level_step)
     subgoal by (auto intro:   nf_invar'.invar_restore   nf_invar.invar_succ_step )  
     subgoal by(auto intro: Te_decr_level_step) 
-    subgoal by (auto intro: Te_pays_level_step)   
+    subgoal by (auto intro:   nf_invar'.invar_restore   nf_invar.invar_succ_step )  
+    subgoal by(auto intro: Te_decr_level_step) 
+    subgoal by (auto  simp: nf_invar_def dest: nf_invar'.N_V)
+    subgoal using V_def by blast 
+    subgoal by (auto  simp: nf_invar_def dest: nf_invar'.domPREDV)
+    subgoal by(auto dest: nf_invar.cardC) 
     subgoal by(auto simp:  f_invar.invar_found)
     subgoal by(auto simp: hlp_nat  Te_start_ub)  
     subgoal by(auto simp:  nf_invar.invar_not_found)
-    subgoal by(auto simp: hlp_nat  Te_start_ub)  
+    subgoal by(auto simp: hlp_nat  Te_start_ub) 
+    subgoal using Te_decr by auto
+    subgoal for a b d e apply(cases a) subgoal   by auto using Te_decr by auto
     done 
 
 
@@ -917,17 +1001,19 @@ interpretation pre: Pre_BFS_Impl c set_insert_time map_dom_member_time set_delet
   definition "inner_loop dst succ u PRED N \<equiv> nfoldliIE  
     (\<lambda>ti it (f,PRED',N'). 
         PRED' = map_mmupd PRED ((set ti) - dom PRED) u 
-      \<and> N' = N \<union> ((set ti) - dom PRED)
-      \<and> f = (dst\<in>(set ti) - dom PRED)
+      \<and> N' = N \<union> ((set ti) - dom PRED) 
+      \<and> f = (dst\<in>(set ti) - dom PRED) \<and> dom PRED \<subseteq> V
     )  (map_dom_member_time+(max (set_insert_time+map_update_time) (1::nat)))
     (succ)
     (\<lambda>(f,PRED,N). \<not>f)
     (\<lambda>v (f,PRED,N). do {
+      ASSERT (card (dom PRED) \<le> card V); 
       b \<leftarrow> mop_map_dom_member (%_. map_dom_member_time) PRED v;
-      if b then SPECT [ (f,PRED,N) \<mapsto> enat 1]
+      if b then RETURNT (f,PRED,N)
       else do {
         PRED \<leftarrow> mop_map_update (\<lambda>_. map_update_time) PRED v u;
         ASSERT (v\<notin>N);
+        ASSERT (card N \<le> card V);
         N \<leftarrow> mop_set_insert (%_. set_insert_time) v N;
         RETURNT (v=dst,PRED,N)
       }
@@ -935,16 +1021,21 @@ interpretation pre: Pre_BFS_Impl c set_insert_time map_dom_member_time set_delet
     (False,PRED,N)"
 
 
+lemma GG: "N \<subseteq> V \<Longrightarrow> A \<subseteq> V \<Longrightarrow> finite V \<Longrightarrow> card (N \<union> (A - dom PRED)) \<le> card V"
+  apply(rule card_mono) by auto 
+
   lemma inner_loop_refine: 
     (*assumes NSS: "N \<subseteq> dom PRED"*) 
     assumes [simplified, simp]: 
       "(dsti,dst)\<in>Id" "(succi,succ)\<in>Id" "(ui,u)\<in>Id" "(PREDi,PRED)\<in>Id" "(Ni,N)\<in>Id" "ssuc = (set succ)"
+      "finite V"
+      and PRED: "dom PRED \<subseteq> V" and ssuvV: "set succ \<subseteq> V" and  N: "N \<subseteq> V"
     shows  "distinct succ \<Longrightarrow> inner_loop dsti succi ui PREDi Ni 
       \<le> \<Down>Id (add_succs_spec dst ssuc u PRED N)"
     unfolding inner_loop_def add_succs_spec_def apply simp
     apply(rule le_ASSERTI)
     apply(rule nfoldliIE_rule) 
-    subgoal by auto 
+    subgoal using PRED by auto  
        (* if I add a subgoal here vcg_split_case breaks, maybe problem with variable names? *)    
        apply(rule T_specifies_I) 
        apply (vcg'\<open>-\<close> rules: mop_map_dom_member T_RESTemb mop_map_update  mop_set_insert ) 
@@ -953,6 +1044,10 @@ interpretation pre: Pre_BFS_Impl c set_insert_time map_dom_member_time set_delet
       subgoal by (auto simp: it_step_insert_iff map_mmupd_def)
       subgoal 
         by(auto simp: map_mmupd_def)
+      subgoal apply(subst (asm) GG) using ssuvV N by auto   
+      subgoal apply(subst (asm) GG) using ssuvV N by auto
+      subgoal apply(rule card_mono) using ssuvV  by auto  
+      subgoal apply(rule card_mono) using ssuvV  by auto 
     subgoal  
       by(auto split: bool.split simp add: domIff intro!: map_mmupd_update_less )  
     subgoal by (auto split: bool.split  simp add: domIff ) 
@@ -965,9 +1060,10 @@ interpretation pre: Pre_BFS_Impl c set_insert_time map_dom_member_time set_delet
   lemma inner_loop2_correct:
     assumes SR: "(succl,succ)\<in>\<langle>Id\<rangle>list_set_rel"
     assumes [simplified, simp]: 
-      "(dsti,dst)\<in>Id" "(ui, u) \<in> Id" "(PREDi, PRED) \<in> Id" "(Ni, N) \<in> Id"
+      "(dsti,dst)\<in>Id" "(ui, u) \<in> Id" "(PREDi, PRED) \<in> Id" "(Ni, N) \<in> Id" "finite V"
+      and PRED: "dom PRED \<subseteq> V" and ssuvV: "set succl \<subseteq> V" and  N: "N \<subseteq> V"
     shows "inner_loop dsti succl ui PREDi Ni \<le> \<Down>Id (add_succs_spec dst succ u PRED N)"   
-    apply(rule inner_loop_refine) using SR by (auto simp: list_set_rel_def br_def)
+    apply(rule inner_loop_refine) using SR ssuvV PRED N by (auto simp: list_set_rel_def br_def)
          
 
 
@@ -978,21 +1074,35 @@ interpretation pre: Pre_BFS_Impl c set_insert_time map_dom_member_time set_delet
       fixes succ :: "node \<Rightarrow> node list nrest"
       fixes init_state :: "node \<Rightarrow> bfs_state nrest"
     begin
-       
+        
 
-      definition "setpickt S = set_pick_time"
-      definition "setdelt S = set_delete_time"
+      definition "loopguard f C = do {
+                  b \<leftarrow> mop_set_isempty (\<lambda>_. set_isempty_time) C;
+                  RETURNT (f=False \<and> ~b) }"
+      
+      lemma loopguard_correct: "loopguard f C \<le> SPECT [\<not> f \<and> C \<noteq> {} \<mapsto> enat set_isempty_time]" 
+        unfolding loopguard_def
+        apply(rule T_specifies_I) 
+        by (vcg'\<open>simp\<close> rules: mop_set_isempty )   
+      
+
+    
 
       definition pre_bfs2 :: "node \<Rightarrow> node \<Rightarrow> (nat \<times> (node\<rightharpoonup>node)) option nrest"
         where "pre_bfs2 src dst \<equiv> do {
         s \<leftarrow> init_state src;
-        (f,PRED,ttt,tt,d) \<leftarrow> whileT (\<lambda>(f,PRED,C,N,d). f=False \<and> C\<noteq>{})
+        (f,PRED,ttt,tt,d) \<leftarrow> monadic_WHILE (\<lambda>(f,PRED,C,N,d). loopguard f C)
           (\<lambda>(f,PRED,C,N,d). do {
             ASSERT (C\<noteq>{});
-            v \<leftarrow> mop_set_pick setpickt C;
-            C \<leftarrow> mop_set_del setdelt C v;
+            v \<leftarrow> mop_set_pick (\<lambda>_. set_pick_time) C;
+            ASSERT (card C\<le>card V);
+            C \<leftarrow> mop_set_del (\<lambda>_. set_delete_time) C v;
             ASSERT (v\<in>V);
             sl \<leftarrow> succ v;
+            ASSERT (finite V);
+            ASSERT (dom PRED \<subseteq> V);
+            ASSERT (set sl \<subseteq> V);
+            ASSERT (N \<subseteq> V);
             (f,PRED,N) \<leftarrow> inner_loop dst sl v PRED N;
             if f then
               RETURNT (f,PRED,C,N,d+(1::nat))
@@ -1040,24 +1150,29 @@ lemma "\<langle>Id\<rangle>list_rel = Id" by simp
           \<Longrightarrow> succ ui \<le> \<Down> (\<langle>Id\<rangle>list_set_rel) (SPECT [E``{u} \<mapsto> enat get_succs_list_time])"
           and init_state_impl: "\<And>src. init_state src \<le> SPECT [ (False,[src\<mapsto>src],{src},{},0::nat) \<mapsto> init_state_time ]"
         shows "pre_bfs2 src dst \<le>\<Down>Id (pre_bfs src dst)"
-        unfolding pre_bfs_def pre_bfs2_def
+        unfolding pre_bfs_def pre_bfs2_def monadic_WHILEIE_def
         apply simp unfolding whileIET_def
         apply(rule bindT_mono) apply fact
         apply(rule bindT_mono)
-         apply(rule whileT_mono)
-         apply(clarsimp split: prod.splits)
+         apply(rule monadic_WHILE_mono')
+        subgoal 
+         apply(clarsimp split: prod.splits if_splits) by(rule loopguard_correct)   
+         apply(clarsimp simp: split: prod.splits if_splits)
         unfolding mop_set_pick_def 
          apply(rule bindT_mono) apply simp
-        apply(subst emb_le_emb) apply simp apply(simp add:   setpickt_def)
-         apply(rule bindT_mono) apply (simp add: le_fun_def mop_set_del_def setdelt_def)
-        
+      apply simp 
+         apply(rule le_ASSERTI) apply(rule ASSERT_leI) apply simp
+         apply(rule bindT_mono) apply (simp add: le_fun_def mop_set_del_def )        
          apply(rule le_ASSERTI) apply(rule ASSERT_leI) apply simp  unfolding rew 
          apply(rule bindT_mono) 
           apply(rule succ_impl) apply simp apply simp  
-         apply(rule le_ASSERTI)   
+         apply(rule le_ASSERTI)+ apply(rule ASSERT_leI) apply simp
+        apply(rule ASSERT_leI)  apply simp
+        apply(rule ASSERT_leI)  apply simp
+        apply(rule ASSERT_leI)  apply simp
         subgoal 
           apply(rule bindT_refine[OF inner_loop2_correct, where R=Id, simplified])   
-          by (auto simp add: list_set_rel_def br_def Some_eq_emb'_conv)
+            by (auto simp add: list_set_rel_def br_def Some_eq_emb'_conv) 
         by simp
           
  

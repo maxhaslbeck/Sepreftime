@@ -134,6 +134,15 @@ begin
     using assms(2-) unfolding LABEL_simps by (simp add: valid_def)
 
 
+
+  lemma LouterCondRule:
+    fixes IC CT defines "CT' \<equiv> (''cond2'', IC, []) # CT "
+    assumes (* "V\<langle>(''vc'', IC, []),(''cond'', IC, []) # CT: p \<subseteq> {s. (s \<in> b \<longrightarrow> s \<in> w) \<and> (s \<notin> b \<longrightarrow> s \<in> w')}\<rangle>"
+      and *) "b \<Longrightarrow> C\<langle>Suc IC,(''the'', IC, []) # (''cond2'', IC, []) # CT,OC1: t \<le> A \<rangle>"
+      and "~b \<Longrightarrow> C\<langle>Suc OC1,(''els'', Suc OC1, []) # (''cond2'', IC, []) # CT,OC: t \<le> B \<rangle>"
+    shows "C\<langle>IC,CT,OC: t \<le> (if b then A else B)\<rangle>"
+    using assms(2-) unfolding LABEL_simps by (simp add: valid_def)
+
 lemma  "mm3 (E s) (if I s' then Some (E s') else None) = (if I s' \<and> (E s' \<le> E s) then Some (E s - E s') else None)"
   unfolding mm3_def apply (cases "I s'") apply simp
   by simp
@@ -154,9 +163,7 @@ lemma While:
 term whileT
 term monadic_WHILEIT
 thm monadic_WHILEIT_def 
-
-definition  monadic_WHILEIET :: "('b \<Rightarrow> bool) \<Rightarrow> 'a \<Rightarrow> ('b \<Rightarrow> bool nrest) \<Rightarrow> ('b \<Rightarrow> 'b nrest) \<Rightarrow> 'b \<Rightarrow> 'b nrest"  where
-  "monadic_WHILEIET I E b c s = monadic_WHILEIT I b c s"
+ 
 
 definition "monadic_WHILE b f s \<equiv> do {
   RECT (\<lambda>D s. do { 
@@ -167,6 +174,31 @@ definition "monadic_WHILE b f s \<equiv> do {
     } else do {RETURNT s}
   }) s
 }"
+
+
+
+lemma monadic_WHILE_mono: 
+  assumes 
+    "\<And>x. bm x \<le> bm' x"
+    and "\<And>x t. nofailT (bm' x) \<Longrightarrow> inresT (bm x) True t \<Longrightarrow> c x \<le> c' x"
+  shows " (monadic_WHILE bm c x) \<le> (monadic_WHILE bm' c' x)"
+  unfolding monadic_WHILE_def apply(rule RECT_mono)
+  subgoal by(refine_mono)  
+  apply(rule bindT_mono) apply fact
+  apply auto apply(rule bindT_mono) using assms by auto
+
+lemma z: "inresT A x t \<Longrightarrow> A \<le> B \<Longrightarrow> inresT B x t"
+  by (meson fail_inresT pw_le_iff)
+
+lemma monadic_WHILE_mono': 
+  assumes 
+    "\<And>x. bm x \<le> bm' x"
+    and "\<And>x t. nofailT (bm' x) \<Longrightarrow> inresT (bm' x) True t \<Longrightarrow> c x \<le> c' x"
+  shows " (monadic_WHILE bm c x) \<le> (monadic_WHILE bm' c' x)"
+  unfolding monadic_WHILE_def apply(rule RECT_mono)
+  subgoal by(refine_mono)  
+  apply(rule bindT_mono) apply fact
+  apply auto apply(rule bindT_mono)   using  assms(2)  by (auto dest:  z[OF _ assms(1)])
 
 lemma monadic_WHILE_aux: "monadic_WHILE b f s = monadic_WHILEIT (\<lambda>_. True) b f s"
   unfolding monadic_WHILEIT_def monadic_WHILE_def 
@@ -354,6 +386,10 @@ lemma Someplus_None: "Someplus A B = None \<longleftrightarrow> (A = None \<or> 
 
 lemma Somemm3: "A \<ge> B \<Longrightarrow> mm3 A (Some B) = Some (A - B)" unfolding mm3_def by auto
 
+
+ 
+
+
 lemma assumes "monadic_WHILE bm c s0 = r"
   and step: "\<And>s. I s  \<Longrightarrow>
     Some 0 \<le> TTT (\<lambda>b. if b
@@ -374,7 +410,8 @@ proof -
     subgoal for s t'
       apply(auto split: if_splits)  
       apply(rule T_conseq4)
-       apply(rule step) apply simp
+       apply(rule step)
+       apply simp 
       apply auto
     proof (goal_cases)
       case (1 b t'')
@@ -441,8 +478,11 @@ qed
 
 thm neueWhile_rule[no_vars]
 
-definition monadic_WHILEIE where
+definition monadic_WHILEIE  where
   "monadic_WHILEIE I E bm c s = monadic_WHILE bm c s" 
+
+definition "G b d = (if b then Some d else None)"
+definition "H Qs t Es0 Es = mm2 Qs (Someplus (Some t) (mm3 (Es0) (Some (Es))))"
 
 lemma 
   fixes s0 :: 'a and I :: "'a \<Rightarrow> bool" and E :: "'a \<Rightarrow> nat"
@@ -454,12 +494,27 @@ shows neueWhile_rule': "Some t \<le> TTT Q (monadic_WHILEIE I E bm c s0)"
   unfolding monadic_WHILEIE_def 
   apply(rule neueWhile_rule[OF refl]) by fact+
 
+lemma 
+  fixes s0 :: 'a and I :: "'a \<Rightarrow> bool" and E :: "'a \<Rightarrow> nat"
+  assumes
+  step: "(\<And>s. I s \<Longrightarrow> Some 0 \<le> TTT (\<lambda>b. if b then TTT (\<lambda>s'. G (I s' \<and> E s' \<le> E s) (enat (E s - E s'))) (c s) else H (Q s) t (E s0) (E s)) (bm s))"
+ and  progress: "\<And>s. progress (c s)"
+ and  i: "I s0"
+shows neueWhile_rule'': "Some t \<le> TTT Q (monadic_WHILEIE I E bm c s0)"
+  unfolding monadic_WHILEIE_def  apply(rule neueWhile_rule[OF refl, where I=I and E=E ])  
+       using assms unfolding G_def H_def by auto
+ 
+ 
+thm neueWhile_rule'[no_vars]
 
-
-
-
-
-
+  lemma LmonWhileRule:
+    fixes IC CT  
+    assumes "V\<langle>(''precondition'', IC, []),(''monwhile'', IC, []) # CT: I s0\<rangle>"
+      and "\<And>s. I s \<Longrightarrow>  C\<langle>Suc IC,(''invariant'', Suc IC, []) # (''monwhile'', IC, []) # CT,OC: valid 0 (\<lambda>b. if b then TTT (\<lambda>s'. if I s' \<and> E s' \<le> E s then Some (enat (E s - E s')) else None) (C s) else mm2 (Q s) (Someplus (Some t) (mm3 (E s0) (Some (E s))))) (bm s)\<rangle>"
+      and "\<And>s. V\<langle>(''progress'', IC, []),(''monwhile'', IC, []) # CT: progress (C s)\<rangle>"
+    shows "C\<langle>IC,CT,OC: valid t Q (monadic_WHILEIE I E bm C s0)\<rangle>"  
+    using assms(2,3,1)  unfolding valid_def  unfolding LABEL_simps  
+    apply(rule neueWhile_rule') .
 
   lemma LWhileRule:
     fixes IC CT  
@@ -534,6 +589,21 @@ lemma validD: "valid t Q M \<Longrightarrow> Some t \<le> TTT Q M" by(simp add: 
     shows "C\<langle>IC,CT,OC: Some t \<le> TTT Q M\<rangle>"
     using assms unfolding LABEL_simps by(simp add:  valid_def )
 
+
+  lemma LfinaltimeRule:
+    assumes "V\<langle>(''time'', IC, []), CT: t \<le> t' \<rangle>" 
+    shows "C\<langle>IC,CT,IC: Some t \<le> Some t'\<rangle>"
+    using assms unfolding LABEL_simps   
+    by (simp   )  
+
+
+  lemma LfinalfuncRule:
+    assumes "V\<langle>(''func'', IC, []), CT: False \<rangle>"
+    shows "C\<langle>IC,CT,IC: Some t \<le> None\<rangle>"
+    using assms unfolding LABEL_simps   
+    by (simp )  
+
+
   lemma LembRule:
     assumes "V\<langle>(''time'', IC, []), CT: t \<le> T x \<rangle>"
       and "V\<langle>(''func'', IC, []), CT: P x \<rangle>"
@@ -566,7 +636,10 @@ method labeled_VCG_step uses rules = (rule rules[symmetric, THEN Linject2Rule]
         LTTTinRule LbindTRule 
         LembRule Lmm3Rule
         LRETURNTRule LASSERTRule LCondRule LSELECTRule
-        LRESTsingleRule LRESTembRule LWhileRule  ) | vcg_split_case
+        LRESTsingleRule LRESTembRule
+        LouterCondRule
+        LfinaltimeRule LfinalfuncRule
+        LmonWhileRule LWhileRule  ) | vcg_split_case
  
 method labeled_VCG uses rules = labeled_VCG_init, repeat_all_new \<open>labeled_VCG_step rules: rules\<close>
 method casified_VCG uses rules = labeled_VCG rules: rules, casify
@@ -791,6 +864,7 @@ named_theorems vcg_simps'
 
 declare option.case [vcg_simps']
 
+declare neueWhile_rule'' [vcg_rules']
 
 method vcg'_step methods solver uses rules = (intro rules vcg_rules' | vcg_split_case | (progress simp;fail) | (solver; fail))
 

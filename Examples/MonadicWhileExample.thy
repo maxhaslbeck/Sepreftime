@@ -39,7 +39,7 @@ lemma z: "cs \<le> 10 \<Longrightarrow> rbt_delete_time_logN (Suc cs) \<le> rbt_
 lemma "Prog \<le> SPECT [ {} \<mapsto> enat 100000 ]"
   unfolding Prog_def
   apply(rule T_specifies_I)
-  apply (vcg'\<open>-\<close> rules: mop_set_empty mop_set_insert neueWhile_rule' mop_set_isempty  )  
+  apply (vcg'\<open>-\<close> rules: mop_set_empty mop_set_insert  mop_set_isempty  )  
    apply(split if_split) apply clarsimp
   apply(intro allI impI conjI)
     apply (vcg'\<open>-\<close> rules: mop_set_empty mop_set_pick  mop_set_del ) 

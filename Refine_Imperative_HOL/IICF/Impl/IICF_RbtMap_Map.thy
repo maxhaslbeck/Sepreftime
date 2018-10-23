@@ -27,7 +27,7 @@ theorem map_empty_rule [hoare_triple]:
   "<$1> map_empty <rbt_map_map_assn (Map.empty)>"
   unfolding map_empty_def by auto2
 
-lemma mop_set_empty_rule[sepref_fr_rules]:
+lemma mop_map_empty_rule[sepref_fr_rules]:
   "1\<le>n \<Longrightarrow> hn_refine (emp) map_empty emp rbt_map_map_assn (PR_CONST (mop_map_empty n))"
 
   unfolding autoref_tag_defs mop_map_empty_def  
@@ -52,10 +52,10 @@ definition "map_update p k x = rbt_insert k x p"
 lemma keys_of_dom_meval: "keys_of M = dom (meval M)"
   unfolding keys_of_def by auto
 
-definition "sizeM1' m = 1 + card (dom m)" 
+abbreviation "sizeM1' m \<equiv> 1 + card (dom m)" 
 
 lemma sizeM1'_sizeM1[rewrite]: "sizeM1' (meval M) = sizeM1 M"
-  by(simp add: keys_of_dom_meval sizeM1'_def sizeM1_def)
+  by(simp add: keys_of_dom_meval   sizeM1_def)
 
 lemma meval_update[rewrite]: "meval ( M { k \<rightarrow> v }) = (meval M)(k \<mapsto> v)"
    by (auto simp: update_map_def)

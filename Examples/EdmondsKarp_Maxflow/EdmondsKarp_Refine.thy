@@ -856,8 +856,7 @@ end
 
 locale EdKa_Tab = Network c s t for c :: "'capacity::linordered_idom graph" and s t +
   fixes  set_insert_time map_dom_member_time set_delete_time map_update_time set_pick_time :: nat
-    and list_append_time map_lookup_time set_empty_time set_isempty_time init_state_time :: nat
-
+    and list_append_time map_lookup_time set_empty_time set_isempty_time init_state_time :: nat 
     and matrix_lookup_time matrix_set_time :: nat 
   assumes [simp]: "map_lookup_time > 0"
   assumes [simp]: "set_pick_time > 0" 
@@ -874,10 +873,11 @@ begin
       list_append_time map_lookup_time set_empty_time  set_isempty_time init_state_time
       matrix_lookup_time matrix_set_time 
       apply(standard) by auto
-    
 
-    definition "MYbfs2 cf succ ss tt = Augmenting_Path_BFS.bfs2 cf set_insert_time map_dom_member_time set_delete_time map_update_time set_pick_time  
-          list_append_time map_lookup_time set_empty_time set_isempty_time init_state_time succ ss tt"
+    term Augmenting_Path_BFS.bfs2
+                                                               
+    definition "MYbfs2 cf init_state succ ss tt = Augmenting_Path_BFS.bfs2 cf set_insert_time map_dom_member_time set_delete_time map_update_time set_pick_time  
+          list_append_time map_lookup_time set_empty_time set_isempty_time succ init_state ss tt"
 
 
     definition "MYrg_succ2 am cf u = Succ_Impl.rg_succ2 c list_append_time matrix_lookup_time am cf u"
@@ -905,7 +905,10 @@ begin
       where
       "compute_rflow cf \<equiv> ASSERT (RGraph c s t cf) \<then> RETURNT (flow_of_cf cf)"
 
-    definition "bfs2_op am cf \<equiv> MYbfs2 cf (MYrg_succ2 am cf) s t"
+  
+
+
+    definition "bfs2_op am cf init_state \<equiv> MYbfs2 cf init_state (MYrg_succ2 am cf) s t"
 
     text \<open>We split the algorithm into a tabulation function, and the 
       running of the actual algorithm:\<close>
@@ -915,12 +918,12 @@ begin
       RETURNT (cf,am)
     }"
 
-    definition "edka5_run cf am \<equiv> do {
+    definition "edka5_run cf am init_state \<equiv> do {
       (cf,_) \<leftarrow> whileT 
         (\<lambda>(cf,brk). \<not>brk) 
         (\<lambda>(cf,_). do {
           ASSERT (RGraph c s t cf);
-          p \<leftarrow> bfs2_op am cf;
+          p \<leftarrow> bfs2_op am cf init_state;
           case p of 
             None \<Rightarrow> RETURNT (cf,True)
           | Some p \<Rightarrow> do {
@@ -937,9 +940,9 @@ begin
       RETURNT f
     }"
 
-    definition "edka5 am \<equiv> do {
+    definition "edka5 am init_state \<equiv> do {
       (cf,am) \<leftarrow> edka5_tabulate am;
-      edka5_run cf am
+      edka5_run cf am init_state
     }"
  
 lemma k: "((a, b), aa, ba) \<in> Id \<times>\<^sub>r bool_rel \<Longrightarrow> a=aa" by auto
@@ -957,7 +960,7 @@ lemma is_adj_map_app_le_V: "is_adj_map am \<Longrightarrow> u \<in> V  \<Longrig
 
 
 
-    lemma edka5_refine: "\<lbrakk>is_adj_map am\<rbrakk> \<Longrightarrow> edka5 am \<le> \<Down>Id edka.edka4"
+    lemma edka5_refine: "\<lbrakk>is_adj_map am ; \<And>src. init_state src \<le> SPECT [ (False,[src\<mapsto>src],{src},{},0::nat) \<mapsto> init_state_time ]\<rbrakk> \<Longrightarrow> edka5 am init_state \<le> \<Down>Id edka.edka4"
       unfolding edka5_def edka5_tabulate_def edka5_run_def
         edka.edka4_def init_cf_def compute_rflow_def 
         init_ps_def Let_def   bfs2_op_def
@@ -981,7 +984,7 @@ lemma is_adj_map_app_le_V: "is_adj_map am \<Longrightarrow> u \<in> V  \<Longrig
          apply simp
         apply(rule nrest_Rel_mono)
         by (auto simp add: le_fun_def get_succs_list_time_def Succ_Impl.rg_succ_time_def
-                RPreGraph.resV_netV[OF RGraph.this_loc_rpg] is_adj_map_app_le_V)
+                RPreGraph.resV_netV[OF RGraph.this_loc_rpg] is_adj_map_app_le_V) 
       apply (simp split: prod.split option.split)
       apply(rule le_R_ASSERTI)
       apply(rule ASSERT_leI) apply simp apply simp done
@@ -1001,7 +1004,7 @@ lemma "(enat (EdKa.edka_time c edka.shortest_path_time (EdKa_Res_Up.augment_with
   unfolding EdKa_Res_Up_def EdKa_Res_Up_axioms_def apply auto oops
 
     thm edka.edka4_correct
-  lemma  edka5_correct: "\<lbrakk>is_adj_map am\<rbrakk> \<Longrightarrow> edka5 am \<le> \<Down> Id (SPECT (emb isMaxFlow (enat (EdKa.edka_time c edka.shortest_path_time (EdKa_Res_Up.augment_with_path_time c matrix_lookup_time matrix_set_time)))))"
+  lemma  edka5_correct: "\<lbrakk>is_adj_map am; \<And>src. init_state src \<le> SPECT [ (False,[src\<mapsto>src],{src},{},0::nat) \<mapsto> init_state_time] \<rbrakk> \<Longrightarrow> edka5 am init_state \<le> \<Down> Id (SPECT (emb isMaxFlow (enat (EdKa.edka_time c edka.shortest_path_time (EdKa_Res_Up.augment_with_path_time c matrix_lookup_time matrix_set_time)))))"
     apply(rule order.trans) apply(rule edka5_refine) 
     using edka.edka4_correct by simp_all 
 
