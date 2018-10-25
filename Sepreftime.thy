@@ -2193,6 +2193,132 @@ abbreviation "TTT == T"
   definition le_or_fail :: "'a nrest \<Rightarrow> 'a nrest \<Rightarrow> bool" (infix "\<le>\<^sub>n" 50) where
     "m \<le>\<^sub>n m' \<equiv> nofailT m \<longrightarrow> m \<le> m'"
 
+
+  subsection "weakest precondition & strongest postcondition"
+
+
+definition "wp Q c = (\<lambda>s. T Q (c s))"
+
+
+lemma "FAILT \<le> SPECT Q" apply simp oops
+
+lemma "(\<forall>s. P s \<longrightarrow> (c s) \<le> SPECT Q) \<longleftrightarrow> emb P 0 \<le> wp Q c"
+  apply rule
+  subgoal unfolding emb'_def wp_def le_fun_def by (auto simp: T_specifies)
+  subgoal unfolding emb'_def wp_def le_fun_def apply (auto simp: T_specifies[symmetric]) by metis
+  done
+
+  thm T_def
+
+definition "spl P c s s' = None"
+
+fun Someplus where "Someplus None _ _ = Map.empty" |
+  "Someplus _ None _ = Map.empty" |
+  "Someplus (Some a) (Some b) s = [s\<mapsto>(a+b)]"
+
+
+
+thm Sup_option_def
+
+
+definition "sp P c = Sup {
+                          Sup { case P s of None \<Rightarrow> SPECT Map.empty |
+                                      Some t \<Rightarrow> (case c s of FAILi \<Rightarrow> FAILi |
+                                                    SPECT M \<Rightarrow> SPECT (Someplus (M s') (P s) s') ) 
+                             |s. True}| s'. True }"
+
+lemma spI: "(\<And>s' s.
+       (case P s of None \<Rightarrow> SPECT Map.empty
+        | Some t \<Rightarrow> case c s of FAILi \<Rightarrow> FAILi | REST M \<Rightarrow> SPECT (Someplus (M s') (P s) s'))
+       \<le> SPECT Q) \<Longrightarrow> sp P c \<le> SPECT Q"
+    apply (auto simp: sp_def)
+    apply(rule Sup_least) apply auto
+    apply(rule Sup_least) by (auto)
+
+lemma spD: assumes s: "sp P c \<le> SPECT Q"
+  shows "(case P s of None \<Rightarrow> SPECT Map.empty
+                         | Some t \<Rightarrow>
+                             case c s of FAILi \<Rightarrow> FAILi
+                             | REST M \<Rightarrow> SPECT (Someplus (M s') (P s) s')) \<le> SPECT Q"
+proof -  
+   from s have a': "\<And>s'.  
+        Sup {uu. \<exists>s. uu =
+                       (case P s of None \<Rightarrow> SPECT Map.empty
+                        | Some t \<Rightarrow>
+                            case c s of FAILi \<Rightarrow> FAILi
+                            | REST M \<Rightarrow> SPECT (Someplus (M s') (P s) s'))} \<le> SPECT Q"
+    unfolding sp_def apply(subst (asm) Sup_le_iff)
+    by (auto simp:  ) 
+  show ?thesis
+    using a'[unfolded Sup_le_iff]
+    by auto   
+qed
+
+
+lemma assumes a: "(\<And>s. P s \<Longrightarrow> (c s) \<le> SPECT Q)"
+  shows sp_refines1: "sp (emb P 0) c \<le> SPECT Q" 
+  apply(rule spI) 
+    apply (auto simp: emb'_def le_fun_def )
+    subgoal for s' s using a[of s] apply (auto simp: le_fun_def emb'_def split: nrest.splits)
+      subgoal for x2 x apply(cases "x2 s'") apply auto by metis
+      done
+    done
+
+lemma assumes a: "sp (emb P 0) c \<le> SPECT Q" and P: "P s"
+  shows sp_refines2: "(c s) \<le> SPECT Q" 
+proof -    
+  show ?thesis
+    using spD[OF a, where s=s] P    apply (auto simp: emb'_def)
+    apply(cases "c s") apply (auto simp add: emb'_def le_fun_def)
+  proof (goal_cases)
+    case (1 x2 x)
+    from 1(1)[of x]
+      show ?case apply(cases "x2 x") by (auto split: if_splits)  
+    qed
+  qed 
+
+lemma sp_refines: "(\<forall>s. P s \<longrightarrow> (c s) \<le> SPECT Q) \<longleftrightarrow>  sp (emb P 0) c \<le> SPECT Q" 
+  by(auto intro: sp_refines1 sp_refines2) 
+
+lemma wpI: "(\<And>s s'. P s \<le> mii Q (c s) s' ) \<Longrightarrow> P \<le> wp Q c"
+  unfolding wp_def T_def apply(auto simp add: le_fun_def)
+  apply(rule Inf_greatest) by auto
+
+lemma f: "a + b \<le> a' \<Longrightarrow> \<not> a' < a \<Longrightarrow> b \<le> a' - (a::enat)"
+  apply(cases a; cases b; cases a') by auto
+
+lemma g: "\<not> a < a' \<Longrightarrow> b \<le> a - a' \<Longrightarrow> a' + b \<le> (a::enat)"
+  apply(cases a; cases b; cases a') by auto
+
+lemma [simp]: "Someplus t None s' = Map.empty" 
+  by (cases t; simp) 
+
+lemma Someplus_mii_conv: "Someplus (M s) t s \<le> Q \<longleftrightarrow> t \<le> mii Q (SPECT M) s"
+  apply(cases t) 
+    apply(auto simp:   mii_alt mm2_def le_fun_def split: if_splits option.splits )
+    subgoal using dual_order.strict_trans2 by fastforce 
+    subgoal by(simp add: f)
+    subgoal by(simp add: g)
+    done
+
+lemma wpD: assumes "P \<le> wp Q c" 
+  shows "(\<And>s s'. P s \<le> mii Q (c s) s' )"
+  using assms unfolding wp_def T_def by(auto simp add: le_fun_def le_Inf_iff) 
+ 
+
+lemma sp_wp: "(sp P c \<le> SPECT Q) \<longleftrightarrow> P \<le> wp Q c"
+  apply(rule)
+  subgoal  apply(rule wpI) subgoal for s s' apply(drule spD[where s=s and s'=s'])
+    by(auto simp: Someplus_mii_conv split: option.splits nrest.splits)
+  done
+  subgoal  apply(rule spI) subgoal for s' s  apply(drule wpD[where s=s and s'=s'])
+    apply(auto simp: Someplus_mii_conv split: option.splits nrest.splits)
+    by(auto simp: miiFailt  le_fun_def less_eq_option_None_is_None) 
+  done
+  done
+
+
+
 hide_const T
  
 end
