@@ -1,8 +1,8 @@
 theory EdmondsKarp_Impl
   imports EdmondsKarp_Refine  
- (* "../../Refine_Imperative_HOL/IICF"
+ (* "../../Refine_Imperative_HOL/IICF" *)                      
     Augmenting_Path_BFS_Impl
- *)
+    "../../Refine_Imperative_HOL/IICF/Impl/IICF_Array_Matrix"
 begin
   subsection \<open>Imperative Implementation\<close>  
   text \<open>In this section we provide an efficient imperative implementation,
@@ -51,8 +51,8 @@ begin
       IdI[of t]
       (*IdI[of c]*)
 
-    lemma [sepref_fr_rules]: "(uncurry0 (return c),uncurry0 (return c))\<in>unit_assn\<^sup>k \<rightarrow>\<^sub>a pure (nat_rel\<times>\<^sub>rnat_rel \<rightarrow> int_rel)"
-      apply sepref_to_hoare by sep_auto
+   (* lemma [sepref_fr_rules]: "(uncurry0 (return c),uncurry0 (return c))\<in>unit_assn\<^sup>k \<rightarrow>\<^sub>a pure (nat_rel\<times>\<^sub>rnat_rel \<rightarrow> int_rel)"
+      apply sepref_to_hoare by sep_auto *)
 
 
     subsubsection \<open>Implementation of Adjacency Map by Array\<close>  
@@ -60,7 +60,7 @@ begin
       \<equiv> \<exists>\<^sub>Al. psi \<mapsto>\<^sub>a l 
           * \<up>(length l = N \<and> (\<forall>i<N. l!i = am i) 
               \<and> (\<forall>i\<ge>N. am i = []))"
-  
+  (*
     lemma is_am_precise[safe_constraint_rules]: "precise (is_am)"
       apply rule
       unfolding is_am_def
@@ -71,24 +71,32 @@ begin
       apply (rename_tac i)
       apply (case_tac "i<length l'")
       apply fastforce+
-      done
+      done *)
 
     sepref_decl_intf i_ps is "nat \<Rightarrow> nat list" 
 
     definition (in -) "ps_get_imp psi u \<equiv> Array.nth psi u"
 
-    lemma [def_pat_rules]: "Network.ps_get_op$c \<equiv> UNPROTECT ps_get_op" by simp
-    sepref_register "PR_CONST ps_get_op" :: "i_ps \<Rightarrow> node \<Rightarrow> node list nres"
+    (* lemma [def_pat_rules]: "Network.ps_get_op$c \<equiv> UNPROTECT ps_get_op" by simp *)
+    sepref_register "PR_CONST ps_get_op" :: "i_ps \<Rightarrow> node \<Rightarrow> node list nrest"
 
     lemma ps_get_op_refine[sepref_fr_rules]: 
       "(uncurry ps_get_imp, uncurry (PR_CONST ps_get_op)) 
         \<in> is_am\<^sup>k *\<^sub>a (pure Id)\<^sup>k \<rightarrow>\<^sub>a list_assn (pure Id)"
       unfolding list_assn_pure_conv
       apply sepref_to_hoare
-      using V_ss
-      by (sep_auto 
+      using V_ss unfolding is_am_def   ps_get_imp_def  ps_get_op_def autoref_tag_defs apply simp
+      apply(rule hnr_ASSERT)
+      apply(rule hn_refine_cons_pre) unfolding entailst_def 
+      apply (rule extract_cost_otherway[OF _ nth_rule] )
+      apply auto[]
+      
+      apply (sep_auto simp:  
             simp: is_am_def pure_def ps_get_imp_def 
             simp: ps_get_op_def refine_pw_simps)
+      subgoal for b a ai h as n l apply(cases "b<length l")
+        apply(subst Array.execute_nth(1)) apply simp
+        sorry
 
     lemma is_pred_succ_no_node: "\<lbrakk>is_adj_map a; u\<notin>V\<rbrakk> \<Longrightarrow> a u = []"
       unfolding is_adj_map_def V_def
@@ -98,28 +106,47 @@ begin
       \<in> (pure Id)\<^sup>k \<rightarrow>\<^sub>a is_am" 
       apply sepref_to_hoare
       using V_ss
-      by (sep_auto simp: init_ps_def refine_pw_simps is_am_def pure_def
-        intro: is_pred_succ_no_node)
+      apply (sep_auto simp: init_ps_def refine_pw_simps is_am_def pure_def
+        intro: is_pred_succ_no_node) sorry
 
     lemma [def_pat_rules]: "Network.init_ps$c \<equiv> UNPROTECT init_ps" by simp
-    sepref_register "PR_CONST init_ps" :: "(node \<Rightarrow> node list) \<Rightarrow> i_ps nres"
+    sepref_register "PR_CONST init_ps" :: "(node \<Rightarrow> node list) \<Rightarrow> i_ps nrest"
+
+    abbreviation "matrix_lookup_time == 1::nat" 
+    abbreviation "matrix_set_time == 1::nat" 
+    definition cf_get' where "cf_get' cff e = cf_get cff e matrix_lookup_time"
+    definition cf_set' where "cf_set' cff e cap= cf_set cff e cap matrix_set_time"
 
     subsubsection \<open>Implementation of Capacity Matrix by Array\<close>  
     lemma [def_pat_rules]: "Network.cf_get$c \<equiv> UNPROTECT cf_get" by simp
     lemma [def_pat_rules]: "Network.cf_set$c \<equiv> UNPROTECT cf_set" by simp
 
     sepref_register 
-      "PR_CONST cf_get" :: "capacity_impl i_mtx \<Rightarrow> edge \<Rightarrow> capacity_impl nres"
+      "PR_CONST cf_get'" :: "capacity_impl i_mtx \<Rightarrow> edge \<Rightarrow> capacity_impl nrest"
     sepref_register 
-      "PR_CONST cf_set" :: "capacity_impl i_mtx \<Rightarrow> edge \<Rightarrow> capacity_impl 
-        \<Rightarrow> capacity_impl i_mtx nres"
+      "PR_CONST cf_set'" :: "capacity_impl i_mtx \<Rightarrow> edge \<Rightarrow> capacity_impl 
+        \<Rightarrow> capacity_impl i_mtx nrest"
 
     text \<open>We have to link the matrix implementation, which encodes the bound, 
       to the abstract assertion of the bound\<close>
 
-    sepref_definition cf_get_impl is "uncurry (PR_CONST cf_get)" :: "(asmtx_assn N id_assn)\<^sup>k *\<^sub>a (prod_assn id_assn id_assn)\<^sup>k \<rightarrow>\<^sub>a id_assn"
+    sepref_definition cf_get_impl is "uncurry (PR_CONST cf_get')" :: "(asmtx_assn N id_assn)\<^sup>k *\<^sub>a (prod_assn id_assn id_assn)\<^sup>k \<rightarrow>\<^sub>a id_assn"
       unfolding PR_CONST_def cf_get_def[abs_def]
-      by sepref
+      apply sepref_dbg_preproc
+  apply sepref_dbg_cons_init
+  apply sepref_dbg_id_keep 
+     apply sepref_dbg_monadify
+
+     apply sepref_dbg_opt_init
+                                        
+  apply sepref_dbg_trans_keep 
+
+  apply sepref_dbg_opt
+  apply sepref_dbg_cons_solve \<comment> \<open>Frame rule, recovering the invalidated list 
+    or pure elements, propagating recovery over the list structure\<close>
+  apply sepref_dbg_cons_solve \<comment> \<open>Trivial frame rule\<close>
+  apply sepref_dbg_constraints
+      done
     lemmas [sepref_fr_rules] = cf_get_impl.refine
     lemmas [sepref_opt_simps] = cf_get_impl_def
 

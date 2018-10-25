@@ -258,12 +258,12 @@ begin
       "valid_edge \<equiv> \<lambda>(u,v). u\<in>V \<and> v\<in>V"
  
 
-    definition cf_get 
-      :: "'capacity graph \<Rightarrow> edge \<Rightarrow> 'capacity nrest" 
-      where "cf_get cff e \<equiv> ASSERT (valid_edge e) \<then> matrix_get matrix_lookup_time cff e"  
-    definition cf_set 
-      :: "'capacity graph \<Rightarrow> edge \<Rightarrow> 'capacity \<Rightarrow> 'capacity graph nrest"
-      where "cf_set cff e cap \<equiv> ASSERT (valid_edge e) \<then> matrix_set matrix_set_time cff e cap"  
+    definition (in Network) cf_get 
+      :: "'capacity graph \<Rightarrow> edge \<Rightarrow> nat \<Rightarrow> 'capacity nrest" 
+      where "cf_get cff e matrix_lookup_time \<equiv> ASSERT (valid_edge e) \<then> matrix_get matrix_lookup_time cff e"  
+    definition (in Network) cf_set 
+      :: "'capacity graph \<Rightarrow> edge \<Rightarrow> 'capacity \<Rightarrow> nat \<Rightarrow> 'capacity graph nrest"
+      where "cf_set cff e cap matrix_set_time \<equiv> ASSERT (valid_edge e) \<then> matrix_set matrix_set_time cff e cap"  
 
 
     definition resCap_cf_impl :: "path \<Rightarrow> 'capacity nrest" 
@@ -271,12 +271,12 @@ begin
       case p of
         [] \<Rightarrow> SPECT [(0::'capacity) \<mapsto> 1]
       | (e#p) \<Rightarrow> do {
-          cap \<leftarrow> cf_get cf e;
+          cap \<leftarrow> cf_get cf e matrix_lookup_time;
           ASSERT (distinct p);
           nfoldli 
             p (\<lambda>_. True)
             (\<lambda>e cap. do {
-              cape \<leftarrow> cf_get cf e;
+              cape \<leftarrow> cf_get cf e matrix_lookup_time;
               mop_min 10 cape cap
             }) 
             cap
@@ -367,9 +367,9 @@ begin
     qed    
         
     definition "augment_edge_impl cff e cap \<equiv> do {
-      v \<leftarrow> cf_get cff e; cf \<leftarrow> cf_set cff e (v-cap);
+      v \<leftarrow> cf_get cff e matrix_lookup_time; cf \<leftarrow> cf_set cff e (v-cap) matrix_set_time;
       e \<leftarrow> SPECT [prod.swap e\<mapsto>3];
-      v \<leftarrow> cf_get cf e; cf \<leftarrow> cf_set cf e (v+cap);
+      v \<leftarrow> cf_get cf e matrix_lookup_time; cf \<leftarrow> cf_set cf e (v+cap) matrix_set_time;
       RETURNT cf
     }"
 
@@ -730,8 +730,8 @@ begin
       apply (auto simp: is_adj_map_def) []
       done
 
-    definition ps_get_op :: "_ \<Rightarrow> node \<Rightarrow> node list nrest" 
-      where "ps_get_op am u \<equiv> ASSERT (u\<in>V) \<then> RETURNT (am u)"
+    definition (in Graph) ps_get_op :: "_ \<Rightarrow> node \<Rightarrow> node list nrest" 
+      where "ps_get_op am u \<equiv> ASSERT (u\<in>V) \<then> SPECT [am u\<mapsto>1]"
 
     definition monadic_filter_rev_aux 
       :: "'a list \<Rightarrow> ('a \<Rightarrow> bool nrest) \<Rightarrow> 'a list \<Rightarrow> 'a list nrest"
@@ -794,33 +794,33 @@ begin
     definition "rg_succ2 am cf u \<equiv> do {
       l \<leftarrow> ps_get_op am u;
       monadic_filter_rev (\<lambda>v. do {
-        x \<leftarrow> RGraph_impl.cf_get c matrix_lookup_time cf (u,v);
+        x \<leftarrow> Network.cf_get c  cf (u,v) matrix_lookup_time;
         RETURNT (x>0)
       }) l
     }"
 
-    definition "rg_succ_time len = (1+ len * (matrix_lookup_time+list_append_time))"
+    definition "rg_succ_time len = (2+ len * (matrix_lookup_time+list_append_time))"
 
     lemma rg_succ_ref2: 
       assumes PS: "is_adj_map am" and V: "u\<in>V"
           and RG: "RGraph c s t cf"
       shows "rg_succ2 am cf u \<le> SPECT [rg_succ am cf u \<mapsto> rg_succ_time (length (am u)) ]"
     proof -
+      note n = RG[unfolded RGraph_def, THEN conjunct1]
       have "\<forall>v\<in>set (am u). valid_edge (u,v)"
         using PS V
         by (auto simp: is_adj_map_def Graph.V_def)
 
       thm monadic_filter_rev_rule
-
       thus ?thesis  
         unfolding rg_succ2_def rg_succ_def ps_get_op_def
-        unfolding RGraph_impl.cf_get_def[unfolded RGraph_impl_def, OF RG] apply simp
+        unfolding Network.cf_get_def[OF n] apply simp
       apply(rule T_specifies_I)
         apply (vcg'\<open>-\<close> rules: monadic_filter_rev_rule[where Q="(\<lambda>v. 0 < cf (u, v))" and P_t="matrix_lookup_time", THEN T_specifies_rev, THEN T_conseq4] )
         subgoal 
           apply(rule T_specifies_I)
           apply (vcg'\<open>-\<close> rules: matrix_get) by(auto simp: Some_le_emb'_conv)
-        apply (simp_all add: V Some_le_emb'_conv emb_eq_Some_conv rg_succ_time_def)
+        apply (simp_all add: V Some_le_emb'_conv emb_eq_Some_conv rg_succ_time_def one_enat_def)
  (*
         apply (refine_vcg monadic_filter_rev_rule[
             where Q="(\<lambda>v. 0 < cf (u, v))", THEN order_trans])
@@ -863,8 +863,31 @@ locale EdKa_Tab = Network c s t for c :: "'capacity::linordered_idom graph" and 
 begin
  
 
+    subsection \<open>Adding Tabulation of Input\<close>  
+    text \<open>
+      Next, we add functions that will be refined to tabulate the input of 
+      the algorithm, i.e., the network's capacity matrix and adjacency map,
+      into efficient representations. 
+      The capacity matrix is tabulated to give the initial residual graph,
+      and the adjacency map is tabulated for faster access.
+
+      Note, on the abstract level, the tabulation functions are just identity,
+      and merely serve as marker constants for implementation.
+      \<close>
+    definition (in Network) init_cf :: "'capacity graph nrest" 
+      \<comment> \<open>Initialization of residual graph from network\<close>
+      where "init_cf \<equiv> RETURNT c"
+    definition (in Network)  init_ps :: "(node \<Rightarrow> node list) \<Rightarrow> _" 
+      \<comment> \<open>Initialization of adjacency map\<close>
+      where "init_ps am \<equiv> ASSERT (is_adj_map am) \<then> RETURNT am"
+
+    definition (in Network)  compute_rflow :: "'capacity graph \<Rightarrow> 'capacity flow nrest" 
+      \<comment> \<open>Extraction of result flow from residual graph\<close>
+      where
+      "compute_rflow cf \<equiv> ASSERT (RGraph c s t cf) \<then> RETURNT (flow_of_cf cf)"
+
     definition get_succs_list_time :: nat where
-      "get_succs_list_time = (1+ (card V) * (matrix_lookup_time+list_append_time))"
+      "get_succs_list_time = (2+ (card V) * (matrix_lookup_time+list_append_time))"
 
 
     interpretation edka: EdKa_Res_Bfs c s t set_insert_time map_dom_member_time set_delete_time
@@ -881,29 +904,6 @@ begin
 
 
     definition "MYrg_succ2 am cf u = Succ_Impl.rg_succ2 c list_append_time matrix_lookup_time am cf u"
-
-    subsection \<open>Adding Tabulation of Input\<close>  
-    text \<open>
-      Next, we add functions that will be refined to tabulate the input of 
-      the algorithm, i.e., the network's capacity matrix and adjacency map,
-      into efficient representations. 
-      The capacity matrix is tabulated to give the initial residual graph,
-      and the adjacency map is tabulated for faster access.
-
-      Note, on the abstract level, the tabulation functions are just identity,
-      and merely serve as marker constants for implementation.
-      \<close>
-    definition init_cf :: "'capacity graph nrest" 
-      \<comment> \<open>Initialization of residual graph from network\<close>
-      where "init_cf \<equiv> RETURNT c"
-    definition init_ps :: "(node \<Rightarrow> node list) \<Rightarrow> _" 
-      \<comment> \<open>Initialization of adjacency map\<close>
-      where "init_ps am \<equiv> ASSERT (is_adj_map am) \<then> RETURNT am"
-
-    definition compute_rflow :: "'capacity graph \<Rightarrow> 'capacity flow nrest" 
-      \<comment> \<open>Extraction of result flow from residual graph\<close>
-      where
-      "compute_rflow cf \<equiv> ASSERT (RGraph c s t cf) \<then> RETURNT (flow_of_cf cf)"
 
   
 
