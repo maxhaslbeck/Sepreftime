@@ -2317,6 +2317,76 @@ lemma sp_wp: "(sp P c \<le> SPECT Q) \<longleftrightarrow> P \<le> wp Q c"
   done
   done
 
+thm T_bindT
+term "bindT m c"
+term wp
+
+lemma "wp Q (%_. bindT m c) = wp (wp Q c) (\<lambda>_. m)"
+  unfolding wp_def T_bindT by simp
+
+thm T_RETURNT
+
+lemma "wp Q RETURNT = Q"
+  unfolding wp_def T_RETURNT by simp
+
+lemma "wp Q (\<lambda>_. RETURNT x) = (\<lambda>_. Q x)"
+  unfolding wp_def T_RETURNT by simp
+
+lemma "wp Q (\<lambda>s. SPECT (f s))  = foo"
+  unfolding wp_def unfolding T_def mii_alt apply(rule)
+    apply (simp add:  ) oops
+    
+
+
+text \<open>I think strongest postcondition does not make any sense here,
+because the nondeterminism monad does not have a state on which predicates might work.
+so there is no real precondition,.
+only a post condition: a condition on the result of the computation,
+for this one can compute a weakest precondition, meaning, what has to hold
+in order to imply that the computation establishes a specified result\<close>
+
+definition "spp PP c = (case PP of FAILi \<Rightarrow> FAILi |
+                                SPECT P \<Rightarrow>
+                          Sup {
+                          Sup {  (case P s of None \<Rightarrow> SPECT Map.empty |
+                                      Some t \<Rightarrow> (case c s of FAILi \<Rightarrow> FAILi |
+                                                    SPECT M \<Rightarrow> SPECT (Someplus (M s') (P s) s')) ) 
+                             |s. True}| s'. True })"
+
+lemma l: "spp (SPECT P) c = sp P c" unfolding spp_def sp_def by simp 
+
+thm sp_refines[no_vars]
+lemma "(\<forall>s. P s \<longrightarrow> c s \<le> SPECT Q) = (spp (SPECT (emb P 0)) c \<le> SPECT Q)"
+  unfolding l by (rule sp_refines)
+
+lemma spp_wp: "(spp (SPECT P) c \<le> SPECT Q) \<longleftrightarrow> P \<le> wp Q c"
+  unfolding l by (rule sp_wp)
+
+lemma [simp]: "SPECT Map.empty \<le> a" apply(cases a) apply auto subgoal for x2 by(auto simp: le_fun_def)
+  done
+
+lemma kla: "(FAILT \<in> X) \<Longrightarrow> Sup X = FAILT " by (simp add: nrest_Sup_FAILT)
+
+
+
+lemma "spp (SPECT (emb P 0)) (\<lambda>s. RETURNT (f s)) = foo"
+  unfolding spp_def apply (auto simp: emb'_def RETURNT_def)
+  unfolding Sup_nrest_def apply auto 
+  apply(rule ext)apply auto
+  unfolding Sup_fun_def
+   defer unfolding SUP_eq_None_iff apply auto oops
+
+
+lemma "spp P (%_. bindT m c) = spp (spp P (\<lambda>_. m)) c"
+  apply (rule antisym)
+  subgoal  unfolding spp_def 
+    apply(cases P) apply simp
+    apply simp unfolding Sup_le_iff apply auto unfolding Sup_le_iff
+    apply auto apply(auto split: option.splits)
+    apply(cases m) apply simp
+     apply(subst (3) kla) apply auto
+    oops
+
 
 
 hide_const T
