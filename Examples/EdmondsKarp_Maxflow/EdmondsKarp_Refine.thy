@@ -3,6 +3,7 @@ theory EdmondsKarp_Refine
 imports 
   EdmondsKarp_Algo
   Augmenting_Path_BFS
+  "../../Refine_Imperative_HOL/IICF/Intf/IICF_Matrix"
 begin
 
 
@@ -20,31 +21,8 @@ begin
   sepref_register "mop_min" 
   print_theorems 
 end 
-
-context
-  fixes t ::  "nat"
-begin
-  definition "matrix_get m e = SPECT [m e \<mapsto> t]"
-
-  lemma matrix_get: "\<And>tt. tt \<le> TTT Q (SPECT [ m e \<mapsto> t]) \<Longrightarrow> tt
-           \<le> TTT Q (matrix_get m e)" unfolding matrix_get_def by simp 
  
-  sepref_register "matrix_get" 
-  print_theorems 
-end 
-
-context
-  fixes t ::  "nat"
-begin
-  definition "matrix_set (m::'a*'a\<Rightarrow>'b) e v = SPECT [m(e:=v) \<mapsto> t]"
-
-  lemma matrix_set: "\<And>tt. tt \<le> TTT Q (SPECT [ m(e:=v) \<mapsto> t]) \<Longrightarrow> tt
-           \<le> TTT Q (matrix_set m e v)" unfolding matrix_set_def by simp 
  
-  sepref_register "matrix_set" 
-  print_theorems 
-end 
-    
     
 
 
@@ -259,11 +237,11 @@ begin
  
 
     definition (in Network) cf_get 
-      :: "'capacity graph \<Rightarrow> edge \<Rightarrow> nat \<Rightarrow> 'capacity nrest" 
-      where "cf_get cff e matrix_lookup_time \<equiv> ASSERT (valid_edge e) \<then> matrix_get matrix_lookup_time cff e"  
+      :: "'capacity graph \<Rightarrow> edge \<Rightarrow> nat \<Rightarrow> 'capacity nrest"                   
+      where "cf_get cff e matrix_lookup_time \<equiv> ASSERT (valid_edge e) \<then> mop_matrix_get matrix_lookup_time cff e"  
     definition (in Network) cf_set 
       :: "'capacity graph \<Rightarrow> edge \<Rightarrow> 'capacity \<Rightarrow> nat \<Rightarrow> 'capacity graph nrest"
-      where "cf_set cff e cap matrix_set_time \<equiv> ASSERT (valid_edge e) \<then> matrix_set matrix_set_time cff e cap"  
+      where "cf_set cff e cap matrix_set_time \<equiv> ASSERT (valid_edge e) \<then> mop_matrix_set matrix_set_time cff e cap"  
 
 
     definition resCap_cf_impl :: "path \<Rightarrow> 'capacity nrest" 

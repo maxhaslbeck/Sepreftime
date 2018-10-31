@@ -16,8 +16,7 @@ locale Impl_Succ =
   fixes succ :: "'ga \<Rightarrow> node \<Rightarrow> node list nrest"
   fixes isG :: "'ga \<Rightarrow> 'gi \<Rightarrow> assn"
   fixes succ_impl :: "'gi \<Rightarrow> node \<Rightarrow> node list Heap"
-
-  fixes get_succs_list_time :: nat 
+ 
 
   (*assumes [constraint_rules]: "precise isG"*)
   assumes si_rule[sepref_fr_rules]: "(uncurry succ_impl,(uncurry succ)) \<in> [\<lambda>(c,u). u\<in>Graph.V (absG c)]\<^sub>a isG\<^sup>k *\<^sub>a (pure nat_rel)\<^sup>k \<rightarrow> list_assn (pure nat_rel)"
