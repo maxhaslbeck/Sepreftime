@@ -40,7 +40,7 @@ begin
 context
   fixes t ::  "nat"
 begin
-  definition "mop_matrix_get (m::'b mtx) e = SPECT [m e \<mapsto> t]"
+  definition "mop_matrix_get (m::_ mtx) e = SPECT [m e \<mapsto> t]"
 
   lemma matrix_get: "\<And>tt. tt \<le> TTT Q (SPECT [ m e \<mapsto> t]) \<Longrightarrow> tt
            \<le> TTT Q (mop_matrix_get m e)" unfolding mop_matrix_get_def by simp 

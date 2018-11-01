@@ -30,18 +30,18 @@ begin
   (*definition "mtx_new N M c \<equiv> do {
     Array.make (N*M) (\<lambda>i. c (i div M, i mod M))
   }"*)
-  (*
+  
   definition "mtx_tabulate N M c \<equiv> do {
     m \<leftarrow> Array.new (N*M) 0;
-    (_,_,m) \<leftarrow> imp_for' 0 (N*M) (\<lambda>k (i,j,m). do {
+  (*  (_,_,m) \<leftarrow> imp_for' 0 (N*M) (\<lambda>k (i,j,m). do {
       Array.upd k (c (i,j)) m;
       let j=j+1;
       if j<M then return (i,j,m)
       else return (i+1,0,m)
-    }) (0,0,m);
+    }) (0,0,m); *)
     return m
   }"
- *)      
+      
       (*
   definition "amtx_copy \<equiv> array_copy"
 *)
@@ -149,7 +149,6 @@ lemma "i<N \<Longrightarrow> j<M \<Longrightarrow>  map (\<lambda>i. k) [0..<N *
  @have "i * M + j < N*M"  
   oops
 
-thm make_rule
   lemma mtx_dflt_rl: "<timeCredit_assn (N*M+1)> amtx_dflt N M k <is_amtx N M (op_amtx_dfltNxM N M k)>"
     (* by (sep_auto simp: amtx_dflt_def is_amtx_def) *) 
     apply auto2 sorry
@@ -271,9 +270,9 @@ lemma mop_matrix_update_rule[sepref_fr_rules]:
 
 lemma mop_matrix_update_rule[sepref_fr_rules]:
   "1 \<le> t  \<Longrightarrow> fst k' < M \<Longrightarrow> snd k' < M \<Longrightarrow>
-      hn_refine (hn_val Id v' v * hn_val Id k' k * hn_ctxt (asmtx_assn M (pure Id)) m' m)
+      hn_refine (hn_val Id v' v * hn_ctxt (prod_assn id_assn id_assn) k' k * hn_ctxt (asmtx_assn M (pure Id)) m' m)
        (PR_CONST (mtx_set M) m k v)                                                             
-       (hn_val Id v' v * hn_val Id k' k * hn_invalid (asmtx_assn M (pure Id)) m' m) (asmtx_assn M (pure Id)) ( PR_CONST (mop_matrix_set t) $ m' $ k' $ v')"
+       (hn_val Id v' v * hn_ctxt (prod_assn id_assn id_assn) k' k * hn_invalid (asmtx_assn M (pure Id)) m' m) (asmtx_assn M (pure Id)) ( PR_CONST (mop_matrix_set t) $ m' $ k' $ v')"
   apply(rule  hn_refine_preI)
   unfolding mop_matrix_set_def autoref_tag_defs
   apply (rule extract_cost_otherway[OF _  mtx_set_rl, where F="hn_val Id v' v * hn_val Id k' k * hn_invalid (asmtx_assn M (pure Id)) m' m" ])
@@ -283,8 +282,11 @@ lemma mop_matrix_update_rule[sepref_fr_rules]:
        apply (simp add: gr_def hn_ctxt_def) apply(rule ent_trans) 
         apply(rule invalidate_clone[where R="asmtx_assn M id_assn"]) apply(rule match_first)
    unfolding amtx_assn_def  apply simp  apply (rule entails_triv)
-  unfolding hn_ctxt_def apply(rotatel)
-    apply(rule match_first)  apply (rule entails_triv)
+   unfolding hn_ctxt_def apply(rotatel)
+      
+       apply(rule match_first) apply(rule isolate_first)
+        subgoal by simp
+        apply (rule entails_triv)
   subgoal by(auto dest: extractpureD)  
   subgoal by(auto dest: extractpureD)  
   subgoal apply rotatel apply rotatel apply rotatel apply rotater apply rotater apply (rule match_first) apply simp
@@ -295,12 +297,13 @@ lemma mop_matrix_update_rule[sepref_fr_rules]:
   subgoal by simp
   done
  
-lemma mop_mem_set_rule[sepref_fr_rules]:
+
+lemma mop_matrix_get_rule[sepref_fr_rules]:
   "1 \<le> t \<Longrightarrow> fst k' < M \<Longrightarrow> snd k' < M \<Longrightarrow>
-    hn_refine (hn_val Id k' k * hn_ctxt (asmtx_assn M (pure Id)) m' m)
+    hn_refine (hn_ctxt (prod_assn id_assn id_assn) k' k * hn_ctxt (asmtx_assn M (pure Id)) m' m)
     (PR_CONST (mtx_get M) m k)      
-     (hn_ctxt (pure Id) k' k* hn_ctxt (asmtx_assn M (pure Id)) m' m) id_assn ( PR_CONST (mop_matrix_get t) $ m' $ k')"
- apply(rule  hn_refine_preI)
+     (hn_ctxt (prod_assn id_assn id_assn) k' k* hn_ctxt (asmtx_assn M (pure Id)) m' m) id_assn ( PR_CONST (mop_matrix_get t) $ m' $ k')"
+  apply(rule  hn_refine_preI)
   unfolding autoref_tag_defs mop_matrix_get_def
   apply (rule extract_cost_otherway[OF _  mtx_get_rl]) unfolding mult.assoc
   unfolding hn_ctxt_def
@@ -313,7 +316,8 @@ lemma mop_mem_set_rule[sepref_fr_rules]:
       apply (simp add:  ) apply (simp add: pure_def  )    apply safe
     apply(rule inst_ex_assn[where x="m' k'"]) apply (auto simp: )
       using entt_refl' by blast    
-  subgoal by auto 
+    subgoal by auto 
+    done
 
 
 
@@ -328,15 +332,17 @@ lemma mop_mem_set_rule[sepref_fr_rules]:
     by (auto simp: mtx_nonzero_zu_eq)
 
   sepref_decl_impl amtx_copy: mtx_copy_aref .
-    
+   *) 
   definition [simp]: "op_amtx_new (N::nat) (M::nat) \<equiv> op_mtx_new"  
   lemma amtx_fold_custom_new:
     "op_mtx_new \<equiv> op_amtx_new N M"
+    apply simp done
+ (*
     "mop_mtx_new \<equiv> \<lambda>c. RETURN (op_amtx_new N M c)"
-    by (auto simp: mop_mtx_new_alt[abs_def])
-*)
+    by (auto simp: mop_mtx_new_alt[abs_def]) *)
 
-(*
+
+
   context fixes N M :: nat begin  
     sepref_register "PR_CONST (op_amtx_new N M)" :: "(nat \<times> nat \<Rightarrow> 'a) \<Rightarrow> 'a i_mtx"
   end
@@ -344,10 +350,12 @@ lemma mop_mem_set_rule[sepref_fr_rules]:
   lemma amtx_new_hnr[sepref_fr_rules]: 
     fixes A :: "'a::zero \<Rightarrow> 'b::{zero,heap} \<Rightarrow> assn"
     shows "CONSTRAINT (IS_PURE PRES_ZERO_UNIQUE) A \<Longrightarrow>
-    (mtx_tabulate N M, (RETURN \<circ> PR_CONST (op_amtx_new N M)))
+    (mtx_tabulate N M, (RETURNT \<circ> PR_CONST (op_amtx_new N M)))
     \<in> [\<lambda>x. mtx_nonzero x \<subseteq> {0..<N} \<times> {0..<M}]\<^sub>a (pure (nat_rel \<times>\<^sub>r nat_rel \<rightarrow> the_pure A))\<^sup>k \<rightarrow> amtx_assn N M A"
-    using amtx_new_by_tab_hnr[of A N M] by simp
+   (* using amtx_new_by_tab_hnr[of A N M] by simp *) sorry
+  
 
+(*
   lemma [def_pat_rules]: "op_amtx_new$N$M \<equiv> UNPROTECT (op_amtx_new N M)" by simp
 
 

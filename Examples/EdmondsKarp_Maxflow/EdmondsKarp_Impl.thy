@@ -49,7 +49,7 @@ begin
       IdI[of N]
       IdI[of s]
       IdI[of t]
-      (*IdI[of c]*)
+      IdI[of c]
 
    (* lemma [sepref_fr_rules]: "(uncurry0 (return c),uncurry0 (return c))\<in>unit_assn\<^sup>k \<rightarrow>\<^sub>a pure (nat_rel\<times>\<^sub>rnat_rel \<rightarrow> int_rel)"
       apply sepref_to_hoare by sep_auto *)
@@ -80,7 +80,7 @@ begin
     (* lemma [def_pat_rules]: "Network.ps_get_op$c \<equiv> UNPROTECT ps_get_op" by simp *)
     sepref_register "PR_CONST ps_get_op" :: "i_ps \<Rightarrow> node \<Rightarrow> node list nrest"
 
-    lemma ps_get_op_refine[sepref_fr_rules]: 
+    lemma ps_get_op_refine[sepref_fr_rules]:       
       "(uncurry ps_get_imp, uncurry (PR_CONST ps_get_op)) 
         \<in> is_am\<^sup>k *\<^sub>a (pure Id)\<^sup>k \<rightarrow>\<^sub>a list_assn (pure Id)"
       unfolding list_assn_pure_conv
@@ -102,6 +102,8 @@ begin
       unfolding is_adj_map_def V_def
       by auto
 
+
+          (* TODO here, init_ps has no cost, that is wrong! *)
     lemma [sepref_fr_rules]: "(Array.make N, PR_CONST init_ps) 
       \<in> (pure Id)\<^sup>k \<rightarrow>\<^sub>a is_am" 
       apply sepref_to_hoare
@@ -130,16 +132,21 @@ begin
     text \<open>We have to link the matrix implementation, which encodes the bound, 
       to the abstract assertion of the bound\<close>
 
+    thm mop_matrix_get_rule
+
     sepref_definition cf_get_impl is "uncurry (PR_CONST cf_get')" :: "(asmtx_assn N id_assn)\<^sup>k *\<^sub>a (prod_assn id_assn id_assn)\<^sup>k \<rightarrow>\<^sub>a id_assn"
-      unfolding PR_CONST_def cf_get_def[abs_def]
+      unfolding PR_CONST_def  cf_get'_def
+      unfolding cf_get_def[abs_def]  
+ 
       apply sepref_dbg_preproc
   apply sepref_dbg_cons_init
-  apply sepref_dbg_id_keep 
+  apply sepref_dbg_id_keep apply simp apply simp (* TODO: ! *)
      apply sepref_dbg_monadify
 
      apply sepref_dbg_opt_init
                                         
-  apply sepref_dbg_trans_keep 
+  apply sepref_dbg_trans_step           
+  apply sepref_dbg_trans_step   
 
   apply sepref_dbg_opt
   apply sepref_dbg_cons_solve \<comment> \<open>Frame rule, recovering the invalidated list 
@@ -147,22 +154,61 @@ begin
   apply sepref_dbg_cons_solve \<comment> \<open>Trivial frame rule\<close>
   apply sepref_dbg_constraints
       done
+
+
     lemmas [sepref_fr_rules] = cf_get_impl.refine
     lemmas [sepref_opt_simps] = cf_get_impl_def
 
-    sepref_definition cf_set_impl is "uncurry2 (PR_CONST cf_set)" :: "(asmtx_assn N id_assn)\<^sup>d *\<^sub>a (prod_assn id_assn id_assn)\<^sup>k *\<^sub>a id_assn\<^sup>k \<rightarrow>\<^sub>a asmtx_assn N id_assn"
-      unfolding PR_CONST_def cf_set_def[abs_def]
-      by sepref
+    sepref_definition cf_set_impl is "uncurry2 (PR_CONST cf_set')" :: "(asmtx_assn N id_assn)\<^sup>d *\<^sub>a (prod_assn id_assn id_assn)\<^sup>k *\<^sub>a id_assn\<^sup>k \<rightarrow>\<^sub>a asmtx_assn N id_assn"
+      unfolding PR_CONST_def cf_set'_def cf_set_def[abs_def] 
+       apply sepref_dbg_preproc
+  apply sepref_dbg_cons_init
+         apply sepref_dbg_id_keep apply simp apply simp apply simp (* TODO: ! *)
+     apply sepref_dbg_monadify
+
+     apply sepref_dbg_opt_init
+                                        
+  apply sepref_dbg_trans_step           
+  apply sepref_dbg_trans_step
+
+  apply sepref_dbg_opt
+  apply sepref_dbg_cons_solve \<comment> \<open>Frame rule, recovering the invalidated list 
+    or pure elements, propagating recovery over the list structure\<close>
+  apply sepref_dbg_cons_solve \<comment> \<open>Trivial frame rule\<close>
+  apply sepref_dbg_constraints
+      done
+
     lemmas [sepref_fr_rules] = cf_set_impl.refine
     lemmas [sepref_opt_simps] = cf_set_impl_def
 
+    thm sepref_fr_rules
 
     sepref_thm init_cf_impl is "uncurry0 (PR_CONST init_cf)" :: "unit_assn\<^sup>k \<rightarrow>\<^sub>a asmtx_assn N id_assn"
       unfolding PR_CONST_def init_cf_def 
-      using E_ss
-      apply (rewrite op_mtx_new_def[of c, symmetric])
-      apply (rewrite amtx_fold_custom_new[of N N])
-      by sepref
+      using E_ss thm op_mtx_new_def[of c, symmetric]
+      apply (subst op_mtx_new_def[of c, symmetric])
+      apply (subst amtx_fold_custom_new[of N N])
+      apply sepref_dbg_preproc
+  apply sepref_dbg_cons_init
+         apply sepref_dbg_id
+     apply sepref_dbg_monadify
+
+     apply sepref_dbg_opt_init
+                                        
+  apply sepref_dbg_trans_step           
+  apply sepref_dbg_trans_step           
+  apply sepref_dbg_trans_step           
+  apply sepref_dbg_trans_step           
+  apply sepref_dbg_trans_step  
+  apply sepref_dbg_trans_step  
+  apply sepref_dbg_trans_step_keep
+      using sepref_fr_rules(9)
+  apply sepref_dbg_opt
+  apply sepref_dbg_cons_solve \<comment> \<open>Frame rule, recovering the invalidated list 
+    or pure elements, propagating recovery over the list structure\<close>
+  apply sepref_dbg_cons_solve \<comment> \<open>Trivial frame rule\<close>
+  apply sepref_dbg_constraints
+      done
 
     concrete_definition (in -) init_cf_impl uses Edka_Impl.init_cf_impl.refine_raw is "(uncurry0 ?f,_)\<in>_" 
     prepare_code_thms (in -) init_cf_impl_def
