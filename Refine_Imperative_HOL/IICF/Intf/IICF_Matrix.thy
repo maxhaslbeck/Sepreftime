@@ -20,12 +20,12 @@ begin
   sepref_decl_op (no_def) mtx_new: "op_mtx_new" :: "(nat_rel\<times>\<^sub>rnat_rel \<rightarrow> A) \<rightarrow> \<langle>A\<rangle>mtx_rel"
     apply (rule fref_ncI) unfolding op_mtx_new_def[abs_def] mtx_rel_def 
     by parametricity
-
+*)
   (* TODO: Ad-hoc rule *)
   lemma mtx_init_adhoc_frame_match_rule[sepref_frame_match_rules]:
     "hn_val (nat_rel\<times>\<^sub>rnat_rel \<rightarrow> A) x y \<Longrightarrow>\<^sub>t hn_val (nat_rel\<times>\<^sub>rnat_rel \<rightarrow> the_pure (pure A)) x y"
     by simp
-
+(*
   definition op_mtx_copy :: "'a mtx \<Rightarrow> 'a mtx" where [simp]: "op_mtx_copy c \<equiv> c"
 
   sepref_decl_op (no_def) mtx_copy: "op_mtx_copy" :: "\<langle>A\<rangle>mtx_rel \<rightarrow> \<langle>A\<rangle>mtx_rel" .
@@ -356,12 +356,12 @@ end
     lemma [def_pat_rules]: "mtx_pointwise_cmpop$f$g \<equiv> UNPROTECT (mtx_pointwise_cmpop f g)" by simp
   end
 
-  (* TODO: Move *)  
+  (* TODO: Move *)  *)
   lemma mtx_nonzeroD:
     "\<lbrakk>\<not>i<N; mtx_nonzero m \<subseteq> {0..<N}\<times>{0..<M}\<rbrakk> \<Longrightarrow> m(i,j) = 0"
     "\<lbrakk>\<not>j<M; mtx_nonzero m \<subseteq> {0..<N}\<times>{0..<M}\<rbrakk> \<Longrightarrow> m(i,j) = 0"
     by (auto simp: mtx_nonzero_def)
-
+(*
 
   locale mtx_pointwise_cmpop_loc =
     fixes N :: nat and M :: nat

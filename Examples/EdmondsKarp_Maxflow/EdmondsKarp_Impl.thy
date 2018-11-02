@@ -51,8 +51,8 @@ begin
       IdI[of t]
       IdI[of c]
 
-   (* lemma [sepref_fr_rules]: "(uncurry0 (return c),uncurry0 (return c))\<in>unit_assn\<^sup>k \<rightarrow>\<^sub>a pure (nat_rel\<times>\<^sub>rnat_rel \<rightarrow> int_rel)"
-      apply sepref_to_hoare by sep_auto *)
+    lemma [sepref_fr_rules]: "(uncurry0 (ureturn c),uncurry0 (RETURNT c))\<in>unit_assn\<^sup>k \<rightarrow>\<^sub>a pure (nat_rel\<times>\<^sub>rnat_rel \<rightarrow> int_rel)"
+      sorry (*  apply sepref_to_hoare by sep_auto  *)
 
 
     subsubsection \<open>Implementation of Adjacency Map by Array\<close>  
@@ -181,34 +181,14 @@ begin
     lemmas [sepref_fr_rules] = cf_set_impl.refine
     lemmas [sepref_opt_simps] = cf_set_impl_def
 
-    thm sepref_fr_rules
-
+ 
+    
     sepref_thm init_cf_impl is "uncurry0 (PR_CONST init_cf)" :: "unit_assn\<^sup>k \<rightarrow>\<^sub>a asmtx_assn N id_assn"
       unfolding PR_CONST_def init_cf_def 
       using E_ss thm op_mtx_new_def[of c, symmetric]
       apply (subst op_mtx_new_def[of c, symmetric])
-      apply (subst amtx_fold_custom_new[of N N])
-      apply sepref_dbg_preproc
-  apply sepref_dbg_cons_init
-         apply sepref_dbg_id
-     apply sepref_dbg_monadify
-
-     apply sepref_dbg_opt_init
-                                        
-  apply sepref_dbg_trans_step           
-  apply sepref_dbg_trans_step           
-  apply sepref_dbg_trans_step           
-  apply sepref_dbg_trans_step           
-  apply sepref_dbg_trans_step  
-  apply sepref_dbg_trans_step  
-  apply sepref_dbg_trans_step_keep
-      using sepref_fr_rules(9)
-  apply sepref_dbg_opt
-  apply sepref_dbg_cons_solve \<comment> \<open>Frame rule, recovering the invalidated list 
-    or pure elements, propagating recovery over the list structure\<close>
-  apply sepref_dbg_cons_solve \<comment> \<open>Trivial frame rule\<close>
-  apply sepref_dbg_constraints
-      done
+      apply (subst amtx_fold_custom_new[of _ N N])
+      by sepref  
 
     concrete_definition (in -) init_cf_impl uses Edka_Impl.init_cf_impl.refine_raw is "(uncurry0 ?f,_)\<in>_" 
     prepare_code_thms (in -) init_cf_impl_def
@@ -230,32 +210,33 @@ begin
     *)  
 
     lemma [def_pat_rules]: "Network.init_cf$c \<equiv> UNPROTECT init_cf" by simp
-    sepref_register "PR_CONST init_cf" :: "capacity_impl i_mtx nres"
+    sepref_register "PR_CONST init_cf" :: "capacity_impl i_mtx nrest"
 
     subsubsection \<open>Representing Result Flow as Residual Graph\<close>
     definition (in Network_Impl) "is_rflow N f cfi 
       \<equiv> \<exists>\<^sub>Acf. asmtx_assn N id_assn cf cfi * \<up>(RGraph c s t cf \<and> f = flow_of_cf cf)"
+
     lemma is_rflow_precise[safe_constraint_rules]: "precise (is_rflow N)"
       apply rule
       unfolding is_rflow_def
       apply (clarsimp simp: amtx_assn_def)
       apply prec_extract_eqs
       apply simp
-      done
+      sorry
 
     sepref_decl_intf i_rflow is "nat\<times>nat \<Rightarrow> int"
 
     lemma [sepref_fr_rules]: 
-      "(\<lambda>cfi. RETURN cfi, PR_CONST compute_rflow) \<in> (asmtx_assn N id_assn)\<^sup>d \<rightarrow>\<^sub>a is_rflow N"
+      "(\<lambda>cfi. ureturn cfi, PR_CONST compute_rflow) \<in> (asmtx_assn N id_assn)\<^sup>d \<rightarrow>\<^sub>a is_rflow N"
       unfolding amtx_cnv
       apply sepref_to_hoare
       apply (sep_auto simp: amtx_cnv compute_rflow_def is_rflow_def refine_pw_simps hn_ctxt_def)
-      done
+      sorry
 
     lemma [def_pat_rules]: 
       "Network.compute_rflow$c$s$t \<equiv> UNPROTECT compute_rflow" by simp
     sepref_register 
-      "PR_CONST compute_rflow" :: "capacity_impl i_mtx \<Rightarrow> i_rflow nres"
+      "PR_CONST compute_rflow" :: "capacity_impl i_mtx \<Rightarrow> i_rflow nrest"
 
 
     subsubsection \<open>Implementation of Functions\<close>  
