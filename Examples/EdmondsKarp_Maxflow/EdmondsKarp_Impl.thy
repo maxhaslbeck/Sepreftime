@@ -67,7 +67,7 @@ begin
       apply clarsimp
       apply (rename_tac l l')
       apply prec_extract_eqs
-      apply (rule ext)
+      apply (rule ext)                                                                                        
       apply (rename_tac i)
       apply (case_tac "i<length l'")
       apply fastforce+
@@ -77,7 +77,7 @@ begin
 
     definition (in -) "ps_get_imp psi u \<equiv> Array.nth psi u"
 
-    (* lemma [def_pat_rules]: "Network.ps_get_op$c \<equiv> UNPROTECT ps_get_op" by simp *)
+    lemma [def_pat_rules]: "Graph.ps_get_op $ c \<equiv> UNPROTECT ps_get_op" by simp
     sepref_register "PR_CONST ps_get_op" :: "i_ps \<Rightarrow> node \<Rightarrow> node list nrest"
 
     lemma ps_get_op_refine[sepref_fr_rules]:       
@@ -119,14 +119,22 @@ begin
     definition cf_get' where "cf_get' cff e = cf_get cff e matrix_lookup_time"
     definition cf_set' where "cf_set' cff e cap= cf_set cff e cap matrix_set_time"
 
-    subsubsection \<open>Implementation of Capacity Matrix by Array\<close>  
+    subsubsection \<open>Implementation of Capacity Matrix by Array\<close>  (*
     lemma [def_pat_rules]: "Network.cf_get$c \<equiv> UNPROTECT cf_get" by simp
     lemma [def_pat_rules]: "Network.cf_set$c \<equiv> UNPROTECT cf_set" by simp
 
     sepref_register 
-      "PR_CONST cf_get'" :: "capacity_impl i_mtx \<Rightarrow> edge \<Rightarrow> capacity_impl nrest"
+      "PR_CONST cf_get" :: "capacity_impl i_mtx \<Rightarrow> edge \<Rightarrow> capacity_impl nrest"
     sepref_register 
-      "PR_CONST cf_set'" :: "capacity_impl i_mtx \<Rightarrow> edge \<Rightarrow> capacity_impl 
+      "PR_CONST cf_set" :: "capacity_impl i_mtx \<Rightarrow> edge \<Rightarrow> capacity_impl 
+        \<Rightarrow> capacity_impl i_mtx nrest" *)
+
+    sepref_register 
+      "cf_get'" :: "capacity_impl i_mtx \<Rightarrow> edge \<Rightarrow> capacity_impl nrest"
+    print_theorems
+
+    sepref_register 
+      "cf_set'" :: "capacity_impl i_mtx \<Rightarrow> edge \<Rightarrow> capacity_impl 
         \<Rightarrow> capacity_impl i_mtx nrest"
 
     text \<open>We have to link the matrix implementation, which encodes the bound, 
@@ -241,6 +249,12 @@ begin
 
     subsubsection \<open>Implementation of Functions\<close>  
 
+    term Succ_Impl.rg_succ2
+
+    abbreviation "list_append_time == 1::nat" 
+    definition "rg_succ2 am cf u = Succ_Impl.rg_succ2 c list_append_time matrix_lookup_time am cf u "
+
+
     schematic_goal rg_succ2_impl:
       fixes am :: "node \<Rightarrow> node list" and cf :: "capacity_impl graph"
       notes [id_rules] = 
@@ -248,14 +262,19 @@ begin
         itypeI[Pure.of am "TYPE(i_ps)"]
         itypeI[Pure.of cf "TYPE(capacity_impl i_mtx)"]
       notes [sepref_import_param] = IdI[of N]
-      notes [sepref_fr_rules] = HOL_list_empty_hnr
-      shows "hn_refine (hn_ctxt is_am am psi * hn_ctxt (asmtx_assn N id_assn) cf cfi * hn_val nat_rel u ui) (?c::?'c Heap) ?\<Gamma> ?R (rg_succ2 am cf u)"
-      unfolding rg_succ2_def APP_def monadic_filter_rev_def monadic_filter_rev_aux_def
+      (*notes [sepref_fr_rules] = HOL_list_empty_hnr *)
+      shows "hn_refine (hn_ctxt is_am am psi * hn_ctxt (asmtx_assn N id_assn) cf cfi * hn_val nat_rel u ui)
+                 (?c::?'c Heap) ?\<Gamma> ?R (rg_succ2 am cf u)"
+      unfolding rg_succ2_def Succ_Impl.rg_succ2_def APP_def Succ_Impl.monadic_filter_rev_def Succ_Impl.monadic_filter_rev_aux_def
       (* TODO: Make setting up combinators for sepref simpler, then we do not need to unfold! *)
-      using [[id_debug, goals_limit = 1]]
-      by sepref
+      using [[id_debug, goals_limit = 3]] unfolding cf_get'_def[symmetric]
+      by sepref 
+
     concrete_definition (in -) succ_imp uses Edka_Impl.rg_succ2_impl
     prepare_code_thms (in -) succ_imp_def
+
+    term succ_imp
+    thm succ_imp_def
 
     lemma succ_imp_refine[sepref_fr_rules]: 
       "(uncurry2 (succ_imp N), uncurry2 (PR_CONST rg_succ2)) 
@@ -263,16 +282,20 @@ begin
       apply rule
       using succ_imp.refine[OF this_loc]            
       by (auto simp: hn_ctxt_def mult_ac split: prod.split)
-
-    lemma [def_pat_rules]: "Network.rg_succ2$c \<equiv> UNPROTECT rg_succ2" by simp
+ 
     sepref_register 
-      "PR_CONST rg_succ2" :: "i_ps \<Rightarrow> capacity_impl i_mtx \<Rightarrow> node \<Rightarrow> node list nres"
+      "rg_succ2" :: "i_ps \<Rightarrow> capacity_impl i_mtx \<Rightarrow> node \<Rightarrow> node list nrest"
 
     
     lemma [sepref_import_param]: "(min,min)\<in>Id\<rightarrow>Id\<rightarrow>Id" by simp
 
 
     abbreviation "is_path \<equiv> list_assn (prod_assn (pure Id) (pure Id))"
+
+    term Network.resCap_cf_impl_aux
+    definition "resCap_cf_impl cf p = Network.resCap_cf_impl_aux  cf matrix_lookup_time c p"
+
+    thm Network.resCap_cf_impl_aux_def
 
     schematic_goal resCap_imp_impl:
       fixes am :: "node \<Rightarrow> node list" and cf :: "capacity_impl graph" and p pi
@@ -284,7 +307,8 @@ begin
         (hn_ctxt (asmtx_assn N id_assn) cf cfi * hn_ctxt is_path p pi) 
         (?c::?'c Heap) ?\<Gamma> ?R 
         (resCap_cf_impl cf p)"
-      unfolding resCap_cf_impl_def APP_def
+      unfolding resCap_cf_impl_def  APP_def
+      unfolding Network.resCap_cf_impl_aux_def
       using [[id_debug, goals_limit = 1]]
       by sepref
     concrete_definition (in -) resCap_imp uses Edka_Impl.resCap_imp_impl

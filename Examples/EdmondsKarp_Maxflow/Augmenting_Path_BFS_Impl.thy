@@ -6,6 +6,24 @@ theory Augmenting_Path_BFS_Impl
 begin
 
 
+definition  "oappend x' xs' = return (x'#xs')" 
+
+lemma mop_lookup_list_as_array_rule[sepref_fr_rules]:
+  "\<And>R. 1 \<le> t xs \<Longrightarrow>  
+    hn_refine (hn_ctxt (list_assn R) xs xs' * hn_ctxt R x x')
+     (oappend x' xs')
+     (hn_invalid (list_assn R) xs xs' * hn_invalid R x x') (list_assn R) ( PR_CONST (mop_append t) $  x $ xs)"
+  unfolding autoref_tag_defs mop_append_def oappend_def
+  unfolding hn_refine_def
+  apply (auto simp: execute_return pure_def hn_ctxt_def invalid_assn_def relH_def top_assn_rule)
+  apply(rule exI[where x=1] ) apply auto
+  subgoal    
+    by (metis mod_star_trueI pf) 
+  subgoal using mod_starD by auto 
+  subgoal using mod_starD by blast
+  done
+
+
 subsection \<open>Imperative Implementation\<close>
 
 term Augmenting_Path_BFS.bfs2
@@ -114,22 +132,6 @@ lemma (in -) hn_refine_Some[sepref_fr_rules]: " hn_refine (hn_val Id s' s)
 
 
  
-definition  "oappend x' xs' = return (x'#xs')" 
-
-lemma mop_lookup_list_as_array_rule[sepref_fr_rules]:
-  "\<And>R. 1 \<le> t xs \<Longrightarrow>  
-    hn_refine (hn_ctxt (list_assn R) xs xs' * hn_ctxt R x x')
-     (oappend x' xs')
-     (hn_invalid (list_assn R) xs xs' * hn_invalid R x x') (list_assn R) ( PR_CONST (mop_append t) $  x $ xs)"
-  unfolding autoref_tag_defs mop_append_def oappend_def
-  unfolding hn_refine_def
-  apply (auto simp: execute_return pure_def hn_ctxt_def invalid_assn_def relH_def top_assn_rule)
-  apply(rule exI[where x=1] ) apply auto
-  subgoal    
-    by (metis mod_star_trueI pf) 
-  subgoal using mod_starD by auto 
-  subgoal using mod_starD by blast
-  done
 
 
 declare rbt_search_time_logN_mono [intro]

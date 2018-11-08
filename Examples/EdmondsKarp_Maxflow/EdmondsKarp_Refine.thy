@@ -244,8 +244,8 @@ begin
       where "cf_set cff e cap matrix_set_time \<equiv> ASSERT (valid_edge e) \<then> mop_matrix_set matrix_set_time cff e cap"  
 
 
-    definition resCap_cf_impl :: "path \<Rightarrow> 'capacity nrest" 
-    where "resCap_cf_impl p \<equiv> 
+    definition (in Network) resCap_cf_impl_aux :: "nat \<Rightarrow> (nat \<times> nat \<Rightarrow> 'capacity) \<Rightarrow> (nat \<times> nat) list \<Rightarrow> 'capacity nrest"
+    where "resCap_cf_impl_aux matrix_lookup_time cf p \<equiv> 
       case p of
         [] \<Rightarrow> SPECT [(0::'capacity) \<mapsto> 1]
       | (e#p) \<Rightarrow> do {
@@ -259,6 +259,9 @@ begin
             }) 
             cap
         }"
+
+    abbreviation "resCap_cf_impl == resCap_cf_impl_aux matrix_lookup_time cf" 
+  
 
     definition "resCap_cf_impl_time n = 1 + (matrix_lookup_time+10) * n"
     lemma resCap_cf_impl_time_mono: "n \<le> m \<Longrightarrow> resCap_cf_impl_time n \<le> resCap_cf_impl_time m"
@@ -281,7 +284,7 @@ begin
       moreover from AUG have "p\<noteq>[]" by (auto simp: s_not_t) 
         then obtain e p' where "p=e#p'" by (auto simp: neq_Nil_conv)
       ultimately show ?thesis  
-        unfolding resCap_cf_impl_def resCap_cf_def cf_get_def
+        unfolding resCap_cf_impl_aux_def resCap_cf_def cf_get_def
         apply (simp only: list.case)
         apply(rule T_specifies_I)
         apply(vcg'\<open>-\<close> rules: matrix_get )  
