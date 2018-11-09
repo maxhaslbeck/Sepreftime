@@ -546,22 +546,26 @@ lemma "foo" using edka5_correct'
   subsection \<open>Correctness Theorem for Implementation\<close>
   text \<open>We combine all refinement steps to derive a correctness 
     theorem for the implementation\<close>
-context Network_Impl begin
- 
 
-definition cost where "cost = (\<lambda>(cV,cE). (3 + rbt_insert_logN 1 + rbt_insert_logN 1 + 10 +
+
+definition edka_cost :: "nat \<times> nat \<Rightarrow> nat" 
+    where "edka_cost = (\<lambda>(cV,cE). (3 + rbt_insert_logN 1 + rbt_insert_logN 1 + 10 +
      (1 + cV + cV * cV) *
      (10 + 10 + rbt_delete_time_logN (cV + 1) + 10 + 10 + (2 + cV * (1 + 1)) + cV * (rbt_search_time_logN (1 + cV) + 1 + max (rbt_insert_logN (cV + 1) + rbt_insert_logN (1 + cV)) 1)) +
      cV * (rbt_search_time_logN (1 + cV) + 1 + 1) +
      (1 + (1 + 10) * cV + (1 + cV * (2 * 1 + 2 * 1 + 3)))) *
     (2 * cV * cE + cV + 1))"
 
+context Network_Impl begin
+ 
+
+
 
     theorem edka_imp_correct: 
       assumes VN: "Graph.V c \<subseteq> {0..<N}"
       assumes ABS_PS: "is_adj_map am"
       shows "
-        <$( cost (card V, card E))> 
+        <$( edka_cost (card V, card E))> 
           edka_imp c s t N am 
         <\<lambda>fi. \<exists>\<^sub>Af. is_rflow N f fi * \<up>(isMaxFlow f)>\<^sub>t"
     proof -
@@ -578,7 +582,7 @@ definition cost where "cost = (\<lambda>(cV,cE). (3 + rbt_insert_logN 1 + rbt_in
         using extract_cost_ub[OF hn_refine_ref[OF t edka_imp_refine], where Cost_ub="?t", simplified in_ran_emb_special_case]
         by simp
   
-      have t: "?t = cost (card V,card E)"
+      have t: "?t = edka_cost (card V,card E)"
   unfolding edka_time_aux_def get_succs_list_time_aux_def shortest_path_time_aux_def
       pre_bfs_time_aux_def
       body_time_aux_def
@@ -589,7 +593,7 @@ definition cost where "cost = (\<lambda>(cV,cE). (3 + rbt_insert_logN 1 + rbt_in
 
     unfolding bfs.set_pick_time_def bfs.set_delete_time_def bfs.map_dom_member_time_def bfs.set_insert_time_def
         bfs.map_update_time_def bfs.map_lookup_time_def  
-    unfolding cost_def by simp
+    unfolding edka_cost_def by simp
 
       from 1 show ?thesis unfolding  t .
     qed
