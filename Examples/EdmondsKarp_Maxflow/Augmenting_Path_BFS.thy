@@ -215,10 +215,10 @@ locale Pre_BFS_Impl = Graph +
 begin 
  
 
-  definition add_succs_spec_time :: "nat \<Rightarrow> nat"  where  "add_succs_spec_time cs = (cs * (map_dom_member_time + (max (set_insert_time + map_update_time) (1::nat))))"
-  
+  definition (in -) add_succs_spec_time_aux   where  "add_succs_spec_time_aux cs v1 v2 v3 = (cs * (v1 + (max (v2 + v3) (1::nat))))"
+abbreviation "add_succs_spec_time cs == add_succs_spec_time_aux cs map_dom_member_time set_insert_time map_update_time"
   lemma add_succs_spec_time_mono: "n \<le> m \<Longrightarrow> add_succs_spec_time n \<le> add_succs_spec_time m"
-    unfolding add_succs_spec_time_def by simp
+    unfolding add_succs_spec_time_aux_def by simp
 
   definition "add_succs_spec dst succ v PRED N \<equiv> ASSERT (N \<subseteq> dom PRED) \<then> 
     SPECT (emb (\<lambda>(f,PRED',N').
@@ -238,9 +238,13 @@ begin
 
   lemma max_dist_ub: "src\<in>V \<Longrightarrow> max_dist src \<le> card V" sorry
 
-  definition body_time :: "nat \<Rightarrow> nat" where
-    "body_time cV = set_isempty_time + set_pick_time + set_delete_time + set_isempty_time + set_empty_time
-               + get_succs_list_time + add_succs_spec_time cV"
+  definition (in -) body_time_aux  where
+    "body_time_aux cV v1 v2 v3 v4 v5 v6 v7 = v1 + v2 + v3 + v4 + v5
+               + v6 + v7 cV"
+
+abbreviation "body_time cV \<equiv> body_time_aux cV set_isempty_time set_pick_time set_delete_time
+        set_isempty_time set_empty_time get_succs_list_time add_succs_spec_time"
+
 
   definition Te :: "node \<Rightarrow> bool \<times> (nat \<Rightarrow> nat option) \<times> nat set \<times> nat set \<times> nat
    \<Rightarrow> nat" where "Te src = (\<lambda>(f,PRED,C,N,d). if f then 0
@@ -508,14 +512,18 @@ begin
 
   definition pre_bfs_time'   where
     "pre_bfs_time' src = init_state_time + set_isempty_time +  (1 + card V + card V * max_dist src) * body_time (card V)"
-  definition pre_bfs_time  where
-    "pre_bfs_time cV = init_state_time + set_isempty_time +  (1 + cV + cV * cV) * body_time cV"
 
-lemma body_time_progress: "body_time cV > 0" unfolding body_time_def by simp
-lemma pre_bfs_time_progress: "pre_bfs_time cV > 0" using body_time_progress pre_bfs_time_def by simp
+
+  definition (in -) pre_bfs_time_aux  where
+    "pre_bfs_time_aux cV v1 v2 v3 = v1 + v2 +  (1 + cV + cV * cV) * v3 cV"
+
+  abbreviation "pre_bfs_time cV \<equiv> pre_bfs_time_aux cV init_state_time set_isempty_time body_time"
+
+lemma body_time_progress: "body_time cV > 0"    by (simp add: body_time_aux_def)
+lemma pre_bfs_time_progress: "pre_bfs_time cV > 0" using body_time_progress  by (simp add: pre_bfs_time_aux_def)
 
 lemma Te_start_ub: "src \<in> V \<Longrightarrow> set_isempty_time +  init_state_time + (Te src (False, [src \<mapsto> src], {src}, {}, 0)) \<le> pre_bfs_time (card V)"
-  apply (auto simp add: Te_def pre_bfs_time_def) apply(rule max_dist_ub) by simp
+  apply (auto simp add: Te_def pre_bfs_time_aux_def) apply(rule max_dist_ub) by simp
 
 lemma Te_start_ub': "(Te src (False, [src \<mapsto> src], {src}, {}, 0)) \<le> pre_bfs_time' src"
   by (simp add: Te_def pre_bfs_time'_def)
@@ -558,7 +566,7 @@ lemma [simp]: "nf_invar c src dst PRED C N d \<Longrightarrow> finite V"
 
 lemma  add_succs_spec_ub: "finite V \<Longrightarrow> set_isempty_time + set_pick_time + set_delete_time + get_succs_list_time + add_succs_spec_time (card (E `` {x})) + set_isempty_time + set_empty_time
         \<le> body_time (card V)"
-  apply (simp add: body_time_def) apply(rule add_succs_spec_time_mono)  
+  apply (simp add: body_time_aux_def) apply(rule add_succs_spec_time_mono)  
   apply(rule card_mono) by (auto simp add: succ_ss_V)  
 lemma hl: "x \<in> C \<Longrightarrow> C \<noteq> {}" by auto
 lemma   Te_pays_succ_step: "nf_invar c src dst PRED C N d \<Longrightarrow> 
@@ -601,7 +609,7 @@ lemma  Te_pays_level_step: "nf_invar c src dst PRED C N d \<Longrightarrow>
             N \<union> (E `` {x} - dom PRED), d)"
   apply(rule dual_order.trans[OF _ _]) 
   apply(rule dual_order.trans[OF _ add_succs_spec_ub[where x=x]]) 
-  unfolding Te_def apply simp unfolding body_time_def[symmetric]
+  unfolding Te_def apply simp unfolding body_time_aux_def[symmetric]
   apply (auto simp add: card_minus1 diff_mult_distrib[symmetric] )
   apply (metis Suc_leI card_0_eq diff_diff_cancel empty_iff less_or_eq_imp_le neq0_conv nf_invar.finite_C)
   done
@@ -615,7 +623,7 @@ lemma   Te_pays_exit: "nf_invar c src dst PRED C N d \<Longrightarrow>   x \<in>
        \<le> Te src (False, PRED, C, N, d) - Te src (True, PRED', C - {x}, N', Suc d)"
   apply(rule dual_order.trans[OF _ _]) 
   apply(rule dual_order.trans[OF _ add_succs_spec_ub[where x=x]]) 
-  unfolding Te_def body_time_def[symmetric]  using nf_invar.Cge1
+  unfolding Te_def body_time_aux_def[symmetric]  using nf_invar.Cge1
   apply force apply simp by simp
 
 ML \<open>map_filter \<close>
@@ -847,8 +855,9 @@ begin
  
 
 
-    definition (in valid_PRED_impl) "extract_rpath_time' = ndist dst * (map_lookup_time + list_append_time)"
-    definition (in valid_PRED_impl) "extract_rpath_time cV = cV * (map_lookup_time + list_append_time)"
+definition (in valid_PRED_impl) "extract_rpath_time' = ndist dst * (map_lookup_time + list_append_time)"
+definition (in -) "extract_rpath_time_aux cV v1 v2 = cV * (v1 + v2)"
+abbreviation (in valid_PRED_impl) "extract_rpath_time cV \<equiv> extract_rpath_time_aux cV map_lookup_time list_append_time"
 
 lemma (in valid_PRED) ndist_le_V:  assumes [simp]: "finite V" and conn: "connected src dst"
   shows "ndist dst \<le> card V"
@@ -921,7 +930,7 @@ proof -
       shows "extract_rpath  src dst PRED map_lookup_time list_append_time V
         \<le> SPECT (emb (\<lambda>p. isSimplePath src p dst \<and> length p = ndist dst) (extract_rpath_time (card V)))"
       apply(rule dual_order.trans[OF _ extract_rpath_correct'])
-      apply (auto simp add: emb_le_emb extract_rpath_time_def extract_rpath_time'_def intro!: ndist_le_V)
+      apply (auto simp add: emb_le_emb extract_rpath_time_aux_def extract_rpath_time'_def intro!: ndist_le_V)
         using assms  apply auto  
         using Graph.isPath_rtc Graph.isSimplePath_def connected_edgeRtc by blast 
   end
@@ -1061,7 +1070,7 @@ lemma GG: "N \<subseteq> V \<Longrightarrow> A \<subseteq> V \<Longrightarrow> f
       by(auto split: bool.split simp add: domIff intro!: map_mmupd_update_less )  
     subgoal by (auto split: bool.split  simp add: domIff ) 
     subgoal 
-      by(auto simp:  add_succs_spec_time_def distinct_card )
+      by(auto simp:  add_succs_spec_time_aux_def distinct_card )
     done
 
  

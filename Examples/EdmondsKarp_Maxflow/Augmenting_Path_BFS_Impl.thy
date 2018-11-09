@@ -37,7 +37,7 @@ context Impl_Succ begin
 
     lemma [simp]: "set_pick_time > (0::nat)" unfolding set_pick_time_def by auto
 
-definition "map_lookup_time cf = rbt_search_time_logN (1 +  card (Graph.V cf)) + 1" 
+definition "map_lookup_time vcf = rbt_search_time_logN (1 +  vcf) + 1" 
 lemma [simp]: "map_lookup_time cf > 0" unfolding map_lookup_time_def by simp
  
  
@@ -55,19 +55,18 @@ definition init_state :: "nat \<Rightarrow> (bool \<times> (nat \<Rightarrow> na
       }"
     
     term mop_set_insert
-    definition "set_insert_time cf = rbt_insert_logN (card (Graph.V cf) + 1)"
+    definition "set_insert_time vcf = rbt_insert_logN (vcf + 1)"
+definition "set_delete_time vcf = rbt_delete_time_logN (vcf + 1)"
+definition "map_dom_member_time vcf = rbt_search_time_logN (1 + vcf) + 1"
+definition "map_update_time vcf = rbt_insert_logN (1 + vcf)" 
     definition "set_isempty_time = (10::nat)"
-definition "set_delete_time cf = rbt_delete_time_logN (card (Graph.V cf) + 1)"
-definition "map_dom_member_time cf = rbt_search_time_logN (1 + card (Graph.V cf)) + 1"
-definition "map_update_time cf = rbt_insert_logN (1 + card (Graph.V cf))" 
 definition "set_empty_time = (10::nat)"
 definition "list_append_time = (1::nat)"
 
     abbreviation "bfs2 cf SS IS s t == Augmenting_Path_BFS.bfs2 cf
-                       (set_insert_time cf) (map_dom_member_time cf)  (set_delete_time cf) (map_update_time cf)
-                      set_pick_time list_append_time (map_lookup_time cf) set_empty_time set_isempty_time SS IS s t"
+                       (set_insert_time (card (Graph.V cf))) (map_dom_member_time (card (Graph.V cf)))  (set_delete_time (card (Graph.V cf))) (map_update_time (card (Graph.V cf)))
+                      set_pick_time list_append_time (map_lookup_time (card (Graph.V cf))) set_empty_time set_isempty_time SS IS s t"
 
-    term WHILE_monadi
 
     definition op_bfs :: "'ga \<Rightarrow> node \<Rightarrow> node \<Rightarrow> path option nrest"
       where [simp]: "op_bfs c s t \<equiv> bfs2 (absG c) (succ c) init_state s t"
@@ -89,7 +88,7 @@ definition "list_append_time = (1::nat)"
 
   
   
-  lemma "init_state src \<le> SPECT [ (False,[src\<mapsto>src],{src},{},0::nat) \<mapsto> init_state_time ]"
+  lemma init_state_correct: "init_state src \<le> SPECT [ (False,[src\<mapsto>src],{src},{},0::nat) \<mapsto> init_state_time ]"
     unfolding init_state_def   
     apply(rule T_specifies_I) unfolding mop_map_empty_def mop_map_update_def mop_set_empty_def
         mop_set_insert_def

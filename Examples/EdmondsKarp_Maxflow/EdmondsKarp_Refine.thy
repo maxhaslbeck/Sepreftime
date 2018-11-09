@@ -22,11 +22,41 @@ begin
   print_theorems 
 end 
  
+
  
-    
+ 
+lemma hn_refine_min[sepref_fr_rules]: " hn_refine (hn_val Id a' a * hn_val Id b' b)
+           (ureturn (min a b))
+       (hn_val Id a' a * hn_val Id b' b)
+       (pure Id) (((PR_CONST (mop_min t)) $ a' $ b'))"
+  unfolding hn_refine_def apply (auto simp:   mult.assoc  execute_ureturn pure_def hn_ctxt_def)
+  by (auto simp: top_assn_rule zero_enat_def relH_def  mop_min_def elim: pureD ) 
+ 
+           
+context
+  fixes t ::  "nat"
+begin
+  definition "mop_swap e =SPECT [prod.swap e \<mapsto> t]"
 
+  lemma mop_swap: "\<And>tt. tt \<le> TTT Q (SPECT [ prod.swap e \<mapsto> t]) \<Longrightarrow> tt
+           \<le> TTT Q (mop_swap e)" unfolding mop_swap_def by simp 
+ 
+  sepref_register "mop_swap" 
+  print_theorems 
+end 
+ 
 
-
+ 
+ 
+lemma hn_refine_swap[sepref_fr_rules]: " hn_refine (hn_ctxt (nat_assn \<times>\<^sub>a nat_assn) e' e)
+           (ureturn (prod.swap e))
+       (hn_ctxt (nat_assn \<times>\<^sub>a nat_assn) e' e)
+       (nat_assn \<times>\<^sub>a nat_assn) (((PR_CONST (mop_swap t)) $ e'))"
+  unfolding hn_refine_def apply (auto simp:      execute_ureturn    )
+   apply (auto simp: top_assn_rule zero_enat_def relH_def prod.swap_def mop_swap_def elim: pureD ) 
+  apply(rule exI[where x=0]) apply auto  
+  by (smt BNF_Greatest_Fixpoint.IdD IdI entails_def entails_true hn_ctxt_def mult.left_neutral pure_assn_rule pure_def pure_true)  
+  
   text \<open>We now implement the Edmonds-Karp algorithm.
     Note that, during the implementation, we explicitly write down the 
     whole refined algorithm several times. As refinement is modular, most 
@@ -247,7 +277,7 @@ begin
     definition (in Network) resCap_cf_impl_aux :: "nat \<Rightarrow> (nat \<times> nat \<Rightarrow> 'capacity) \<Rightarrow> (nat \<times> nat) list \<Rightarrow> 'capacity nrest"
     where "resCap_cf_impl_aux matrix_lookup_time cf p \<equiv> 
       case p of
-        [] \<Rightarrow> SPECT [(0::'capacity) \<mapsto> 1]
+        [] \<Rightarrow> RETURNT (0::'capacity)
       | (e#p) \<Rightarrow> do {
           cap \<leftarrow> cf_get cf e matrix_lookup_time;
           ASSERT (distinct p);
@@ -263,9 +293,10 @@ begin
     abbreviation "resCap_cf_impl == resCap_cf_impl_aux matrix_lookup_time cf" 
   
 
-    definition "resCap_cf_impl_time n = 1 + (matrix_lookup_time+10) * n"
+    definition (in -) "resCap_cf_impl_time_aux n v1 = 1 + (v1+10) * n"
+    abbreviation "resCap_cf_impl_time n \<equiv> resCap_cf_impl_time_aux n matrix_lookup_time"
     lemma resCap_cf_impl_time_mono: "n \<le> m \<Longrightarrow> resCap_cf_impl_time n \<le> resCap_cf_impl_time m"
-      unfolding resCap_cf_impl_time_def by simp
+      unfolding resCap_cf_impl_time_aux_def by simp
 
     lemma  resCap_cf_impl_refine:   
       assumes AUG: "cf.isSimplePath s p t"
@@ -296,7 +327,7 @@ begin
             apply (auto intro!: arg_cong[where f=Min])  []
         subgoal apply(rule T_specifies_I) apply(vcg'\<open>-\<close> rules: mop_min matrix_get)  
           by (auto simp add: emb_le_Some_conv numeral_eq_enat intro!: arg_cong[where f=Min])  
-        by (auto simp: emb_eq_Some_conv Some_le_emb'_conv resCap_cf_impl_time_def intro!: arg_cong[where f=Min])
+        by (auto simp: emb_eq_Some_conv Some_le_emb'_conv resCap_cf_impl_time_aux_def intro!: arg_cong[where f=Min])
  
         
  (*
@@ -346,59 +377,63 @@ begin
       thus "\<exists>s'. Graph.isSimplePath c' s' p t" .. 
 
     qed    
-        
-    definition "augment_edge_impl cff e cap \<equiv> do {
+
+
+    definition (in Network) "augment_edge_impl_aux matrix_lookup_time matrix_set_time cff e cap \<equiv> do {
       v \<leftarrow> cf_get cff e matrix_lookup_time; cf \<leftarrow> cf_set cff e (v-cap) matrix_set_time;
-      e \<leftarrow> SPECT [prod.swap e\<mapsto>3];
+      e \<leftarrow> mop_swap 3 e;
       v \<leftarrow> cf_get cf e matrix_lookup_time; cf \<leftarrow> cf_set cf e (v+cap) matrix_set_time;
       RETURNT cf
     }"
+    abbreviation "augment_edge_impl == augment_edge_impl_aux matrix_lookup_time matrix_set_time" 
 
-    definition "augment_edge_impl_time = 2* matrix_lookup_time + 2*matrix_set_time+3"
-
+    definition (in -) "augment_edge_impl_time_aux v1 v2 = 2* v1 + 2*v2+3"
+abbreviation "augment_edge_impl_time == augment_edge_impl_time_aux matrix_lookup_time matrix_set_time"
     lemma augment_edge_impl_refine: 
       assumes "valid_edge e" "\<forall>u. e\<noteq>(u,u)"
       shows "augment_edge_impl cff e cap 
               \<le> SPECT (emb  (\<lambda>r. r = Graph.augment_edge cff e cap) augment_edge_impl_time)"
       using assms
-      unfolding augment_edge_impl_def Graph.augment_edge_def 
+      unfolding augment_edge_impl_aux_def Graph.augment_edge_def 
       unfolding cf_get_def cf_set_def apply simp
       apply(rule T_specifies_I)
-      apply (vcg'\<open>auto\<close> rules: matrix_get matrix_set) apply (auto simp: emb_le_Some_conv augment_edge_impl_time_def one_enat_def  numeral_eq_enat)
+      apply (vcg'\<open>auto\<close> rules: matrix_get matrix_set mop_swap) apply (auto simp: emb_le_Some_conv augment_edge_impl_time_aux_def one_enat_def  numeral_eq_enat)
       done
 
       
-    definition augment_cf_impl 
-      :: "'capacity graph \<Rightarrow> path \<Rightarrow> 'capacity \<Rightarrow> 'capacity graph nrest" 
+    definition (in Network)  augment_cf_impl_aux  
       where
-      "augment_cf_impl cff p x \<equiv> do {
+      "augment_cf_impl_aux matrix_lookup_time matrix_set_time cff p x \<equiv> do {
         RECT (\<lambda>D. \<lambda>
-          ([],cf) \<Rightarrow> SPECT [ cf \<mapsto> 1]
+          ([],cf) \<Rightarrow> RETURNT  cf
         | (e#p,cf) \<Rightarrow> do {
-            cf \<leftarrow> augment_edge_impl cf e x;
+            cf \<leftarrow> augment_edge_impl_aux matrix_lookup_time matrix_set_time cf e x;
             D (p,cf)
           }  
         ) (p,cff)
       }"
 
+    abbreviation "augment_cf_impl cff p x == augment_cf_impl_aux matrix_lookup_time matrix_set_time cff p x"
+
     text \<open>Deriving the corresponding recursion equations\<close>  
     lemma augment_cf_impl_simps[simp]: 
-      "augment_cf_impl cff [] x = SPECT [ cff \<mapsto> 1]"
+      "augment_cf_impl cff [] x = RETURNT cff"
       "augment_cf_impl cff (e#p) x = do { 
         cf \<leftarrow> augment_edge_impl cff e x; 
         augment_cf_impl cf p x}"
-      apply (simp add: augment_cf_impl_def)
+      apply (simp add: augment_cf_impl_aux_def)
       apply (subst RECT_unfold, refine_mono)
       apply simp
       
-      apply (simp add: augment_cf_impl_def)
+      apply (simp add: augment_cf_impl_aux_def)
       apply (subst RECT_unfold, refine_mono)
       apply simp
       done      
 
-    definition "augment_cf_impl_time n =    1 + n * augment_edge_impl_time "
+definition (in -) "augment_cf_impl_time_aux n v1 =    1 + n * v1 "
+abbreviation "augment_cf_impl_time n \<equiv> augment_cf_impl_time_aux n augment_edge_impl_time"
     lemma augment_cf_impl_time_mono: "n \<le> m \<Longrightarrow> augment_cf_impl_time n \<le> augment_cf_impl_time m"
-      unfolding augment_cf_impl_time_def by simp
+      unfolding augment_cf_impl_time_aux_def by simp
 
 
     term "cf.isSimplePath"
@@ -407,12 +442,12 @@ begin
       assumes "\<forall>e\<in>set p. valid_edge e"
       assumes "\<exists>s. Graph.isSimplePath cf s p t"
       shows "augment_cf_impl cf p x \<le> SPECT [Graph.augment_cf cf (set p) x\<mapsto> augment_cf_impl_time (length p)]"
-      using assms unfolding augment_cf_impl_time_def
+      using assms unfolding augment_cf_impl_time_aux_def
     proof (induction p arbitrary: cf)
       case Nil
       then show ?case 
-        by (simp add: le_fun_def one_enat_def Graph.augment_cf_empty)
-
+        by (auto simp add: RETURNT_def le_fun_def one_enat_def Graph.augment_cf_empty)  
+       
     next
       case (Cons a p)
 
@@ -454,8 +489,10 @@ locale EdKa_Res_Up = Network c s t for c :: "'capacity::linordered_idom graph" a
 begin
 
 
-    definition "augment_with_path_time = RGraph_impl.resCap_cf_impl_time matrix_lookup_time (card V)
-           + RGraph_impl.augment_cf_impl_time matrix_lookup_time matrix_set_time (card V)"
+    definition (in -) "augment_with_path_time_aux v1 v2 cV = RGraph_impl.resCap_cf_impl_time v1 cV
+           + RGraph_impl.augment_cf_impl_time v1 v2 cV"
+
+  abbreviation "augment_with_path_time \<equiv> augment_with_path_time_aux matrix_lookup_time matrix_set_time (card V)"
 
     thm  Finite_Graph.isShortestPath_length_less_V
 
@@ -480,7 +517,7 @@ proof -
     apply(rule RGraph_impl.augment_cf_impl_time_mono)
     using assms(3) le RGraph_impl_def by auto
   ultimately
-  show ?thesis unfolding augment_with_path_time_def by simp
+  show ?thesis unfolding augment_with_path_time_aux_def by simp
 qed
  
     interpretation Ed_Res: EdKa_Res c s t shortestpath_time augment_with_path_time
@@ -566,7 +603,6 @@ lemma "s\<in>V" by auto
       done *) 
                                                                          
 lemma  edka3_correct: "edka3 \<le> \<Down>Id (SPECT (emb isMaxFlow (enat (EdKa.edka_time c shortestpath_time augment_with_path_time))))"
-  unfolding EdKa.edka_time_def
     apply(rule order.trans) apply(rule edka3_refine) 
     using Ed_Res.edka2_correct by simp 
 end
@@ -574,35 +610,42 @@ end
 term Augmenting_Path_BFS.bfs
 
 locale EdKa_Res_Bfs = Network c s t for c :: "'capacity::linordered_idom graph" and s t +
-  fixes  set_insert_time map_dom_member_time set_delete_time get_succs_list_time map_update_time set_pick_time :: nat
-    and list_append_time map_lookup_time set_empty_time set_isempty_time init_state_time :: nat
-
+  fixes  set_insert_time map_dom_member_time set_delete_time :: "nat \<Rightarrow> nat"
+    and get_succs_list_time :: nat
+    and map_update_time :: "nat \<Rightarrow> nat"
+    and set_pick_time :: nat
+    and list_append_time ::nat
+    and map_lookup_time  :: "nat \<Rightarrow> nat"
+    and set_empty_time set_isempty_time init_state_time :: nat 
     and matrix_lookup_time matrix_set_time :: nat 
-  assumes [simp]: "map_lookup_time > 0"
+  assumes [simp]: "\<And>c. map_lookup_time c > 0"
   assumes [simp]: "set_pick_time > 0" 
 begin
+ 
+  definition (in -)   "shortest_path_time_aux cV v1 v2 v3 v4 v5 v6 v7 v8 v9 v10 v11 =
+     Pre_BFS_Impl.pre_bfs_time (v1 cV) (v2 cV) (v3 cV) v4 
+                  (v5 cV) v6 v7 v8 v9 cV
+          + valid_PRED_impl.extract_rpath_time v10 (v11 cV) cV"
+  
+abbreviation "shortest_path_time == shortest_path_time_aux (card V) set_insert_time map_dom_member_time set_delete_time
+        get_succs_list_time map_update_time set_pick_time set_empty_time set_isempty_time init_state_time list_append_time map_lookup_time"
 
-    interpretation pbi: Pre_BFS_Impl c set_pick_time
-      apply standard by simp
 
-    definition "shortest_path_time = Pre_BFS_Impl.pre_bfs_time set_insert_time map_dom_member_time set_delete_time get_succs_list_time map_update_time set_pick_time set_empty_time set_isempty_time init_state_time (card V)
-                 + valid_PRED_impl.extract_rpath_time list_append_time map_lookup_time (card V)"
+  lemma [simp]:  "enat shortest_path_time \<noteq> 0"
+    unfolding  shortest_path_time_aux_def using Pre_BFS_Impl.pre_bfs_time_progress[unfolded Pre_BFS_Impl_def, of set_pick_time]
+      apply(auto)
+    by (metis add_is_0 enat_0_iff(1) not_gr_zero)
   
 
-lemma [simp]:  "enat shortest_path_time \<noteq> 0"
-  unfolding  shortest_path_time_def using Pre_BFS_Impl.pre_bfs_time_progress[unfolded Pre_BFS_Impl_def, of set_pick_time]
-    apply(auto)
-  by (metis add_is_0 enat_0_iff(1) not_gr_zero)
-  
-
-    interpretation edru: EdKa_Res_Up c s t  shortest_path_time matrix_lookup_time matrix_set_time
+    sublocale edru: EdKa_Res_Up c s t  shortest_path_time matrix_lookup_time matrix_set_time
       apply standard  by auto
 
     abbreviation "resCap_cf_impl'' cf p \<equiv> edru.resCap_cf_impl' cf p"
     abbreviation "augment_cf_impl'' cf p bn \<equiv> edru.augment_cf_impl' cf p bn"
 
-    definition "MYbfs cf ss tt = Augmenting_Path_BFS.bfs cf set_insert_time map_dom_member_time set_delete_time get_succs_list_time map_update_time set_pick_time  
-          list_append_time map_lookup_time set_empty_time set_isempty_time init_state_time ss tt"
+    definition "MYbfs cf ss tt = Augmenting_Path_BFS.bfs cf (set_insert_time (card (Graph.V cf))) (map_dom_member_time (card (Graph.V cf)))
+                 (set_delete_time (card (Graph.V cf))) get_succs_list_time (map_update_time (card (Graph.V cf))) set_pick_time  
+              list_append_time (map_lookup_time (card (Graph.V cf))) set_empty_time set_isempty_time init_state_time ss tt"
 
     subsection \<open>Refinement to use BFS\<close>
 
@@ -614,6 +657,7 @@ lemma [simp]:  "enat shortest_path_time \<noteq> 0"
         (\<lambda>(cf,brk). \<not>brk) 
         (\<lambda>(cf,_). do {
           ASSERT (RGraph c s t cf);
+          ASSERT ((Graph.V cf) = (Graph.V c));
           p \<leftarrow> MYbfs cf s t;
           case p of 
             None \<Rightarrow> RETURNT (cf,True)
@@ -638,16 +682,23 @@ lemma [simp]:  "enat shortest_path_time \<noteq> 0"
       unfolding edru.find_shortest_augmenting_spec_cf
     proof (rule le_ASSERTI, goal_cases)
       case 1
-      interpret BFS: Augmenting_Path_BFS cf set_insert_time map_dom_member_time set_delete_time get_succs_list_time map_update_time set_pick_time  
-          list_append_time map_lookup_time set_empty_time set_isempty_time init_state_time
+      interpret BFS: Augmenting_Path_BFS cf "set_insert_time (card (Graph.V cf))" "map_dom_member_time (card (Graph.V cf))"
+                 "set_delete_time (card (Graph.V cf))" get_succs_list_time "map_update_time (card (Graph.V cf))" set_pick_time  
+              list_append_time "map_lookup_time (card (Graph.V cf))" set_empty_time set_isempty_time init_state_time
         apply standard by auto
+      have -: "BFS.V = V"  
+        using "1" RGraph.this_loc_rpg RPreGraph.resV_netV by blast  
       thm BFS.bfs_correct
+      have *: "BFS.bfs_time s t = shortest_path_time"       
+        apply(auto   simp add:  RPreGraph.resV_netV[OF RGraph.this_loc_rpg, OF 1])
+        by(simp add: shortest_path_time_aux_def   Augmenting_Path_BFS.bfs_time_def - Augmenting_Path_BFS_def) 
+
       show ?case
       apply (rule order_trans) unfolding MYbfs_def
          apply (rule BFS.bfs_correct)          
-      apply (simp add: RPreGraph.resV_netV[OF RGraph.this_loc_rpg, OF 1]  s_node)
-      apply (simp add: RPreGraph.resV_netV[OF RGraph.this_loc_rpg, OF 1]) 
-      apply(auto intro: embtimeI simp add:  RPreGraph.resV_netV[OF RGraph.this_loc_rpg, OF 1] BFS.bfs_time_def shortest_path_time_def  ) 
+      apply (simp add: RPreGraph.resV_netV[OF RGraph.this_loc_rpg, OF 1])
+         apply (simp add: RPreGraph.resV_netV[OF RGraph.this_loc_rpg, OF 1]) 
+        apply(simp only: *)
         done
     qed
 
@@ -662,6 +713,7 @@ lemma [simp]:  "enat shortest_path_time \<noteq> 0"
       apply(auto) []
           apply(rule le_ASSERTI)+
        apply(rule ASSERT_leI) apply simp
+       apply(rule ASSERT_leI) using RGraph.this_loc_rpg RPreGraph.resV_netV apply blast    
       apply(auto) []
        apply(rule bindT_mono)
         apply(rule bfs_refines_shortest_augmenting_spec)
@@ -836,10 +888,13 @@ begin
 end
 
 locale EdKa_Tab = Network c s t for c :: "'capacity::linordered_idom graph" and s t +
-  fixes  set_insert_time map_dom_member_time set_delete_time map_update_time set_pick_time :: nat
-    and list_append_time map_lookup_time set_empty_time set_isempty_time init_state_time :: nat 
+  fixes  set_insert_time map_dom_member_time set_delete_time map_update_time :: "nat \<Rightarrow> nat"
+    and set_pick_time :: nat
+    and list_append_time ::nat
+    and map_lookup_time  :: "nat \<Rightarrow> nat"
+    and set_empty_time set_isempty_time init_state_time :: nat 
     and matrix_lookup_time matrix_set_time :: nat 
-  assumes [simp]: "map_lookup_time > 0"
+  assumes [simp]: "\<And>c. map_lookup_time c > 0"
   assumes [simp]: "set_pick_time > 0" 
 begin
  
@@ -867,43 +922,77 @@ begin
       where
       "compute_rflow cf \<equiv> ASSERT (RGraph c s t cf) \<then> RETURNT (flow_of_cf cf)"
 
-    definition get_succs_list_time :: nat where
-      "get_succs_list_time = (2+ (card V) * (matrix_lookup_time+list_append_time))"
+    definition (in -) get_succs_list_time_aux where
+      "get_succs_list_time_aux matrix_lookup_time list_append_time cV= (2+ cV * (matrix_lookup_time+list_append_time))"
 
+    abbreviation "get_succs_list_time \<equiv> get_succs_list_time_aux matrix_lookup_time list_append_time (card V)"
 
-    interpretation edka: EdKa_Res_Bfs c s t set_insert_time map_dom_member_time set_delete_time
-      get_succs_list_time
-      map_update_time set_pick_time 
-      list_append_time map_lookup_time set_empty_time  set_isempty_time init_state_time
-      matrix_lookup_time matrix_set_time 
-      apply(standard) by auto
 
     term Augmenting_Path_BFS.bfs2
-                                                               
-    definition "MYbfs2 cf init_state succ ss tt = Augmenting_Path_BFS.bfs2 cf set_insert_time map_dom_member_time set_delete_time map_update_time set_pick_time  
-          list_append_time map_lookup_time set_empty_time set_isempty_time succ init_state ss tt"
+                                                                
 
 
     definition "MYrg_succ2 am cf u = Succ_Impl.rg_succ2 c list_append_time matrix_lookup_time am cf u"
 
   
 
+definition (in -) "bfs2_op_aux c s t
+set_insert_time 
+  map_dom_member_time 
+  set_delete_time 
+  map_update_time   
+  set_pick_time  
+  list_append_time  
+  map_lookup_time  
+  set_empty_time 
+  set_isempty_time  
+  matrix_lookup_time 
+      
+am cf init_state \<equiv> 
+Augmenting_Path_BFS.bfs2 cf set_insert_time map_dom_member_time set_delete_time map_update_time set_pick_time  
+          list_append_time map_lookup_time set_empty_time set_isempty_time   (Succ_Impl.rg_succ2  c list_append_time matrix_lookup_time am cf) init_state  s t  "
 
-    definition "bfs2_op am cf init_state \<equiv> MYbfs2 cf init_state (MYrg_succ2 am cf) s t"
+  
 
-    text \<open>We split the algorithm into a tabulation function, and the 
+abbreviation "bfs2_op am cf init_state \<equiv> bfs2_op_aux c s t (set_insert_time (card (Graph.V cf))) 
+  (map_dom_member_time (card (Graph.V cf))) 
+  (set_delete_time (card (Graph.V cf))) 
+  (map_update_time (card (Graph.V cf)))   
+  set_pick_time  
+  list_append_time  
+  (map_lookup_time (card (Graph.V cf)))
+  set_empty_time 
+  set_isempty_time  
+  matrix_lookup_time am cf init_state"
+
+
+
+     text \<open>We split the algorithm into a tabulation function, and the 
       running of the actual algorithm:\<close>
-    definition "edka5_tabulate am \<equiv> do {
+    definition (in Network) "edka5_tabulate am \<equiv> do {
       cf \<leftarrow> init_cf;
       am \<leftarrow> init_ps am;
       RETURNT (cf,am)
     }"
 
+
+
+    sublocale edka: EdKa_Res_Bfs c s t set_insert_time map_dom_member_time set_delete_time
+      get_succs_list_time
+      map_update_time set_pick_time 
+      list_append_time map_lookup_time set_empty_time  set_isempty_time init_state_time
+      matrix_lookup_time matrix_set_time 
+      apply(standard) by auto
+
+  lemma pff: "RGraph c s t cf \<Longrightarrow> (Graph.V cf) = (Graph.V c)"
+    using RGraph.this_loc_rpg RPreGraph.resV_netV by fastforce 
+
     definition "edka5_run cf am init_state \<equiv> do {
       (cf,_) \<leftarrow> whileT 
         (\<lambda>(cf,brk). \<not>brk) 
         (\<lambda>(cf,_). do {
-          ASSERT (RGraph c s t cf);
+          ASSERT (RGraph c s t cf);    
+          ASSERT ((Graph.V cf) = (Graph.V c));
           p \<leftarrow> bfs2_op am cf init_state;
           case p of 
             None \<Rightarrow> RETURNT (cf,True)
@@ -944,17 +1033,19 @@ lemma is_adj_map_app_le_V: "is_adj_map am \<Longrightarrow> u \<in> V  \<Longrig
     lemma edka5_refine: "\<lbrakk>is_adj_map am ; \<And>src. init_state src \<le> SPECT [ (False,[src\<mapsto>src],{src},{},0::nat) \<mapsto> init_state_time ]\<rbrakk> \<Longrightarrow> edka5 am init_state \<le> \<Down>Id edka.edka4"
       unfolding edka5_def edka5_tabulate_def edka5_run_def
         edka.edka4_def init_cf_def compute_rflow_def 
-        init_ps_def Let_def   bfs2_op_def
+        init_ps_def Let_def   bfs2_op_aux_def
       unfolding nres_bind_assoc nres_bind_left_identity prod.case 
       apply(rule ASSERT_leI) apply simp
       apply(rule bindT_refine) 
        apply(rule WHILET_refine[where R="Id \<times>\<^sub>r bool_rel"] ) apply simp
       apply simp  apply safe
       apply(rule le_R_ASSERTI)
-       apply(rule ASSERT_leI)  apply simp      
+      apply(rule le_R_ASSERTI)
+       apply(rule ASSERT_leI)  apply simp
+       apply(rule ASSERT_leI) using pff  apply simp      
        apply(rule bindT_refine[where R'=Id])
       subgoal 
-        unfolding MYbfs2_def edka.MYbfs_def  apply(frule k) apply simp  
+        unfolding   edka.MYbfs_def  apply(frule k) apply simp  
         apply(rule R_intro) 
         apply(rule Augmenting_Path_BFS.bfs2_refine)
          apply(simp add: Augmenting_Path_BFS_def)
@@ -964,7 +1055,7 @@ lemma is_adj_map_app_le_V: "is_adj_map am \<Longrightarrow> u \<in> V  \<Longrig
           apply(simp add: RPreGraph.resV_netV[OF RGraph.this_loc_rpg])
          apply simp
         apply(rule nrest_Rel_mono)
-        by (auto simp add: le_fun_def get_succs_list_time_def Succ_Impl.rg_succ_time_def
+        by (auto simp add: le_fun_def get_succs_list_time_aux_def Succ_Impl.rg_succ_time_def
                 RPreGraph.resV_netV[OF RGraph.this_loc_rpg] is_adj_map_app_le_V) 
       apply (simp split: prod.split option.split)
       apply(rule le_R_ASSERTI)

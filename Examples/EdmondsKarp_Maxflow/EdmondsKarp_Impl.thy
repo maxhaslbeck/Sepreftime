@@ -60,7 +60,7 @@ begin
       \<equiv> \<exists>\<^sub>Al. psi \<mapsto>\<^sub>a l 
           * \<up>(length l = N \<and> (\<forall>i<N. l!i = am i) 
               \<and> (\<forall>i\<ge>N. am i = []))"
-  (*
+ 
     lemma is_am_precise[safe_constraint_rules]: "precise (is_am)"
       apply rule
       unfolding is_am_def
@@ -71,14 +71,13 @@ begin
       apply (rename_tac i)
       apply (case_tac "i<length l'")
       apply fastforce+
-      done *)
+      sorry
 
     sepref_decl_intf i_ps is "nat \<Rightarrow> nat list" 
 
     definition (in -) "ps_get_imp psi u \<equiv> Array.nth psi u"
 
-    lemma [def_pat_rules]: "Graph.ps_get_op $ c \<equiv> UNPROTECT ps_get_op" by simp
-    sepref_register "PR_CONST ps_get_op" :: "i_ps \<Rightarrow> node \<Rightarrow> node list nrest"
+    sepref_register "ps_get_op" :: "i_ps \<Rightarrow> node \<Rightarrow> node list nrest"
 
     lemma ps_get_op_refine[sepref_fr_rules]:       
       "(uncurry ps_get_imp, uncurry (PR_CONST ps_get_op)) 
@@ -111,8 +110,7 @@ begin
       apply (sep_auto simp: init_ps_def refine_pw_simps is_am_def pure_def
         intro: is_pred_succ_no_node) sorry
 
-    lemma [def_pat_rules]: "Network.init_ps$c \<equiv> UNPROTECT init_ps" by simp
-    sepref_register "PR_CONST init_ps" :: "(node \<Rightarrow> node list) \<Rightarrow> i_ps nrest"
+    sepref_register "init_ps" :: "(node \<Rightarrow> node list) \<Rightarrow> i_ps nrest"
 
     abbreviation "matrix_lookup_time == 1::nat" 
     abbreviation "matrix_set_time == 1::nat" 
@@ -147,8 +145,8 @@ begin
       unfolding cf_get_def[abs_def]  
  
       apply sepref_dbg_preproc
-  apply sepref_dbg_cons_init
-  apply sepref_dbg_id_keep apply simp apply simp (* TODO: ! *)
+  apply sepref_dbg_cons_init 
+      apply sepref_dbg_id_keep apply simp apply simp (* TODO: ! *)
      apply sepref_dbg_monadify
 
      apply sepref_dbg_opt_init
@@ -217,8 +215,7 @@ begin
       by (sep_auto simp: init_cf_def)
     *)  
 
-    lemma [def_pat_rules]: "Network.init_cf$c \<equiv> UNPROTECT init_cf" by simp
-    sepref_register "PR_CONST init_cf" :: "capacity_impl i_mtx nrest"
+    sepref_register "init_cf" :: "capacity_impl i_mtx nrest"
 
     subsubsection \<open>Representing Result Flow as Residual Graph\<close>
     definition (in Network_Impl) "is_rflow N f cfi 
@@ -241,10 +238,8 @@ begin
       apply (sep_auto simp: amtx_cnv compute_rflow_def is_rflow_def refine_pw_simps hn_ctxt_def)
       sorry
 
-    lemma [def_pat_rules]: 
-      "Network.compute_rflow$c$s$t \<equiv> UNPROTECT compute_rflow" by simp
     sepref_register 
-      "PR_CONST compute_rflow" :: "capacity_impl i_mtx \<Rightarrow> i_rflow nrest"
+      "compute_rflow" :: "capacity_impl i_mtx \<Rightarrow> i_rflow nrest"
 
 
     subsubsection \<open>Implementation of Functions\<close>  
@@ -254,7 +249,7 @@ begin
     abbreviation "list_append_time == 1::nat" 
     definition "rg_succ2 am cf u = Succ_Impl.rg_succ2 c list_append_time matrix_lookup_time am cf u "
 
-
+    term cf_get'
     schematic_goal rg_succ2_impl:
       fixes am :: "node \<Rightarrow> node list" and cf :: "capacity_impl graph"
       notes [id_rules] = 
@@ -267,7 +262,8 @@ begin
                  (?c::?'c Heap) ?\<Gamma> ?R (rg_succ2 am cf u)"
       unfolding rg_succ2_def Succ_Impl.rg_succ2_def APP_def Succ_Impl.monadic_filter_rev_def Succ_Impl.monadic_filter_rev_aux_def
       (* TODO: Make setting up combinators for sepref simpler, then we do not need to unfold! *)
-      using [[id_debug, goals_limit = 3]] unfolding cf_get'_def[symmetric]
+      using [[id_debug, goals_limit = 3]]
+      unfolding cf_get'_def[symmetric]
       by sepref 
 
     concrete_definition (in -) succ_imp uses Edka_Impl.rg_succ2_impl
@@ -293,7 +289,7 @@ begin
     abbreviation "is_path \<equiv> list_assn (prod_assn (pure Id) (pure Id))"
 
     term Network.resCap_cf_impl_aux
-    definition "resCap_cf_impl cf p = Network.resCap_cf_impl_aux  cf matrix_lookup_time c p"
+    definition "resCap_cf_impl cf p = Network.resCap_cf_impl_aux c matrix_lookup_time cf p"
 
     thm Network.resCap_cf_impl_aux_def
 
@@ -308,9 +304,11 @@ begin
         (?c::?'c Heap) ?\<Gamma> ?R 
         (resCap_cf_impl cf p)"
       unfolding resCap_cf_impl_def  APP_def
-      unfolding Network.resCap_cf_impl_aux_def
-      using [[id_debug, goals_limit = 1]]
+      unfolding resCap_cf_impl_aux_def nfoldli_def
+      unfolding cf_get'_def[symmetric]
+      using [[id_debug, goals_limit = 3]] 
       by sepref
+
     concrete_definition (in -) resCap_imp uses Edka_Impl.resCap_imp_impl
     prepare_code_thms (in -) resCap_imp_def
 
@@ -330,28 +328,28 @@ begin
       apply (simp add: pure_def)
       done
 
-    lemma [def_pat_rules]: 
-      "Network.resCap_cf_impl$c \<equiv> UNPROTECT resCap_cf_impl" 
-      by simp
-    sepref_register "PR_CONST resCap_cf_impl" 
-      :: "capacity_impl i_mtx \<Rightarrow> path \<Rightarrow> capacity_impl nres"
-    
+    sepref_register "resCap_cf_impl" 
+      :: "capacity_impl i_mtx \<Rightarrow> path \<Rightarrow> capacity_impl nrest"
+
+
+    term  Network.augment_edge_impl_aux
+    definition "augment_cf_impl cf p = Network.augment_cf_impl_aux c matrix_lookup_time matrix_set_time cf p"
+    term augment_cf_impl
     sepref_thm augment_imp is "uncurry2 (PR_CONST augment_cf_impl)" :: "((asmtx_assn N id_assn)\<^sup>d *\<^sub>a (is_path)\<^sup>k *\<^sub>a (pure Id)\<^sup>k \<rightarrow>\<^sub>a asmtx_assn N id_assn)"
-      unfolding augment_cf_impl_def[abs_def] augment_edge_impl_def PR_CONST_def
-      using [[id_debug, goals_limit = 1]]
+      unfolding augment_cf_impl_def[abs_def] augment_cf_impl_aux_def augment_edge_impl_aux_def PR_CONST_def
+      unfolding cf_get'_def[symmetric] cf_set'_def[symmetric]
+      using [[id_debug, goals_limit = 1]] 
       by sepref 
+
     concrete_definition (in -) augment_imp uses Edka_Impl.augment_imp.refine_raw is "(uncurry2 ?f,_)\<in>_"
     prepare_code_thms (in -) augment_imp_def
     lemma augment_impl_refine[sepref_fr_rules]: 
       "(uncurry2 (augment_imp N), uncurry2 (PR_CONST augment_cf_impl)) 
         \<in> (asmtx_assn N id_assn)\<^sup>d *\<^sub>a (is_path)\<^sup>k *\<^sub>a (pure Id)\<^sup>k \<rightarrow>\<^sub>a asmtx_assn N id_assn"
       using augment_imp.refine[OF this_loc] .
-
-    lemma [def_pat_rules]: 
-      "Network.augment_cf_impl$c \<equiv> UNPROTECT augment_cf_impl" 
-      by simp
-    sepref_register "PR_CONST augment_cf_impl" 
-      :: "capacity_impl i_mtx \<Rightarrow> path \<Rightarrow> capacity_impl \<Rightarrow> capacity_impl i_mtx nres"
+ 
+    sepref_register "augment_cf_impl" 
+      :: "capacity_impl i_mtx \<Rightarrow> path \<Rightarrow> capacity_impl \<Rightarrow> capacity_impl i_mtx nrest"
 
     sublocale bfs: Impl_Succ 
       "snd" 
@@ -364,15 +362,39 @@ begin
       apply (simp add: fold_partial_uncurry)
       apply (rule hfref_cons[OF succ_imp_refine[unfolded PR_CONST_def]])
       by auto
+
+    term Impl_Succ.init_state
+    term bfs.init_state
+
+    thm bfs.op_bfs_def
       
     definition (in -) "bfsi' N s t psi cfi 
       \<equiv> bfs_impl (\<lambda>(am, cf). succ_imp N am cf) (psi,cfi) s t"
 
+    term EdKa_Tab.bfs2_op
+ 
+ 
+    abbreviation "set_empty_time == 10"
+    abbreviation "set_isempty_time == 10" 
+    definition "bfs2_op am cf = EdKa_Tab.bfs2_op c s t
+       (bfs.set_insert_time) (bfs.map_dom_member_time )   (bfs.set_delete_time )
+       (bfs.map_update_time ) bfs.set_pick_time  bfs.list_append_time 
+       (bfs.map_lookup_time ) bfs.set_empty_time bfs.set_isempty_time
+       matrix_lookup_time am cf bfs.init_state"
+
+    thm bfs.bfs_impl_fr_rule
+ 
+    lemmas n = bfs.bfs_impl_fr_rule[unfolded hfref_def,  unfolded bfs.op_bfs_def, simplified, simplified all_to_meta]
+ 
+
     lemma [sepref_fr_rules]: 
       "(uncurry (bfsi' N s t),uncurry (PR_CONST bfs2_op)) 
         \<in> is_am\<^sup>k *\<^sub>a (asmtx_assn N id_assn)\<^sup>k \<rightarrow>\<^sub>a option_assn is_path"
-      unfolding bfsi'_def[abs_def] bfs2_op_def[abs_def] 
-      using bfs.bfs_impl_fr_rule unfolding bfs.op_bfs_def[abs_def]
+      unfolding bfsi'_def[abs_def]
+      unfolding bfs2_op_def[abs_def]
+      unfolding bfs2_op_aux_def
+
+      using n[of _ _ _ _ s s t t] unfolding rg_succ2_def bfs.list_append_time_def
       apply (clarsimp simp: hfref_def all_to_meta)
       apply (rule hn_refine_cons[rotated])
       apply rprems
@@ -381,10 +403,9 @@ begin
       apply (sep_auto simp: pure_def)
       done
 
-    lemma [def_pat_rules]: "Network.bfs2_op$c$s$t \<equiv> UNPROTECT bfs2_op" by simp
-    sepref_register "PR_CONST bfs2_op" 
-      :: "i_ps \<Rightarrow> capacity_impl i_mtx \<Rightarrow> path option nres"  
-
+    sepref_register "bfs2_op" 
+      :: "i_ps \<Rightarrow> capacity_impl i_mtx \<Rightarrow> path option nrest"  
+                                          
 
     schematic_goal edka_imp_tabulate_impl:
       notes [sepref_opt_simps] = heap_WHILET_def
@@ -393,7 +414,7 @@ begin
         itypeI[Pure.of am "TYPE(node \<Rightarrow> node list)"]
       notes [sepref_import_param] = IdI[of am]
       shows "hn_refine (emp) (?c::?'c Heap) ?\<Gamma> ?R (edka5_tabulate am)"
-      unfolding edka5_tabulate_def
+      unfolding edka5_tabulate_def 
       using [[id_debug, goals_limit = 1]]
       by sepref
 
@@ -401,6 +422,11 @@ begin
       uses Edka_Impl.edka_imp_tabulate_impl
     prepare_code_thms (in -) edka_imp_tabulate_def
 
+
+    lemma models_id_assnD: "h \<Turnstile> id_assn a ca \<Longrightarrow> a = ca" by (auto simp: pure_def)
+
+    thm edka_imp_tabulate.refine[OF this_loc]
+    thm hn_refine_cons[OF _ edka_imp_tabulate.refine[OF this_loc]]
     lemma edka_imp_tabulate_refine[sepref_fr_rules]: 
       "(edka_imp_tabulate c N, PR_CONST edka5_tabulate) 
       \<in> (pure Id)\<^sup>k \<rightarrow>\<^sub>a prod_assn (asmtx_assn N id_assn) is_am"
@@ -409,18 +435,40 @@ begin
       apply (clarsimp 
         simp: uncurry_def list_assn_pure_conv hn_ctxt_def 
         split: prod.split)
+
+      (* TODO, models_id_assnD is too specific, should be solved by clarsimp \<rightarrow> simp set?! *)
+      apply (drule models_id_assnD)  apply clarsimp
+
       apply (rule hn_refine_cons[OF _ edka_imp_tabulate.refine[OF this_loc]])
       apply (sep_auto simp: hn_ctxt_def pure_def)+
       done
+ 
+    sepref_register "edka5_tabulate"
+      :: "(node \<Rightarrow> node list) \<Rightarrow> (capacity_impl i_mtx \<times> i_ps) nrest"
 
-    lemma [def_pat_rules]: 
-      "Network.edka5_tabulate$c \<equiv> UNPROTECT edka5_tabulate" 
-      by simp
-    sepref_register "PR_CONST edka5_tabulate"
-      :: "(node \<Rightarrow> node list) \<Rightarrow> (capacity_impl i_mtx \<times> i_ps) nres"
+    term bfs.init_state
+    term EdKa_Tab
+sublocale edkatab: EdKa_Tab  c s t
+       "bfs.set_insert_time" 
+ "bfs.map_dom_member_time"
+ " bfs.set_delete_time"
+ "bfs.map_update_time"
+ bfs.set_pick_time 
+  list_append_time
+  "bfs.map_lookup_time" 
+  set_empty_time 
+  set_isempty_time
+  bfs.init_state_time
+  matrix_lookup_time 
+  matrix_set_time  
+      apply unfold_locales unfolding bfs.set_pick_time_def by auto
 
+    definition "edka5_run cf am = edkatab.edka5_run cf am bfs.init_state"
 
-    schematic_goal edka_imp_run_impl:
+lemma edkatab_bfs2_op_conv: "edkatab.bfs2_op am cf bfs.init_state = bfs2_op am cf"
+  by (simp add: bfs2_op_def bfs.list_append_time_def bfs.set_empty_time_def bfs.set_isempty_time_def )
+                            
+  schematic_goal edka_imp_run_impl:
       notes [sepref_opt_simps] = heap_WHILET_def
       fixes am :: "node \<Rightarrow> node list" and cf :: "capacity_impl graph"
       notes [id_rules] = 
@@ -430,8 +478,11 @@ begin
         (hn_ctxt (asmtx_assn N id_assn) cf cfi * hn_ctxt is_am am psi) 
         (?c::?'c Heap) ?\<Gamma> ?R  
         (edka5_run cf am)"
-      unfolding edka5_run_def
-      using [[id_debug, goals_limit = 1]]
+    unfolding edka5_run_def edkatab.edka5_run_def 
+    unfolding resCap_cf_impl_def[symmetric]
+    unfolding augment_cf_impl_def[symmetric]      
+    unfolding edkatab_bfs2_op_conv
+      using [[id_debug, goals_limit = 3]]      
       by sepref
 
     concrete_definition (in -) edka_imp_run uses Edka_Impl.edka_imp_run_impl
@@ -449,13 +500,26 @@ begin
       apply (sep_auto simp: hn_ctxt_def)+
       done
 
-    lemma [def_pat_rules]: 
-      "Network.edka5_run$c$s$t \<equiv> UNPROTECT edka5_run" 
-      by simp
-    sepref_register "PR_CONST edka5_run" 
-      :: "capacity_impl i_mtx \<Rightarrow> i_ps \<Rightarrow> i_rflow nres"
+    sepref_register "edka5_run" 
+      :: "capacity_impl i_mtx \<Rightarrow> i_ps \<Rightarrow> i_rflow nrest"
 
+                    
 
+    definition "edka5 am = edkatab.edka5 am bfs.init_state"
+ 
+
+    lemma edka5_correct': "is_adj_map am \<Longrightarrow>
+        edka5 am \<le> \<Down> Id (SPECT (emb isMaxFlow (enat (EdKa.edka_time c edkatab.edka.shortest_path_time edkatab.edka.edru.augment_with_path_time))))"
+      unfolding edka5_def apply(rule edkatab.edka5_correct)
+       apply simp using bfs.init_state_correct by simp
+ 
+lemma "foo" using edka5_correct'       
+  unfolding edka_time_aux_def get_succs_list_time_aux_def shortest_path_time_aux_def
+      pre_bfs_time_aux_def
+      body_time_aux_def
+    unfolding  augment_with_path_time_aux_def resCap_cf_impl_time_aux_def
+    oops
+  
     schematic_goal edka_imp_impl:
       notes [sepref_opt_simps] = heap_WHILET_def
       fixes am :: "node \<Rightarrow> node list" and cf :: "capacity_impl graph"
@@ -463,7 +527,8 @@ begin
         itypeI[Pure.of am "TYPE(node \<Rightarrow> node list)"]
       notes [sepref_import_param] = IdI[of am]
       shows "hn_refine (emp) (?c::?'c Heap) ?\<Gamma> ?R (edka5 am)"
-      unfolding edka5_def
+      unfolding edka5_def edkatab.edka5_def
+      unfolding edka5_run_def[symmetric]
       using [[id_debug, goals_limit = 1]]
       by sepref
 
@@ -481,28 +546,52 @@ begin
   subsection \<open>Correctness Theorem for Implementation\<close>
   text \<open>We combine all refinement steps to derive a correctness 
     theorem for the implementation\<close>
-  context Network_Impl begin
+context Network_Impl begin
+ 
+
+definition cost where "cost = (\<lambda>(cV,cE). (3 + rbt_insert_logN 1 + rbt_insert_logN 1 + 10 +
+     (1 + cV + cV * cV) *
+     (10 + 10 + rbt_delete_time_logN (cV + 1) + 10 + 10 + (2 + cV * (1 + 1)) + cV * (rbt_search_time_logN (1 + cV) + 1 + max (rbt_insert_logN (cV + 1) + rbt_insert_logN (1 + cV)) 1)) +
+     cV * (rbt_search_time_logN (1 + cV) + 1 + 1) +
+     (1 + (1 + 10) * cV + (1 + cV * (2 * 1 + 2 * 1 + 3)))) *
+    (2 * cV * cE + cV + 1))"
+
+
     theorem edka_imp_correct: 
       assumes VN: "Graph.V c \<subseteq> {0..<N}"
       assumes ABS_PS: "is_adj_map am"
       shows "
-        <emp> 
+        <$( cost (card V, card E))> 
           edka_imp c s t N am 
         <\<lambda>fi. \<exists>\<^sub>Af. is_rflow N f fi * \<up>(isMaxFlow f)>\<^sub>t"
     proof -
       interpret Edka_Impl by unfold_locales fact
 
-      note edka5_refine[OF ABS_PS]
-      also note edka4_refine                 
-      also note edka3_refine    
-      also note edka2_refine 
-      also note edka_refine
-      also note edka_partial_refine
-      also note fofu_partial_correct
-      finally have "edka5 am \<le> SPEC isMaxFlow" .
-      from hn_refine_ref[OF this edka_imp_refine]
-      show ?thesis 
-        by (simp add: hn_refine_def)
+      let ?t = "((edka_time_aux edkatab.edka.shortest_path_time edkatab.edka.edru.augment_with_path_time (card E) (card V)))"
+
+      note edka5_correct'[OF ABS_PS] 
+      then have t: "edka5 am \<le> SPECT (emb isMaxFlow (enat ?t))" by simp
+      thm hn_refine_ref[OF this edka_imp_refine]
+      have 1: " <$ ?t > 
+          edka_imp c s t N am 
+        <\<lambda>fi. \<exists>\<^sub>Af. is_rflow N f fi * \<up>(isMaxFlow f)>\<^sub>t" 
+        using extract_cost_ub[OF hn_refine_ref[OF t edka_imp_refine], where Cost_ub="?t", simplified in_ran_emb_special_case]
+        by simp
+  
+      have t: "?t = cost (card V,card E)"
+  unfolding edka_time_aux_def get_succs_list_time_aux_def shortest_path_time_aux_def
+      pre_bfs_time_aux_def
+      body_time_aux_def
+  unfolding  augment_with_path_time_aux_def resCap_cf_impl_time_aux_def 
+    unfolding augment_edge_impl_time_aux_def
+    unfolding   add_succs_spec_time_aux_def
+    unfolding augment_cf_impl_time_aux_def extract_rpath_time_aux_def
+
+    unfolding bfs.set_pick_time_def bfs.set_delete_time_def bfs.map_dom_member_time_def bfs.set_insert_time_def
+        bfs.map_update_time_def bfs.map_lookup_time_def  
+    unfolding cost_def by simp
+
+      from 1 show ?thesis unfolding  t .
     qed
   end    
 end

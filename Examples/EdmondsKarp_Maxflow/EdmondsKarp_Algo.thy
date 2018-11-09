@@ -50,6 +50,9 @@ lemma augments: "\<And>f p. NFlow c s t f \<Longrightarrow> info f p \<Longright
 
 print_locale FoFu
 
+definition (in -) edka_time_aux   where
+  "edka_time_aux shortestpath_time augment_with_path_time cE cV  =   (shortestpath_time+augment_with_path_time) * (2 * cV * cE + cV + 1)"
+
 interpretation edka: FoFu c s t "edka_measure:: (nat \<times> nat \<Rightarrow> 'capacity) \<Rightarrow> nat" shortestpath_time augment_with_path_time "info :: (nat \<times> nat \<Rightarrow> 'capacity) \<Rightarrow> (nat \<times> nat) list \<Rightarrow> bool"
   apply standard
   subgoal using NFlow.augmenting_path_imp_shortest info_def by blast 
@@ -235,12 +238,10 @@ text \<open>Finally, we present a version of the Edmonds-Karp algorithm
   Note that we only count the non-breaking loop iterations.
   \<close>
 
-definition edka_time :: "nat" where
-  "edka_time  =   (shortestpath_time+augment_with_path_time) * (2 * (card V) * (card E) + (card V) + 1)"
- 
+abbreviation "edka_time \<equiv> edka_time_aux shortestpath_time augment_with_path_time (card E) (card V)"
 
 lemma maxFlow_time_ub: "edka.maxFlow_time \<le>  edka_time"
-  unfolding edka.maxFlow_time_def edka_measure_def unfolding edka_time_def
+  unfolding edka.maxFlow_time_def edka_measure_def unfolding edka_time_aux_def
   using ekMeasure_upper_bound by auto
 
 
