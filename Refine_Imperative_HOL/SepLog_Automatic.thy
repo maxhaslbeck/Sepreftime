@@ -588,7 +588,7 @@ simproc_setup assn_simproc
   = {*K Seplogic_Auto.assn_simproc_fun*}
  
 lemma "h \<Turnstile> F * \<up> (a' = None) * F' \<Longrightarrow> G" apply simp oops
-lemma "true * true = G" apply simp sorry
+lemma "true * true = G" apply simp oops
 lemma "G * true * F * true = H"  apply (simp )  oops
 
 lemma "G * \<up>f * true *  F   = H"  apply (simp )   oops
