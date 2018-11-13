@@ -214,11 +214,13 @@ locale Pre_BFS_Impl = Graph +
   assumes [simp]: "set_pick_time > 0"
 begin 
  
-
-  definition (in -) add_succs_spec_time_aux   where  "add_succs_spec_time_aux cs v1 v2 v3 = (cs * (v1 + (max (v2 + v3) (1::nat))))"
+definition (in -) "hh v1 v2 v3 == (v1 + ((v2 + v3) + (Suc 0)))"
+  definition (in -) add_succs_spec_time_aux   where  "add_succs_spec_time_aux cs v1 v2 v3 = (cs * hh v1 v2 v3)"
+abbreviation  "hhh == hh map_dom_member_time set_insert_time map_update_time"
 abbreviation "add_succs_spec_time cs == add_succs_spec_time_aux cs map_dom_member_time set_insert_time map_update_time"
   lemma add_succs_spec_time_mono: "n \<le> m \<Longrightarrow> add_succs_spec_time n \<le> add_succs_spec_time m"
-    unfolding add_succs_spec_time_aux_def by simp
+    unfolding add_succs_spec_time_aux_def  
+    using mult_le_cancel2 by blast  
 
   definition "add_succs_spec dst succ v PRED N \<equiv> ASSERT (N \<subseteq> dom PRED) \<then> 
     SPECT (emb (\<lambda>(f,PRED',N').
@@ -235,8 +237,7 @@ abbreviation "add_succs_spec_time cs == add_succs_spec_time_aux cs map_dom_membe
 
 
   definition (in Graph) "max_dist src \<equiv> Max (min_dist src`V)"
-
-  lemma max_dist_ub: "src\<in>V \<Longrightarrow> max_dist src \<le> card V" sorry
+ 
 
   definition (in -) body_time_aux  where
     "body_time_aux cV v1 v2 v3 v4 v5 v6 v7 = v1 + v2 + v3 + v4 + v5
@@ -245,12 +246,17 @@ abbreviation "add_succs_spec_time cs == add_succs_spec_time_aux cs map_dom_membe
 abbreviation "body_time cV \<equiv> body_time_aux cV set_isempty_time set_pick_time set_delete_time
         set_isempty_time set_empty_time get_succs_list_time add_succs_spec_time"
 
-
-  definition Te :: "node \<Rightarrow> bool \<times> (nat \<Rightarrow> nat option) \<times> nat set \<times> nat set \<times> nat
+ 
+  definition "Vvisited src C d \<equiv> (\<Union>x\<in>{0..<d}. pre_bfs_invar.Vd c src x) \<union> (pre_bfs_invar.Vd c src d - C)"
+abbreviation "outedges Vs \<equiv> {(x, y). (x, y) \<in> E \<and> x \<in> Vs}"
+abbreviation "bod \<equiv> (set_pick_time+set_delete_time+get_succs_list_time+2*set_isempty_time+ set_empty_time)"
+  definition Te :: "node \<Rightarrow> bool \<times> (nat \<Rightarrow> nat option) \<times> nat set \<times> nat set \<times> nat 
    \<Rightarrow> nat" where "Te src = (\<lambda>(f,PRED,C,N,d). if f then 0
-         else (card V * (max_dist src + 1 - d) + card C) * (body_time (card V)) )"
+         else (card (E - (outedges (Vvisited src C d))) * (hhh+bod))
+                 + (card N) * (bod) + card C * bod  )"
 
-
+  term "E``{v}"
+  term "{(v, x)| x. (v, x) \<in> E}"
 
   definition pre_bfs :: "node \<Rightarrow> node \<Rightarrow> (nat \<times> (node\<rightharpoonup>node)) option nrest"
     where "pre_bfs src dst \<equiv> do {
@@ -514,20 +520,32 @@ abbreviation "body_time cV \<equiv> body_time_aux cV set_isempty_time set_pick_t
     "pre_bfs_time' src = init_state_time + set_isempty_time +  (1 + card V + card V * max_dist src) * body_time (card V)"
 
 
-  definition (in -) pre_bfs_time_aux  where
-    "pre_bfs_time_aux cV v1 v2 v3 = v1 + v2 +  (1 + cV + cV * cV) * v3 cV"
+  definition (in -) pre_bfs_time_aux :: "nat \<Rightarrow> nat \<Rightarrow> nat \<Rightarrow> nat \<Rightarrow> nat \<Rightarrow> nat" where
+    "pre_bfs_time_aux cE v1 v2 v3 v4 = v1 + v2 + ( cE * (v3+v4) + v4) "
 
-  abbreviation "pre_bfs_time cV \<equiv> pre_bfs_time_aux cV init_state_time set_isempty_time body_time"
+lemma (in -)  pre_bfs_time_aux_mono: "cE1 \<le> cE2 \<Longrightarrow> pre_bfs_time_aux cE1 v1 v2 v3 v4
+            \<le> pre_bfs_time_aux cE2 v1 v2 v3 v4" 
+  by(auto simp: pre_bfs_time_aux_def)
 
+  abbreviation "pre_bfs_time cE \<equiv> pre_bfs_time_aux cE init_state_time set_isempty_time hhh bod"
+                                          
 lemma body_time_progress: "body_time cV > 0"    by (simp add: body_time_aux_def)
-lemma pre_bfs_time_progress: "pre_bfs_time cV > 0" using body_time_progress  by (simp add: pre_bfs_time_aux_def)
+lemma pre_bfs_time_progress: "pre_bfs_time cE > 0" using body_time_progress  by (simp add: pre_bfs_time_aux_def)
 
-lemma Te_start_ub: "src \<in> V \<Longrightarrow> set_isempty_time +  init_state_time + (Te src (False, [src \<mapsto> src], {src}, {}, 0)) \<le> pre_bfs_time (card V)"
-  apply (auto simp add: Te_def pre_bfs_time_aux_def) apply(rule max_dist_ub) by simp
+lemma Te_start_ub: assumes "valid_PRED c src PRED"
+  shows "set_isempty_time +  init_state_time + (Te src (False, [src \<mapsto> src], {src}, {}, 0)) \<le> pre_bfs_time (card E)"
+proof -
+  from assms have "finite E"  
+    using valid_PRED.FIN_E by blast
+  then show ?thesis 
+    by (auto simp add: Te_def pre_bfs_time_aux_def intro: card_mono) 
+qed
 
+
+(*
 lemma Te_start_ub': "(Te src (False, [src \<mapsto> src], {src}, {}, 0)) \<le> pre_bfs_time' src"
-  by (simp add: Te_def pre_bfs_time'_def)
-     
+  apply (simp add: Te_def pre_bfs_time'_def) sorry
+  *)   
       (* (f,PRED,C,N,d) *)
   
   lemma TeTF_[simp]: "(Te src (True, a1, b1, c1, d1) \<le>  Te src (False, x, y, z, f)) \<longleftrightarrow> True"
@@ -555,11 +573,81 @@ lemma (in nf_invar) cardN':  "x\<in>C \<Longrightarrow> card (N \<union> (E `` {
 
 
 
-lemma   Te_decr_succ_step: "nf_invar c src dst PRED C N d \<Longrightarrow>   
-    x \<in> C \<Longrightarrow>   
-    Te src(False, map_mmupd PRED (E `` {x} - dom PRED) x, N \<union> (E `` {x} - dom PRED), {}, Suc d)
-    \<le> Te src (False, PRED, C, N, d)"  apply(frule nf_invar.cardN')
-  by(auto dest!:  nf_invar.C_ne_max_dist simp: Te_def Suc_diff_le)
+lemma   Te_decr_succ_step: assumes "nf_invar c src dst PRED C N d"
+    "C = {x}"
+  shows
+    "Te src(False, map_mmupd PRED (E `` {x} - dom PRED) x, N \<union> (E `` {x} - dom PRED), {}, Suc d)
+    \<le> Te src (False, PRED, C, N, d)" (is "?L \<le> ?R")
+  and "set_isempty_time + set_pick_time + set_delete_time + get_succs_list_time + add_succs_spec_time (card (E `` {x}))  + set_isempty_time + set_empty_time
+    \<le> Te src (False, PRED, C, N, d) -
+       Te src
+        (False, map_mmupd PRED (E `` {x} - dom PRED) x, N \<union> (E `` {x} - dom PRED), {}, Suc d)" (is "?P \<le> _")
+proof -
+  from assms(2) have xC: "x\<in>C" by auto
+  from  assms(1) have fE: "finite E" unfolding nf_invar_def nf_invar'_def
+    using valid_PRED.FIN_E  by auto
+  from assms(1) have fC: "finite C"  
+    using nf_invar.finite_C by blast  
+  (*from assms(1) nf_invar_def nf_invar'.N_eq*)
+    
+  have i: "(pre_bfs_invar.Vd c src (Suc d) - (N \<union> (E `` {x} - dom PRED))) = {}"
+    unfolding nf_invar'.N_eq[OF assms(1)[unfolded nf_invar_def, THEN conjunct1]] assms(2)
+    apply auto
+    subgoal using pre_bfs_invar.Vdsucinter_conv by fastforce
+    subgoal
+      by (metis IntE Suc_n_not_le_n \<open>N = pre_bfs_invar.Vd c src (d + 1) \<inter> E `` (pre_bfs_invar.Vd c src d - C)\<close> assms(1) assms(2) nf_invar.inPREDD pre_bfs_invar.in_Vd_conv)  
+    done
+  (*
+  have "pre_bfs_invar.Vd c src (Suc d) = (N \<union> (E `` {x} - dom PRED))"
+    unfolding nf_invar'.N_eq[OF assms(1)[unfolded nf_invar_def, THEN conjunct1]] assms(2)
+    apply simp using pre_bfs_invar.Vdsucinter_conv sledgehammer sorry *)
+
+  have k: "Vvisited src (N \<union> (E `` {x} - dom PRED)) (Suc d)
+      = Vvisited src {} d"
+    unfolding Vvisited_def unfolding i by (simp add: Un_commute atLeast0_lessThan_Suc) 
+
+  have l: "?L \<le> card (E - outedges (Vvisited src {} d)) * (hhh + bod) +
+    (card N) *(bod)  + (card (E `` {x} - dom PRED)) * (bod)"
+    unfolding Te_def                        apply simp unfolding k  
+    apply (subst card_Un_disjoint)
+    subgoal using assms(1)  
+      by (meson Efin_imp_Vfin xC fE finite_subset le_sup_iff nf_invar.cardN'_)   
+    subgoal using fE by auto   subgoal using assms(1) 
+      by (metis (no_types, lifting) DiffD2 Int_emptyI UnCI nf_invar'.VIS_eq nf_invar_def)
+    by (auto simp: add_mult_distrib)   
+
+  have E: "E - outedges (Vvisited src C d) = (E - outedges (Vvisited src {} d)) \<union> outedges C"
+    unfolding Vvisited_def apply auto 
+    by (metis assms(1) nat_neq_iff nf_invar.CVdI pre_bfs_invar.in_Vd_conv)
+  have E2: "card (E - outedges (Vvisited src {} d) \<union> outedges C) = card (E - outedges (Vvisited src {} d)) + card (outedges C)"
+    apply(rule card_Un_disjoint) apply rule apply fact 
+    subgoal using `finite C`      by (metis (no_types, lifting) Collect_mem_eq Diff_iff E UnCI \<open>finite E\<close> finite_subset mem_Collect_eq subsetI) 
+    apply (auto simp: Vvisited_def)    using assms(1) nf_invar.CVdI by blast 
+
+  have f: "outedges {x} = {x} \<times> E `` {x}" by auto
+  have f2: "{(xa, y). (xa, y) \<in> E \<and> xa = x} = {x} \<times> E `` {x}" by auto
+
+  have "card (E `` {x} - dom PRED) \<le> card (E `` {x}) " apply(rule card_mono) using fE by auto
+  also have "\<dots> = card (outedges {x})" unfolding f  by(simp add: card_cartesian_product_singleton)
+  also have "\<dots> \<le> card (outedges C)" apply(rule card_mono) using assms(2) by (auto intro: finite_subset[OF _ fE]) 
+  finally have c: "card (E `` {x} - dom PRED) \<le> card (outedges C)" by auto
+  have r: "(card (E - outedges (Vvisited src {} d)) ) * (hhh + bod) + card (outedges C) * (hhh+bod) +
+       (card N)*(bod) + (card C) * (bod) \<le> ?R" (* = is also correct *)
+    unfolding Te_def apply clarsimp   unfolding E E2      
+    by (simp add: distrib_right) 
+
+  show "?L \<le> ?R" apply(rule order.trans[OF l]) apply(rule order.trans[OF _ r])  using c apply auto  
+    by (simp add: mult_le_mono trans_le_add1)  
+
+  have z: "card {(xa, y). (xa, y) \<in> E \<and> xa = x} = card (E `` {x})" unfolding f2 card_cartesian_product_singleton by auto
+  show "?P \<le> ?R - ?L" apply(rule order.trans[OF _ diff_le_mono[OF r]] )
+      apply(rule order.trans[OF _ diff_le_mono2[OF l]] )
+   (* using   diff_le_mono[OF r] 
+    unfolding l r *) apply (simp add: z  assms(2) add_succs_spec_time_aux_def )  
+    apply(rule dual_order.trans[OF diff_le_mono2[where n="card (E `` {x}) * bod"]]) 
+    subgoal by (auto intro!: card_mono simp: fE)       
+    by (simp add: add.commute add.left_commute distrib_left) 
+qed
 
 lemma [simp]: "nf_invar c src dst PRED C N d \<Longrightarrow> finite V"
   using nf_invar'_def nf_invar.axioms(1) valid_PRED.FIN_V by blast  
@@ -568,63 +656,131 @@ lemma  add_succs_spec_ub: "finite V \<Longrightarrow> set_isempty_time + set_pic
         \<le> body_time (card V)"
   apply (simp add: body_time_aux_def) apply(rule add_succs_spec_time_mono)  
   apply(rule card_mono) by (auto simp add: succ_ss_V)  
-lemma hl: "x \<in> C \<Longrightarrow> C \<noteq> {}" by auto
-lemma   Te_pays_succ_step: "nf_invar c src dst PRED C N d \<Longrightarrow> 
-    x \<in> C \<Longrightarrow>   
-    set_isempty_time + set_pick_time + set_delete_time + get_succs_list_time + add_succs_spec_time (card (E `` {x}))  + set_isempty_time + set_empty_time
-    \<le> Te src (False, PRED, C, N, d) -
-       Te src
-        (False, map_mmupd PRED (E `` {x} - dom PRED) x, N \<union> (E `` {x} - dom PRED), {}, Suc d)"
-  unfolding Te_def apply simp 
-  apply(frule  hl)
-  apply(frule  nf_invar.C_ne_max_dist) apply simp 
-  apply(simp add: Suc_diff_le) 
-  apply(frule nf_invar.cardN') apply simp apply(subst diff_mult_distrib[symmetric]) 
-  apply(rule dual_order.trans[OF _ add_succs_spec_ub]) 
-proof (goal_cases)
-  case 1
-  then have "card C > 0" 
-    using nf_invar.finite_C card_gt_0_iff by fastforce
-  with 1  have "1 \<le> (card V + card C - card (N \<union> (E `` {x} - dom PRED)))"
-    by auto
-  then show ?case by auto 
-qed simp
 
-lemma Te_decr_level_step: "nf_invar c src dst PRED C N d \<Longrightarrow> C \<noteq> {} \<Longrightarrow> 
-    x \<in> C \<Longrightarrow>   
-    Te src
+lemma hl: "x \<in> C \<Longrightarrow> C \<noteq> {}" by auto
+ 
+
+lemma Te_decr_level_step: assumes "nf_invar c src dst PRED C N d"
+  "C \<noteq> {}" and  xC: "x \<in> C"
+shows "Te src
            (False, map_mmupd PRED (E `` {x} - dom PRED) x, C - {x},
             N \<union> (E `` {x} - dom PRED), d)
-    \<le> Te src (False, PRED, C, N, d)" apply(frule nf_invar.cardN') 
-  apply (auto dest!:  nf_invar.C_ne_max_dist simp: Te_def Suc_diff_le)  
-  by (metis card_Diff1_le card_infinite finite.emptyI finite_Diff2 finite_insert less_or_eq_imp_le)  
-
-lemma  Te_pays_level_step: "nf_invar c src dst PRED C N d \<Longrightarrow>  
-    C \<noteq> {} \<Longrightarrow> 
-    x \<in> C \<Longrightarrow> 
-    set_isempty_time + set_pick_time + set_delete_time + get_succs_list_time + add_succs_spec_time (card (E `` {x}))  + set_isempty_time
+    \<le> Te src (False, PRED, C, N, d)" (is "?L \<le> ?R")
+  and "set_isempty_time + set_pick_time + set_delete_time + get_succs_list_time + add_succs_spec_time (card (E `` {x}))  + set_isempty_time
        \<le> Te src (False, PRED, C, N, d) -
           Te src
            (False, map_mmupd PRED (E `` {x} - dom PRED) x, C - {x},
-            N \<union> (E `` {x} - dom PRED), d)"
-  apply(rule dual_order.trans[OF _ _]) 
-  apply(rule dual_order.trans[OF _ add_succs_spec_ub[where x=x]]) 
-  unfolding Te_def apply simp unfolding body_time_aux_def[symmetric]
-  apply (auto simp add: card_minus1 diff_mult_distrib[symmetric] )
-  apply (metis Suc_leI card_0_eq diff_diff_cancel empty_iff less_or_eq_imp_le neq0_conv nf_invar.finite_C)
-  done
+            N \<union> (E `` {x} - dom PRED), d)" (is "?P \<le> _")
+proof - 
+  from  assms(1) have fE: "finite E" unfolding nf_invar_def nf_invar'_def
+    using valid_PRED.FIN_E  by auto
+  from assms(1) have fC: "finite C"  
+    using nf_invar.finite_C by blast  
+ 
+
+  have f: "outedges {x} = {x} \<times> E `` {x}" by auto
+  have f2: "{(xa, y). (xa, y) \<in> E \<and> xa = x} = {x} \<times> E `` {x}" by auto
+ 
+
+  have v: "Vvisited src (C - {x}) d = Vvisited src C d \<union> {x}" unfolding Vvisited_def apply auto  
+    using assms(1) nf_invar.CVdI xC by blast
+  have ve: " Vvisited src C d \<inter> {x} = {}" unfolding Vvisited_def 
+    by (smt Diff_iff Int_emptyI UN_iff UnE assms(1) atLeastLessThan_iff less_not_refl nf_invar.CVdI pre_bfs_invar.in_Vd_conv singletonD xC) 
+
+  have 1: "(E - outedges (Vvisited src (C - {x}) d)) \<union> (outedges {x}) = (E - outedges (Vvisited src C d))"
+    unfolding v using ve by blast
+
+  have 11: "card ((E - outedges (Vvisited src (C - {x}) d)) \<union> (outedges {x}))
+      = card (E - outedges (Vvisited src (C - {x}) d)) + card (outedges {x})"
+    apply(rule card_Un_disjoint) subgoal using fE by auto
+    subgoal apply(rule finite_subset[OF _ fE]) by auto
+    subgoal apply auto  
+      by (simp add: v)  
+    done
+
+  have fN: "finite N"  
+    by (meson Efin_imp_Vfin assms(1) fE le_sup_iff nf_invar.cardN'_ rev_finite_subset xC)  
+ 
+  have 2: "card (outedges {x}) = card (E``{x})" unfolding f card_cartesian_product_singleton ..
+
+  thm 11[unfolded 2] 1
+
+  have "(card (E - outedges (Vvisited src (C - {x}) d)))* (hhh + bod) + (card (E `` {x})) * (hhh + bod) + card N * bod + card C * bod 
+          = card (E - outedges (Vvisited src C d)) * (hhh + bod) + (card N) *(bod) + card C * bod"
+     unfolding 1[symmetric] 11[unfolded 2] 
+    by (simp add: add_mult_distrib) 
+  also have r: "... = ?R" unfolding Te_def by simp 
+  finally have r: " ?R= (card (E - outedges (Vvisited src (C - {x}) d)))* (hhh + bod) + (card (E `` {x})) * (hhh + bod) + card N * bod + card C * bod"
+      by auto
+
+  have l1: "?L \<le> card (E - outedges (Vvisited src (C - {x}) d)) * (hhh + bod) + (card N + card (E `` {x}))*(bod) + card (C - {x}) * bod"
+    unfolding Te_def apply simp apply(rule order.trans[OF card_Un_le]) apply simp apply(rule card_mono) using fE fN by auto   
+  also have l: "\<dots> \<le> (card (E - outedges (Vvisited src (C - {x}) d)) + card (E `` {x})) * (hhh + bod) + (card N) * (bod) + card (C - {x}) * bod"
+    by (simp add: add_mult_distrib) 
+  finally have l: "?L \<le> (card (E - outedges (Vvisited src (C - {x}) d)) + card (E `` {x})) * (hhh + bod) + (card N) * (bod) + card (C - {x}) * bod" .
+  
+
+  show "?L \<le> ?R" apply(rule order.trans[OF l]) unfolding  r apply (simp add: add_mult_distrib)
+    apply(rule card_mono) using fC by auto 
+  have z: "card {(xa, y). (xa, y) \<in> E \<and> xa = x} = card (E `` {x})" unfolding f2 card_cartesian_product_singleton by auto
+
+  have k: "(card N + card (E `` {x})) * bod  = card N * bod + card (E `` {x}) * bod"  
+    by (simp add: add_mult_distrib2 mult.commute)  
+  have k2: "card (E `` {x}) * (hhh + bod)   = card (E `` {x}) * hhh + card (E `` {x}) *bod "  
+    by (simp add: add_mult_distrib2 mult.commute)   
+
+  have d: "(card C - card (C - {x})) = 1" using xC fC
+    by (simp add: Suc_leI assms(2) card_gt_0_iff) 
+
+  show "?P \<le> ?R - ?L"  unfolding r
+      apply(rule order.trans[OF _ diff_le_mono2[OF l1]] )
+    apply (simp add:  add_succs_spec_time_aux_def )  
+    unfolding k k2 apply simp
+    apply(subst diff_add_assoc)  by (auto intro!: card_mono simp: d fC diff_mult_distrib[symmetric])
+qed
+   
 
 
 lemma (in nf_invar) Cge1: "x \<in> C \<Longrightarrow> card C \<ge> 1"  
   using card_0_eq finite_C by force  
 
-lemma   Te_pays_exit: "nf_invar c src dst PRED C N d \<Longrightarrow>   x \<in> C \<Longrightarrow> 
-     set_isempty_time + set_pick_time + set_delete_time + get_succs_list_time + add_succs_spec_time (card (E `` {x}))
-       \<le> Te src (False, PRED, C, N, d) - Te src (True, PRED', C - {x}, N', Suc d)"
-  apply(rule dual_order.trans[OF _ _]) 
-  apply(rule dual_order.trans[OF _ add_succs_spec_ub[where x=x]]) 
-  unfolding Te_def body_time_aux_def[symmetric]  using nf_invar.Cge1
-  apply force apply simp by simp
+lemma   Te_pays_exit: assumes "nf_invar c src dst PRED C N d"
+  "x \<in> C"
+     shows "set_isempty_time + set_pick_time + set_delete_time + get_succs_list_time + add_succs_spec_time (card (E `` {x}))
+       \<le> Te src (False, PRED, C, N, d) - Te src (True, PRED', C - {x}, N', Suc d)" (is "?P \<le> ?R - ?L")
+proof -
+  from  assms(1) have fE: "finite E" unfolding nf_invar_def nf_invar'_def
+    using valid_PRED.FIN_E  by auto
+  have l: "?L = 0" by(auto simp: Te_def)
+
+  have f: "outedges {x} = {x} \<times> E `` {x}" by auto
+
+  have "card (E``{x}) = card (outedges {x})" unfolding f card_cartesian_product_singleton ..
+  also    
+  from assms(2) have "outedges {x} \<subseteq> E - outedges (Vvisited src C d)"
+    unfolding Vvisited_def apply auto  
+    by (metis assms(1) less_not_refl nf_invar.CVdI pre_bfs_invar.in_Vd_conv)  
+  then have "card (outedges {x}) \<le> card (E - outedges (Vvisited src C d))"
+    apply (rule card_mono[rotated]) apply rule apply fact done
+  finally have "card (E``{x}) \<le> card (E - outedges (Vvisited src C d))" .
+
+  then have r1: "card (E - outedges (Vvisited src C d)) * (hhh + bod) \<ge> card (E``{x}) * (hhh+bod)"
+    by(simp only: mult_le_mono)
+
+  have "card C \<ge> 1" using assms(2)  
+    using assms(1) nf_invar.Cge1 by blast  
+  then have p: "bod \<le> card C * bod" by simp
+  have "card (E``{x}) * hhh  +  bod \<le> card (E``{x}) * (hhh+bod)  + card N * bod + card C * bod"
+    using p apply auto 
+    by (simp add: add_le_mono trans_le_add1) 
+  also from r1 have r: "\<dots> \<le> ?R" unfolding Te_def by simp
+  finally have r: "card (E``{x}) * hhh  +  bod \<le> ?R" .
+  show "?P \<le> ?R - ?L" unfolding l
+    apply(rule order.trans[OF _ diff_le_mono[OF r]] )
+    apply(simp add: add_succs_spec_time_aux_def)
+    done
+qed
+    
 
 ML \<open>map_filter \<close>
 
@@ -725,21 +881,27 @@ qed
   done
 
 
-lemma Te_decr: "Te src (False, b, {}, d, e) \<le> Te src (False, [src \<mapsto> src], {src}, {}, 0)"
+lemma Te_decr: "nf_invar c src dst f {} N d \<Longrightarrow> Te src (False, PRED, {}, N, d) \<le> Te src (False, [src \<mapsto> src], {src}, {}, 0)"
   unfolding Te_def apply clarsimp
 proof (goal_cases)
   case 1
-  have i:"(Suc (max_dist src) - e) \<le>  (Suc (max_dist src))" by auto
-  have "card V * (Suc (max_dist src) - e) * body_time (card V) = (Suc (max_dist src) - e) * (card V  * body_time (card V))"
+  with nf_invar.empty_assm have Ne: "N= {}" by blast 
+  from 1 have "finite (Graph.V c)"  
+    by simp  
+  have "Graph.V c = V" by auto
+  from 1 have "finite (Graph.E c)"  
     by simp
-  also   have "\<dots> \<le>  (Suc (max_dist src)) *(card V * body_time (card V))"  
-    using i mult_le_mono1 by blast  
-  also have "\<dots> = ((Suc (max_dist src)) *(card V)) * body_time (card V)"  
-    by linarith  
-  also have "\<dots> \<le> (card V + card V * max_dist src) * body_time (card V)" by auto
-  also have "\<dots> \<le>  body_time (card V) + (card V + card V * max_dist src) * body_time (card V)" by auto
-  finally show ?case  .
-qed
+  moreover have "Graph.E c = E" by auto
+  ultimately have fE: "finite E" by auto
+
+  have "Vvisited src {src} 0 = {}" apply (simp add: Vvisited_def) using pre_bfs_invar.src_Vd0 by auto
+  then have "E - (outedges (Vvisited src {} d)) \<subseteq> E - (outedges (Vvisited src {src} 0))" by auto
+  have "card (E - (outedges (Vvisited src {} d))) \<le> card (E - (outedges (Vvisited src {src} 0)))"
+    apply(rule card_mono) apply(rule finite_Diff) apply fact
+    apply fact done
+  then show ?case  unfolding Ne apply simp     
+    using hlp_nat le_diff_conv mult_le_cancel2 by blast
+qed 
      
              
 lemma (in nf_invar') domPREDV: "dom PRED \<subseteq> V"
@@ -754,7 +916,7 @@ lemma (in nf_invar') N_V: "N \<subseteq> V"
 theorem pre_bfs_correct:
     assumes [simp]: "src\<in>V" "src\<noteq>dst"       
     assumes [simp]: "finite V"
-    shows "pre_bfs src dst \<le> SPECT (emb (bfs_spec src dst) (pre_bfs_time (card V)))"
+    shows "pre_bfs src dst \<le> SPECT (emb (bfs_spec src dst) (pre_bfs_time (card E)))"
     unfolding pre_bfs_def add_succs_spec_def
     apply(rule T_specifies_I) 
 
@@ -764,10 +926,11 @@ theorem pre_bfs_correct:
 
       apply ( vc_solve  simp:  domI 
             Te_pays_exit
-            Te_decr_succ_step
-            Te_pays_succ_step
-            Te_decr_level_step
-            Te_pays_level_step
+            
+            
+            Te_decr_level_step(1)
+            Te_decr_level_step(2)
+            
 
             invar_init
 
@@ -778,10 +941,14 @@ theorem pre_bfs_correct:
             nf_invar'.invar_restore        
             nf_invar.finite_succ
             nf_invar.invar_N_ss_Vis)  
+    subgoal apply(subst (asm) Te_decr_succ_step(2)) by auto   
+    subgoal apply(subst (asm) Te_decr_succ_step(2)) by auto   
     subgoal by (auto intro:   nf_invar'.invar_shift  nf_invar.invar_succ_step )  
-    subgoal by (auto intro:   nf_invar'.invar_shift  nf_invar.invar_succ_step )   
-    subgoal by (auto intro: Te_pays_level_step)
-    subgoal by (auto intro: Te_pays_level_step)
+    subgoal   by (auto intro!: Te_decr_succ_step)  
+    subgoal by (auto intro:   nf_invar'.invar_shift  nf_invar.invar_succ_step )  
+    subgoal  by (auto intro!: Te_decr_succ_step) 
+    subgoal by (auto intro: Te_decr_level_step(2))
+    subgoal by (auto intro: Te_decr_level_step(2))
     subgoal by (auto intro:   nf_invar'.invar_restore   nf_invar.invar_succ_step )  
     subgoal by(auto intro: Te_decr_level_step) 
     subgoal by (auto intro:   nf_invar'.invar_restore   nf_invar.invar_succ_step )  
@@ -791,9 +958,9 @@ theorem pre_bfs_correct:
     subgoal by (auto  simp: nf_invar_def dest: nf_invar'.domPREDV)
     subgoal by(auto dest: nf_invar.cardC) 
     subgoal by(auto simp:  f_invar.invar_found)
-    subgoal by(auto simp: hlp_nat  Te_start_ub)  
-    subgoal by(auto simp:  nf_invar.invar_not_found)
-    subgoal by(auto simp: hlp_nat  Te_start_ub) 
+    subgoal unfolding f_invar_def  using Te_start_ub by(auto intro!:  hlp_nat  )  
+    subgoal by(auto simp:  nf_invar.invar_not_found)                   
+    subgoal unfolding nf_invar'_def nf_invar_def  using Te_start_ub by(auto intro!:  hlp_nat  )  
     subgoal using Te_decr by auto
     subgoal for a b d e apply(cases a) subgoal   by auto using Te_decr by auto
     done 
@@ -962,7 +1129,7 @@ interpretation pre: Pre_BFS_Impl c set_insert_time map_dom_member_time set_delet
       }    
     }"  thm pre.pre_bfs_correct
 
-    definition bfs_time   where "bfs_time src dst = pre.pre_bfs_time (card V)   + valid_PRED_impl.extract_rpath_time list_append_time map_lookup_time (card V)"
+    definition bfs_time   where "bfs_time src dst = pre.pre_bfs_time  (card E)   + valid_PRED_impl.extract_rpath_time list_append_time map_lookup_time (card V)"
 
     lemma bfs_correct:
       assumes "src\<in>V" "finite V" 
@@ -1021,7 +1188,7 @@ interpretation pre: Pre_BFS_Impl c set_insert_time map_dom_member_time set_delet
         PRED' = map_mmupd PRED ((set ti) - dom PRED) u 
       \<and> N' = N \<union> ((set ti) - dom PRED) 
       \<and> f = (dst\<in>(set ti) - dom PRED) \<and> dom PRED \<subseteq> V
-    )  (map_dom_member_time+(max (set_insert_time+map_update_time) (1::nat)))
+    )  (map_dom_member_time+((set_insert_time+map_update_time) + (1::nat)))
     (succ)
     (\<lambda>(f,PRED,N). \<not>f)
     (\<lambda>v (f,PRED,N). do {
@@ -1070,7 +1237,7 @@ lemma GG: "N \<subseteq> V \<Longrightarrow> A \<subseteq> V \<Longrightarrow> f
       by(auto split: bool.split simp add: domIff intro!: map_mmupd_update_less )  
     subgoal by (auto split: bool.split  simp add: domIff ) 
     subgoal 
-      by(auto simp:  add_succs_spec_time_aux_def distinct_card )
+      by(auto simp: hh_def add_succs_spec_time_aux_def distinct_card )
     done
 
  

@@ -621,13 +621,13 @@ locale EdKa_Res_Bfs = Network c s t for c :: "'capacity::linordered_idom graph" 
   assumes [simp]: "\<And>c. map_lookup_time c > 0"
   assumes [simp]: "set_pick_time > 0" 
 begin
- 
-  definition (in -)   "shortest_path_time_aux cV v1 v2 v3 v4 v5 v6 v7 v8 v9 v10 v11 =
+term Pre_BFS_Impl.pre_bfs_time
+  definition (in -)   "shortest_path_time_aux cV cE v1 v2 v3 v4 v5 v6 v7 v8 v9 v10 v11 =
      Pre_BFS_Impl.pre_bfs_time (v1 cV) (v2 cV) (v3 cV) v4 
-                  (v5 cV) v6 v7 v8 v9 cV
+                  (v5 cV) v6 v7 v8 v9 cE
           + valid_PRED_impl.extract_rpath_time v10 (v11 cV) cV"
   
-abbreviation "shortest_path_time == shortest_path_time_aux (card V) set_insert_time map_dom_member_time set_delete_time
+abbreviation "shortest_path_time == shortest_path_time_aux (card V) (2 * card E) set_insert_time map_dom_member_time set_delete_time
         get_succs_list_time map_update_time set_pick_time set_empty_time set_isempty_time init_state_time list_append_time map_lookup_time"
 
 
@@ -688,17 +688,26 @@ abbreviation "shortest_path_time == shortest_path_time_aux (card V) set_insert_t
         apply standard by auto
       have -: "BFS.V = V"  
         using "1" RGraph.this_loc_rpg RPreGraph.resV_netV by blast  
-      thm BFS.bfs_correct
-      have *: "BFS.bfs_time s t = shortest_path_time"       
-        apply(auto   simp add:  RPreGraph.resV_netV[OF RGraph.this_loc_rpg, OF 1])
-        by(simp add: shortest_path_time_aux_def   Augmenting_Path_BFS.bfs_time_def - Augmenting_Path_BFS_def) 
 
+      have "BFS.E \<subseteq> E \<union> (E)\<inverse>"
+        using "1" RGraph.this_loc_rpg RPreGraph.cfE_ss_invE by blast
+      then have "card (BFS.E) \<le> card (E \<union> (E)\<inverse>)"
+        apply(rule card_mono[rotated]) by auto 
+      also have "\<dots> \<le> 2 * card E" apply(rule order.trans[OF card_Un_le])
+        by simp
+      finally have "card BFS.E \<le> 2 * card E" . (* TODO: get rid of the factor 2 here *)
+
+      thm BFS.bfs_correct
+      have *: "BFS.bfs_time s t \<le> shortest_path_time"       
+        apply(auto   simp add:  RPreGraph.resV_netV[OF RGraph.this_loc_rpg, OF 1])
+        apply(simp add: shortest_path_time_aux_def   Augmenting_Path_BFS.bfs_time_def - Augmenting_Path_BFS_def) 
+        apply(rule pre_bfs_time_aux_mono) by fact
       show ?case
       apply (rule order_trans) unfolding MYbfs_def
          apply (rule BFS.bfs_correct)          
       apply (simp add: RPreGraph.resV_netV[OF RGraph.this_loc_rpg, OF 1])
          apply (simp add: RPreGraph.resV_netV[OF RGraph.this_loc_rpg, OF 1]) 
-        apply(simp only: *)
+        apply(rule SPECT_ub) using * apply (auto simp: le_fun_def)
         done
     qed
 
@@ -1070,10 +1079,7 @@ lemma is_adj_map_app_le_V: "is_adj_map am \<Longrightarrow> u \<in> V  \<Longrig
       apply (simp add: RPreGraph.resV_netV[OF RGraph.this_loc_rpg])
       apply (simp add: RGraph.rg_succ_ref)
       done *)  
-
-lemma "(enat (EdKa.edka_time c edka.shortest_path_time (EdKa_Res_Up.augment_with_path_time c matrix_lookup_time matrix_set_time))) = foo"
-  apply(subst EdKa_Res_Up.augment_with_path_time_def)
-  unfolding EdKa_Res_Up_def EdKa_Res_Up_axioms_def apply auto oops
+ 
 
     thm edka.edka4_correct
   lemma  edka5_correct: "\<lbrakk>is_adj_map am; \<And>src. init_state src \<le> SPECT [ (False,[src\<mapsto>src],{src},{},0::nat) \<mapsto> init_state_time] \<rbrakk> \<Longrightarrow> edka5 am init_state \<le> \<Down> Id (SPECT (emb isMaxFlow (enat (EdKa.edka_time c edka.shortest_path_time (EdKa_Res_Up.augment_with_path_time c matrix_lookup_time matrix_set_time)))))"

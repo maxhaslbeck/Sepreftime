@@ -550,8 +550,8 @@ lemma "foo" using edka5_correct'
 
 definition edka_cost :: "nat \<times> nat \<Rightarrow> nat" 
     where "edka_cost = (\<lambda>(cV,cE). (3 + rbt_insert_logN 1 + rbt_insert_logN 1 + 10 +
-     (1 + cV + cV * cV) *
-     (10 + 10 + rbt_delete_time_logN (cV + 1) + 10 + 10 + (2 + cV * (1 + 1)) + cV * (rbt_search_time_logN (1 + cV) + 1 + max (rbt_insert_logN (cV + 1) + rbt_insert_logN (1 + cV)) 1)) +
+     (2 * cE * (rbt_search_time_logN (1 + cV) + 1 + (rbt_insert_logN (cV + 1) + rbt_insert_logN (1 + cV) + Suc 0) + (10 + rbt_delete_time_logN (cV + 1) + (2 + cV * (1 + 1)) + 2 * 10 + 10)) +
+      (10 + rbt_delete_time_logN (cV + 1) + (2 + cV * (1 + 1)) + 2 * 10 + 10)) +
      cV * (rbt_search_time_logN (1 + cV) + 1 + 1) +
      (1 + (1 + 10) * cV + (1 + cV * (2 * 1 + 2 * 1 + 3)))) *
     (2 * cV * cE + cV + 1))"
@@ -592,8 +592,8 @@ context Network_Impl begin
     unfolding augment_cf_impl_time_aux_def extract_rpath_time_aux_def
 
     unfolding bfs.set_pick_time_def bfs.set_delete_time_def bfs.map_dom_member_time_def bfs.set_insert_time_def
-        bfs.map_update_time_def bfs.map_lookup_time_def  
-    unfolding edka_cost_def by simp
+        bfs.map_update_time_def bfs.map_lookup_time_def   hh_def
+    unfolding edka_cost_def  by auto
 
       from 1 show ?thesis unfolding  t .
     qed
