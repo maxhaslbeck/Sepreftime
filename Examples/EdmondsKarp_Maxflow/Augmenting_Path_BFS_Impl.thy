@@ -56,12 +56,12 @@ definition init_state :: "nat \<Rightarrow> (bool \<times> (nat \<Rightarrow> na
     
     term mop_set_insert
     definition "set_insert_time vcf = rbt_insert_logN (vcf + 1)"
-definition "set_delete_time vcf = rbt_delete_time_logN (vcf + 1)"
-definition "map_dom_member_time vcf = rbt_search_time_logN (1 + vcf) + 1"
-definition "map_update_time vcf = rbt_insert_logN (1 + vcf)" 
+    definition "set_delete_time vcf = rbt_delete_time_logN (vcf + 1)"
+    definition "map_dom_member_time vcf = rbt_search_time_logN (1 + vcf) + 1"
+    definition "map_update_time vcf = rbt_insert_logN (1 + vcf)" 
     definition "set_isempty_time = (10::nat)"
-definition "set_empty_time = (10::nat)"
-definition "list_append_time = (1::nat)"
+    definition "set_empty_time = (10::nat)"
+    definition "list_append_time = (1::nat)"
 
     abbreviation "bfs2 cf SS IS s t == Augmenting_Path_BFS.bfs2 cf
                        (set_insert_time (card (Graph.V cf))) (map_dom_member_time (card (Graph.V cf)))  (set_delete_time (card (Graph.V cf))) (map_update_time (card (Graph.V cf)))

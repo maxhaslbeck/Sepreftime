@@ -61,7 +61,7 @@ begin
           * \<up>(length l = N \<and> (\<forall>i<N. l!i = am i) 
               \<and> (\<forall>i\<ge>N. am i = []))"
  
-    lemma is_am_precise[safe_constraint_rules]: "precise (is_am)"
+(*    lemma is_am_precise[safe_constraint_rules]: "precise (is_am)"
       apply rule
       unfolding is_am_def
       apply clarsimp
@@ -71,7 +71,7 @@ begin
       apply (rename_tac i)
       apply (case_tac "i<length l'")
       apply fastforce+
-      sorry
+      sorry *)
 
     sepref_decl_intf i_ps is "nat \<Rightarrow> nat list" 
 
@@ -221,13 +221,13 @@ begin
     definition (in Network_Impl) "is_rflow N f cfi 
       \<equiv> \<exists>\<^sub>Acf. asmtx_assn N id_assn cf cfi * \<up>(RGraph c s t cf \<and> f = flow_of_cf cf)"
 
-    lemma is_rflow_precise[safe_constraint_rules]: "precise (is_rflow N)"
+  (*  lemma is_rflow_precise[safe_constraint_rules]: "precise (is_rflow N)"
       apply rule
       unfolding is_rflow_def
       apply (clarsimp simp: amtx_assn_def)
       apply prec_extract_eqs
       apply simp
-      sorry
+      sorry *)
 
     sepref_decl_intf i_rflow is "nat\<times>nat \<Rightarrow> int"
 
@@ -550,16 +550,18 @@ lemma "foo" using edka5_correct'
 
 definition edka_cost :: "nat \<times> nat \<Rightarrow> nat" 
     where "edka_cost = (\<lambda>(cV,cE). (3 + rbt_insert_logN 1 + rbt_insert_logN 1 + 10 +
-     (2 * cE * (rbt_search_time_logN (1 + cV) + 1 + (rbt_insert_logN (cV + 1) + rbt_insert_logN (1 + cV) + Suc 0) + (10 + rbt_delete_time_logN (cV + 1) + (2 + cV * (1 + 1)) + 2 * 10 + 10)) +
-      (10 + rbt_delete_time_logN (cV + 1) + (2 + cV * (1 + 1)) + 2 * 10 + 10)) +
+     (2 * cE *
+      (rbt_search_time_logN (1 + cV) + 1 + (rbt_insert_logN (cV + 1) + rbt_insert_logN (1 + cV) + Suc 0) + (1 + 1) + (10 + rbt_delete_time_logN (cV + 1) + 2 + 2 * 10 + 10) + (1 + 1)) +
+      (10 + rbt_delete_time_logN (cV + 1) + 2 + 2 * 10 + 10)) +
      cV * (rbt_search_time_logN (1 + cV) + 1 + 1) +
      (1 + (1 + 10) * cV + (1 + cV * (2 * 1 + 2 * 1 + 3)))) *
-    (2 * cV * cE + cV + 1))"
+    (2 * cV * cE + cV + 1) )"
 
-lemma edka_cost_simp: "edka_cost (cV,cE) = (57 +
-     (22 * cV +
+lemma edka_cost_simp: "edka_cost (cV,cE) =  
+    (57 +
+     (20 * cV +
       (2 * rbt_insert_logN 1 +
-       (2 * cE * (44 + (2 * rbt_insert_logN (1 + cV) + (rbt_search_time_logN (1 + cV) + (2 * cV + rbt_delete_time_logN (1 + cV))))) + (rbt_delete_time_logN (1 + cV) + cV * rbt_search_time_logN (1 + cV)))))) *
+       (2 * cE * (48 + (2 * rbt_insert_logN (1 + cV) + (rbt_search_time_logN (1 + cV) + rbt_delete_time_logN (1 + cV)))) + (rbt_delete_time_logN (1 + cV) + cV * rbt_search_time_logN (1 + cV)))))) *
     (2 * cV * cE + cV + 1)" by (simp add: edka_cost_def)
 
 context Network_Impl begin
@@ -570,8 +572,7 @@ context Network_Impl begin
     theorem edka_imp_correct: 
       assumes VN: "Graph.V c \<subseteq> {0..<N}"
       assumes ABS_PS: "is_adj_map am"
-      shows "
-        <$( edka_cost (card V, card E))> 
+      shows "<$( edka_cost (card V, card E))> 
           edka_imp c s t N am 
         <\<lambda>fi. \<exists>\<^sub>Af. is_rflow N f fi * \<up>(isMaxFlow f)>\<^sub>t"
     proof -

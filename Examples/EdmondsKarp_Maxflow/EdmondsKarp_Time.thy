@@ -55,11 +55,7 @@ lemma"(\<lambda>x. real ((57 +
     \<in> \<Theta>\<^sub>2 (\<lambda>(V::nat,E::nat).   real V * real E * real V * real E + real V * real E * real V * ln V)"  by(auto2)
 
 lemma rbt_i_408: "rbt_insert_logN 1 = 408" unfolding rbt_insert_logN_def rbt_insert_time_def rbt_absch_def rbt_ins_time_def by simp
-
-
-
-
-
+ 
 lemma "(\<lambda>x::nat. real ((3 ))) \<in> \<Theta>(\<lambda>(x). real 1)" 
   by auto2
 definition f :: "nat \<Rightarrow> nat" where "f x = x"
@@ -73,9 +69,9 @@ lemma "(\<lambda>x. real ((rbt_insert_logN 1 ))) \<in> \<Theta>\<^sub>2(\<lambda
   apply (subst surjective_pairing) by auto2
 
 
-lemma "edka_cost \<in> \<Theta>\<^sub>2(\<lambda>(V::nat,E::nat). V * E * E * V + V * E * V * ln V)"
+lemma "edka_cost \<in> \<Theta>\<^sub>2(\<lambda>(V::nat,E::nat). V * E * E * ln V + V * E * V * ln V)"
   apply (subst surjective_pairing)
-  unfolding edka_cost_simp rbt_i_408 by(auto2)
+  unfolding edka_cost_simp rbt_i_408 by auto2
   
 
 

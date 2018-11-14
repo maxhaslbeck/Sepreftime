@@ -617,18 +617,18 @@ locale EdKa_Res_Bfs = Network c s t for c :: "'capacity::linordered_idom graph" 
     and list_append_time ::nat
     and map_lookup_time  :: "nat \<Rightarrow> nat"
     and set_empty_time set_isempty_time init_state_time :: nat 
-    and matrix_lookup_time matrix_set_time :: nat 
+    and matrix_lookup_time matrix_set_time init_get_succs_list_time :: nat 
   assumes [simp]: "\<And>c. map_lookup_time c > 0"
   assumes [simp]: "set_pick_time > 0" 
 begin
 term Pre_BFS_Impl.pre_bfs_time
-  definition (in -)   "shortest_path_time_aux cV cE v1 v2 v3 v4 v5 v6 v7 v8 v9 v10 v11 =
+  definition (in -)   "shortest_path_time_aux cV cE v1 v2 v3 v4 v5 v6 v7 v8 v9 v10 v11 v12 =
      Pre_BFS_Impl.pre_bfs_time (v1 cV) (v2 cV) (v3 cV) v4 
-                  (v5 cV) v6 v7 v8 v9 cE
+                  (v5 cV) v6 v7 v8 v9 v12 cE 
           + valid_PRED_impl.extract_rpath_time v10 (v11 cV) cV"
   
 abbreviation "shortest_path_time == shortest_path_time_aux (card V) (2 * card E) set_insert_time map_dom_member_time set_delete_time
-        get_succs_list_time map_update_time set_pick_time set_empty_time set_isempty_time init_state_time list_append_time map_lookup_time"
+        get_succs_list_time map_update_time set_pick_time set_empty_time set_isempty_time init_state_time list_append_time map_lookup_time init_get_succs_list_time"
 
 
   lemma [simp]:  "enat shortest_path_time \<noteq> 0"
@@ -645,7 +645,7 @@ abbreviation "shortest_path_time == shortest_path_time_aux (card V) (2 * card E)
 
     definition "MYbfs cf ss tt = Augmenting_Path_BFS.bfs cf (set_insert_time (card (Graph.V cf))) (map_dom_member_time (card (Graph.V cf)))
                  (set_delete_time (card (Graph.V cf))) get_succs_list_time (map_update_time (card (Graph.V cf))) set_pick_time  
-              list_append_time (map_lookup_time (card (Graph.V cf))) set_empty_time set_isempty_time init_state_time ss tt"
+              list_append_time (map_lookup_time (card (Graph.V cf))) set_empty_time set_isempty_time init_state_time init_get_succs_list_time ss tt "
 
     subsection \<open>Refinement to use BFS\<close>
 
@@ -932,10 +932,9 @@ begin
       "compute_rflow cf \<equiv> ASSERT (RGraph c s t cf) \<then> RETURNT (flow_of_cf cf)"
 
     definition (in -) get_succs_list_time_aux where
-      "get_succs_list_time_aux matrix_lookup_time list_append_time cV= (2+ cV * (matrix_lookup_time+list_append_time))"
+      "get_succs_list_time_aux matrix_lookup_time list_append_time =  (matrix_lookup_time+list_append_time)"
 
-    abbreviation "get_succs_list_time \<equiv> get_succs_list_time_aux matrix_lookup_time list_append_time (card V)"
-
+    abbreviation "get_succs_list_time   \<equiv> get_succs_list_time_aux matrix_lookup_time list_append_time "
 
     term Augmenting_Path_BFS.bfs2
                                                                 
@@ -990,7 +989,7 @@ abbreviation "bfs2_op am cf init_state \<equiv> bfs2_op_aux c s t (set_insert_ti
       get_succs_list_time
       map_update_time set_pick_time 
       list_append_time map_lookup_time set_empty_time  set_isempty_time init_state_time
-      matrix_lookup_time matrix_set_time 
+      matrix_lookup_time matrix_set_time 2
       apply(standard) by auto
 
   lemma pff: "RGraph c s t cf \<Longrightarrow> (Graph.V cf) = (Graph.V c)"
@@ -1037,9 +1036,35 @@ lemma is_adj_map_app_le_V: "is_adj_map am \<Longrightarrow> u \<in> V  \<Longrig
   apply fastforce apply(rule card_mono)  
   by auto
 
+lemma (in RPreGraph) E_is_cfE: "E \<union> E\<inverse> = cf.E \<union> cf.E\<inverse>"
+  using E_ss_cfinvE cfE_ss_invE by blast 
+
+lemma (in RPreGraph) hh: assumes "is_adj_map am" 
+        "u \<in> V"
+      shows "length (am u) \<le> card (cf.E `` {u}) + card (cf.E\<inverse> `` {u})"
+proof -
+  have *: "(E``{u} \<union> E\<inverse>``{u}) = (cf.E)``{u} \<union> cf.E\<inverse>``{u}" using E_is_cfE by auto 
+
+  from assms(1) have [simp]: "distinct (am u)" and "set (am u) = E``{u} \<union> E\<inverse>``{u}" by(auto simp: is_adj_map_def)
+  then have "card (E``{u} \<union> E\<inverse>``{u}) = card (set (am u))" by simp
+  also have "\<dots> = length (am u)" by(auto intro: distinct_card)
+  finally have "length (am u) = card (E``{u} \<union> E\<inverse>``{u})" by simp
+  also have "\<dots> = card ((cf.E)``{u} \<union> cf.E\<inverse>``{u})" using * by auto
+  also have "\<dots> <= card ((cf.E)``{u}) + card ( cf.E\<inverse>``{u})" by(rule   card_Un_le) 
+  finally show ?thesis .
+qed 
+
+lemma (in Graph) hh: assumes "is_adj_map am"
+        "RGraph c s t cf"
+        "u \<in> V"
+      shows "length (am u) \<le> card (Graph.E cf `` {u}) + card ((Graph.E cf)\<inverse> `` {u})"
+proof -
+  have "RPreGraph c s t cf" using assms(2) RGraph.this_loc_rpg by auto
+  from RPreGraph.hh[OF this] assms(1,3) show ?thesis by blast
+qed
 
 
-    lemma edka5_refine: "\<lbrakk>is_adj_map am ; \<And>src. init_state src \<le> SPECT [ (False,[src\<mapsto>src],{src},{},0::nat) \<mapsto> init_state_time ]\<rbrakk> \<Longrightarrow> edka5 am init_state \<le> \<Down>Id edka.edka4"
+  lemma edka5_refine: "\<lbrakk>is_adj_map am ; \<And>src. init_state src \<le> SPECT [ (False,[src\<mapsto>src],{src},{},0::nat) \<mapsto> init_state_time ]\<rbrakk> \<Longrightarrow> edka5 am init_state \<le> \<Down>Id edka.edka4"
       unfolding edka5_def edka5_tabulate_def edka5_run_def
         edka.edka4_def init_cf_def compute_rflow_def 
         init_ps_def Let_def   bfs2_op_aux_def
@@ -1064,8 +1089,11 @@ lemma is_adj_map_app_le_V: "is_adj_map am \<Longrightarrow> u \<in> V  \<Longrig
           apply(simp add: RPreGraph.resV_netV[OF RGraph.this_loc_rpg])
          apply simp
         apply(rule nrest_Rel_mono)
-        by (auto simp add: le_fun_def get_succs_list_time_aux_def Succ_Impl.rg_succ_time_def
-                RPreGraph.resV_netV[OF RGraph.this_loc_rpg] is_adj_map_app_le_V) 
+        apply (auto simp add: le_fun_def get_succs_list_time_aux_def Succ_Impl.rg_succ_time_def
+                RPreGraph.resV_netV[OF RGraph.this_loc_rpg] is_adj_map_app_le_V)
+        subgoal apply(subst Graph.hh) by auto
+        subgoal apply(subst Graph.hh) by auto
+          done
       apply (simp split: prod.split option.split)
       apply(rule le_R_ASSERTI)
       apply(rule ASSERT_leI) apply simp apply simp done
