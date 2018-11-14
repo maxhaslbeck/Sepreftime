@@ -1,7 +1,66 @@
 theory EdmondsKarp_Time
-imports EdmondsKarp_Impl "SepLogicTime_RBTreeBasic.Asymptotics_2D"
+  imports EdmondsKarp_Impl 
+ (*    "SepLogicTime_RBTreeBasic.Asymptotics_2D" 
+      \<longrightarrow> Cannot join unrelated theory certificates SepLogicTime_RBTreeBasic.Asymptotics_2D:321 and SepLogicTime_RBTreeBasic.RBTree_Impl:4570
+  *)
 begin
- 
+
+lemma" (\<lambda>x. real (57 + rbt_insert_logN ((fst x)) + 2 * 1 ))
+    \<in> \<Theta>\<^sub>2 (\<lambda>(V::nat,E::nat). ln (real V))"  by(auto2)
+
+lemma" (\<lambda>x. real (57 + rbt_insert_logN (1 + (fst x)) + 2 * 1 ))
+    \<in> \<Theta>\<^sub>2 (\<lambda>(V::nat,E::nat). ln (real V))"  by(auto2)
+
+lemma" (\<lambda>x. real (57  *
+                (2 * fst x * snd x + fst x)))
+    \<in> \<Theta>\<^sub>2 (\<lambda>(V::nat,E::nat). real V * real E)"  by(auto2)
+
+
+lemma "(\<lambda>x. real (snd x * (44 + (2 * rbt_insert_logN (fst x) + (rbt_search_time_logN (fst x) + (2 * fst x + rbt_delete_time_logN (fst x)))))))
+    \<in> \<Theta>\<^sub>2 (\<lambda>(V::nat,E::nat). real V * real E)"  by(auto2)
+
+lemma "(\<lambda>x. real (
+                 (fst x +
+                  (
+                   ( 
+                    (rbt_delete_time_logN (fst x) + fst x * rbt_search_time_logN (1 + fst x))))))
+          )
+    \<in> \<Theta>\<^sub>2 (\<lambda>(V::nat,E::nat). real V * ln V)"  by(auto2)
+
+definition "innerf = (\<lambda>x. real (
+                 (fst x +
+                  (
+                   ( snd x * (44 + (2 * rbt_insert_logN (fst x) + (rbt_search_time_logN (fst x) + (2 * fst x + rbt_delete_time_logN (fst x))))) +
+                    (rbt_delete_time_logN (fst x) + fst x * rbt_search_time_logN (1 + fst x))))))
+          )"
+
+lemma "innerf
+    \<in> \<Theta>\<^sub>2 (\<lambda>(V::nat,E::nat). real V * real E + real V * ln V)" unfolding innerf_def  by(auto2)
+
+
+lemma"(\<lambda>x. real ((
+                 (fst x +
+                  (
+                   (snd x * (44 + (2 * rbt_insert_logN (fst x) + (rbt_search_time_logN (fst x) + (2 * fst x + rbt_delete_time_logN (fst x))))) +
+                    (rbt_delete_time_logN (fst x) + fst x * rbt_search_time_logN (1 + fst x)))))) *
+                (2 * fst x * snd x + fst x + 1)))
+    \<in> \<Theta>\<^sub>2 (\<lambda>(V::nat,E::nat). real V * real E * real V * real E + real V * real E * real V * ln V)"  by(auto2)
+
+lemma"(\<lambda>x. real ((57 +
+                 (22 * fst x +
+                  (2 * 1 +
+                   (2 * snd x * (44 + (2 * rbt_insert_logN (1 + fst x) + (rbt_search_time_logN (1 + fst x) + (2 * fst x + rbt_delete_time_logN (1 + fst x))))) +
+                    (rbt_delete_time_logN (1 + fst x) + fst x * rbt_search_time_logN (1 + fst x)))))) *
+                (2 * fst x * snd x + fst x + 1)))
+    \<in> \<Theta>\<^sub>2 (\<lambda>(V::nat,E::nat).   real V * real E * real V * real E + real V * real E * real V * ln V)"  by(auto2)
+
+lemma rbt_i_408: "rbt_insert_logN 1 = 408" unfolding rbt_insert_logN_def rbt_insert_time_def rbt_absch_def rbt_ins_time_def by simp
+
+lemma "edka_cost \<in> \<Theta>\<^sub>2(\<lambda>(V::nat,E::nat).  real V * real E * real V * real E + real V * real E * real V * ln V)"
+  apply (subst surjective_pairing)
+  unfolding edka_cost_simp rbt_i_408 by(auto2)
+  
+
 
 definition cost' :: "nat \<times> nat \<Rightarrow> nat" 
   where "cost' = (\<lambda>(cV,cE). 

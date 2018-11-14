@@ -556,6 +556,12 @@ definition edka_cost :: "nat \<times> nat \<Rightarrow> nat"
      (1 + (1 + 10) * cV + (1 + cV * (2 * 1 + 2 * 1 + 3)))) *
     (2 * cV * cE + cV + 1))"
 
+lemma edka_cost_simp: "edka_cost (cV,cE) = (57 +
+     (22 * cV +
+      (2 * rbt_insert_logN 1 +
+       (2 * cE * (44 + (2 * rbt_insert_logN (1 + cV) + (rbt_search_time_logN (1 + cV) + (2 * cV + rbt_delete_time_logN (1 + cV))))) + (rbt_delete_time_logN (1 + cV) + cV * rbt_search_time_logN (1 + cV)))))) *
+    (2 * cV * cE + cV + 1)" by (simp add: edka_cost_def)
+
 context Network_Impl begin
  
 
