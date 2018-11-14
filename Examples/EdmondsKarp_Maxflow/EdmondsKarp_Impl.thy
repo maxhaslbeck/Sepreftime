@@ -516,7 +516,7 @@ lemma edkatab_bfs2_op_conv: "edkatab.bfs2_op am cf bfs.init_state = bfs2_op am c
 lemma "foo" using edka5_correct'       
   unfolding edka_time_aux_def get_succs_list_time_aux_def shortest_path_time_aux_def
       pre_bfs_time_aux_def
-      body_time_aux_def
+       
     unfolding  augment_with_path_time_aux_def resCap_cf_impl_time_aux_def
     oops
   
@@ -589,9 +589,10 @@ context Network_Impl begin
         by simp
   
       have t: "?t = edka_cost (card V,card E)"
-  unfolding edka_time_aux_def get_succs_list_time_aux_def shortest_path_time_aux_def
+  unfolding edka_time_aux_def  shortest_path_time_aux_def
       pre_bfs_time_aux_def
-      body_time_aux_def
+       
+  unfolding get_succs_list_time_aux_def
   unfolding  augment_with_path_time_aux_def resCap_cf_impl_time_aux_def 
     unfolding augment_edge_impl_time_aux_def
     unfolding   add_succs_spec_time_aux_def

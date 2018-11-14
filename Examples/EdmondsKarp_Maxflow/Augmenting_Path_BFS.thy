@@ -238,13 +238,7 @@ abbreviation "add_succs_spec_time cs == add_succs_spec_time_aux cs map_dom_membe
 
   definition (in Graph) "max_dist src \<equiv> Max (min_dist src`V)"
  
-
-  definition (in -) body_time_aux  where
-    "body_time_aux cV v1 v2 v3 v4 v5 v6 v7 = v1 + v2 + v3 + v4 + v5
-               + v6 + v7 cV"
-
-abbreviation "body_time cV \<equiv> body_time_aux cV set_isempty_time set_pick_time set_delete_time
-        set_isempty_time set_empty_time get_succs_list_time add_succs_spec_time"
+ 
 
  
   definition "Vvisited src C d \<equiv> (\<Union>x\<in>{0..<d}. pre_bfs_invar.Vd c src x) \<union> (pre_bfs_invar.Vd c src d - C)"
@@ -514,12 +508,7 @@ abbreviation "bod \<equiv> (set_pick_time+set_delete_time+get_succs_list_time+2*
 
 
   thm outer_loop_rel_wf
-
-
-  definition pre_bfs_time'   where
-    "pre_bfs_time' src = init_state_time + set_isempty_time +  (1 + card V + card V * max_dist src) * body_time (card V)"
-
-
+ 
   definition (in -) pre_bfs_time_aux :: "nat \<Rightarrow> nat \<Rightarrow> nat \<Rightarrow> nat \<Rightarrow> nat \<Rightarrow> nat" where
     "pre_bfs_time_aux cE v1 v2 v3 v4 = v1 + v2 + ( cE * (v3+v4) + v4) "
 
@@ -528,9 +517,8 @@ lemma (in -)  pre_bfs_time_aux_mono: "cE1 \<le> cE2 \<Longrightarrow> pre_bfs_ti
   by(auto simp: pre_bfs_time_aux_def)
 
   abbreviation "pre_bfs_time cE \<equiv> pre_bfs_time_aux cE init_state_time set_isempty_time hhh bod"
-                                          
-lemma body_time_progress: "body_time cV > 0"    by (simp add: body_time_aux_def)
-lemma pre_bfs_time_progress: "pre_bfs_time cE > 0" using body_time_progress  by (simp add: pre_bfs_time_aux_def)
+                                           
+lemma pre_bfs_time_progress: "pre_bfs_time cE > 0"   by (simp add: pre_bfs_time_aux_def)
 
 lemma Te_start_ub: assumes "valid_PRED c src PRED"
   shows "set_isempty_time +  init_state_time + (Te src (False, [src \<mapsto> src], {src}, {}, 0)) \<le> pre_bfs_time (card E)"
@@ -651,11 +639,7 @@ qed
 
 lemma [simp]: "nf_invar c src dst PRED C N d \<Longrightarrow> finite V"
   using nf_invar'_def nf_invar.axioms(1) valid_PRED.FIN_V by blast  
-
-lemma  add_succs_spec_ub: "finite V \<Longrightarrow> set_isempty_time + set_pick_time + set_delete_time + get_succs_list_time + add_succs_spec_time (card (E `` {x})) + set_isempty_time + set_empty_time
-        \<le> body_time (card V)"
-  apply (simp add: body_time_aux_def) apply(rule add_succs_spec_time_mono)  
-  apply(rule card_mono) by (auto simp add: succ_ss_V)  
+ 
 
 lemma hl: "x \<in> C \<Longrightarrow> C \<noteq> {}" by auto
  
@@ -1332,7 +1316,7 @@ lemma "\<langle>Id\<rangle>list_rel = Id" by simp
 
       lemma pre_bfs2_refine: 
         assumes succ_impl: "\<And>ui u. \<lbrakk>(ui,u)\<in>Id; u\<in>V\<rbrakk> 
-          \<Longrightarrow> succ ui \<le> \<Down> (\<langle>Id\<rangle>list_set_rel) (SPECT [E``{u} \<mapsto> enat get_succs_list_time])"
+          \<Longrightarrow> succ ui \<le> \<Down> (\<langle>Id\<rangle>list_set_rel) (SPECT [E``{u} \<mapsto> enat (get_succs_list_time (card (E``{u})))])"
           and init_state_impl: "\<And>src. init_state src \<le> SPECT [ (False,[src\<mapsto>src],{src},{},0::nat) \<mapsto> init_state_time ]"
         shows "pre_bfs2 src dst \<le>\<Down>Id (pre_bfs src dst)"
         unfolding pre_bfs_def pre_bfs2_def monadic_WHILEIE_def
