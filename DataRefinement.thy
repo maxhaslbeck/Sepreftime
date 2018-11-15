@@ -381,5 +381,38 @@ lemma bindT_refine:
   shows "bindT M (\<lambda>x. f x) \<le> \<Down> R (bind M' (\<lambda>x'. f' x'))"
   apply (rule bindT_refine') using assms by auto
 
+subsection \<open>WHILET refine\<close>
+
+lemma RECT_refine:
+  assumes M: "mono2 body"
+  assumes R0: "(x,x')\<in>R"
+  assumes RS: "\<And>f f' x x'. \<lbrakk> \<And>x x'. (x,x')\<in>R \<Longrightarrow> f x \<le>\<Down>S (f' x'); (x,x')\<in>R \<rbrakk> 
+    \<Longrightarrow> body f x \<le>\<Down>S (body' f' x')"
+  shows "RECT (\<lambda>f x. body f x) x \<le>\<Down>S (RECT (\<lambda>f' x'. body' f' x') x')"
+  unfolding RECT_flat_gfp_def
+  apply (clarsimp simp add: M) 
+  apply (rule flatf_fixp_transfer[where 
+        fp'="flatf_gfp body" 
+    and B'=body 
+    and P="\<lambda>x x'. (x',x)\<in>R", 
+    OF _ _ flatf_ord.fixp_unfold[OF M[THEN trimonoD_flatf_ge]] R0])
+  apply simp
+  apply (simp add: trimonoD_flatf_ge)
+  by (rule RS)
+
+                                         
+lemma WHILET_refine:
+  assumes R0: "(x,x')\<in>R"
+  assumes COND_REF: "\<And>x x'. \<lbrakk> (x,x')\<in>R \<rbrakk> \<Longrightarrow> b x = b' x'"
+  assumes STEP_REF: 
+    "\<And>x x'. \<lbrakk> (x,x')\<in>R; b x; b' x' \<rbrakk> \<Longrightarrow> f x \<le> \<Down>R (f' x')"
+  shows "whileT b f x \<le> \<Down>R (whileT b' f' x')"
+  unfolding whileT_def apply(rule RECT_refine)
+    subgoal by(refine_mono)  
+     apply (fact R0)
+    by(auto simp: COND_REF STEP_REF RETURNT_refine intro: bindT_refine[where R'=R])  
+
+
+
 
 end
