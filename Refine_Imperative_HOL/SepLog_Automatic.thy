@@ -3,10 +3,37 @@ imports "SepLogicTime_RBTreeBasic.SepAuto"
   "HOL-Eisbach.Eisbach" "../SepLogic_Misc"
 begin
 
+subsection \<open>stuff for VCG\<close>
+
+lemma is_hoare_triple: "<P> c <Q> \<Longrightarrow> <P> c <Q>" .
+
+lemma fi_rule:
+  assumes CMD: "<P> c <Q>"
+  assumes FRAME: "Ps \<Longrightarrow>\<^sub>A P * F"
+  shows "<Ps> c <\<lambda>x. Q x * F>"
+  apply (rule pre_rule[rotated])
+  apply (rule frame_rule)
+  apply (rule CMD)
+  apply (rule FRAME)
+  done
+
+lemma cons_post_rule: "<P> c <Q> \<Longrightarrow> (\<And>x. Q x \<Longrightarrow>\<^sub>A Q' x) \<Longrightarrow> <P> c <Q'>"
+  using post_rule by blast
 
 lemma ent_pure_pre_iff[simp]: "(P*\<up>b \<Longrightarrow>\<^sub>A Q) \<longleftrightarrow> (b \<longrightarrow> (P \<Longrightarrow>\<^sub>A Q))"
   unfolding entails_def
   by (auto   )
+
+theorem normalize_rules:
+           "\<And>P. (\<And>x. <P x> f <Q>) \<Longrightarrow> <\<exists>\<^sub>Ax. P x> f <Q>"
+           "\<And>P. (b \<Longrightarrow> <P> f <Q>) \<Longrightarrow> <P * \<up> b> f <Q>"
+           "\<And>P. (b \<Longrightarrow> <emp> f <Q>) \<Longrightarrow> <\<up> b> f <Q>"
+  subgoal using pre_ex_rule by force
+  subgoal using norm_pre_pure_iff by blast
+  subgoal using norm_pre_pure_iff2 by blast
+  done
+    
+subsection \<open>\<close>
 
 lemma ent_pure_pre_iff_sng[simp]: 
   "(\<up>b \<Longrightarrow>\<^sub>A Q) \<longleftrightarrow> (b \<longrightarrow> (emp \<Longrightarrow>\<^sub>A Q))"
@@ -232,6 +259,8 @@ named_theorems sep_heap_rules "Seplogic: VCG heap rules"
 named_theorems sep_decon_rules "Seplogic: VCG deconstruct rules"
 
 ML \<open>
+infix 1 THEN_IGNORE_NEWGOALS
+
 structure Seplogic_Auto =
 struct
 
@@ -270,6 +299,29 @@ struct
   val solve_entails_modifiers = dflt_simps_modifiers @ eintros_modifiers;
   val sep_auto_modifiers = 
     clasimp_modifiers (* @ vcg_modifiers @ eintros_modifiers; *)
+
+
+  (***********************************)
+  (*        Custom Tacticals         *)
+  (***********************************)
+
+  (* Apply tac1, and then tac2 with an offset such that anything left 
+     over by tac1 is skipped.
+
+     The typical usage of this tactic is, if a theorem is instantiated
+     with another theorem that produces additional goals that should 
+     be ignored first. Here, it is used in the vcg to ensure that 
+     frame inference is done before additional premises (that may 
+     depend on the frame) are discharged.
+  *)
+  fun (tac1 THEN_IGNORE_NEWGOALS tac2) i st = let
+    val np = Thm.nprems_of st
+  in
+    (tac1 i THEN (fn st' => let val np' = Thm.nprems_of st' in
+      if np'<np then tac2 i st'
+      else tac2 (i+(np'-np)+1) st'
+    end)) st
+  end;
 
   (***********************************)
   (*     Assertion Normalization     *)
@@ -335,34 +387,40 @@ struct
 
     fun normalize t = let
 
-      fun ep_tr (has_true,ps,ptrs) t = case t of 
+      fun ep_tr (has_true,ps,ts,ptrs) t = case t of 
         Const (@{const_name "pure_assn"},_)$_ 
-        => ((has_true,t::ps,ptrs),NONE)
+        => ((has_true,t::ps,ts,ptrs),NONE)
       | Const (@{const_name "sngr_assn"},_)$_$_ 
-        => ((has_true,ps,t::ptrs),SOME t)
+        => ((has_true,ps,ts,t::ptrs),SOME t)
       | Const (@{const_name "snga_assn"},_)$_$_
-        => ((has_true,ps,t::ptrs),SOME t)
+        => ((has_true,ps,ts,t::ptrs),SOME t)
+      | Const (@{const_name "timeCredit_assn"},_)$_
+        => let val _ = tracing ("aha"); in ((has_true,ps,t::ts,ptrs),NONE) end
       | Const (@{const_name "top_assn"},_)
-        => ((true,ps,ptrs),NONE)
+        => ((true,ps,ts,ptrs),NONE)
       | (inf_op as Const (@{const_name "and_assn"},_))$t1$t2
-        => ((has_true,ps,ptrs),SOME (inf_op$normalize t1$normalize t2))
-      | _ => ((has_true,ps,ptrs),SOME t);
+        => ((has_true,ps,ts,ptrs),SOME (inf_op$normalize t1$normalize t2))
+      | _ => ((has_true,ps,ts,ptrs),SOME t);
 
       fun normalizer t = case dfs_opr @{const_name "Groups.times_class.times"}
-        ep_tr (false,[],[]) t 
+        ep_tr (false,[],[],[]) t 
       of 
-        ((has_true,ps,ptrs),rt) => ((has_true,rev ps,ptrs),rt);
+        ((has_true,ps,ts,ptrs),rt) => let val _ = tracing ("aha1"); in
+            ((has_true,rev ps,rev ts,ptrs),rt)end;
 
       fun normalize_core t = let 
-        val ((has_true,pures,ptrs),rt) = normalizer t;
+        val ((has_true,pures,tis,ptrs),rt) = normalizer t;
         val similar = find_similar ptrs_key ptrs;
         val true_t = if has_true then SOME @{term "top_assn"} 
           else NONE;
         val pures' = case pures of 
             [] => NONE
           | p::ps => SOME (fold mk_star ps p);
+        val tis' = case tis of 
+            [] => NONE
+          | p::ps => SOME (fold mk_star ps p);
       in
-        case similar of NONE => the (mk_star' pures' (mk_star' true_t rt))
+        case similar of NONE => the ((mk_star' pures' (mk_star' tis' (mk_star' true_t rt))) )
         | SOME (t1,t2) => let
             val t_stripped = remove_term t1 (remove_term t2 t);
           in mk_star t_stripped (mk_star t1 t2) end
@@ -466,6 +524,16 @@ struct
 
 
   (***********************************)
+  (*         Frame Inference         *)
+  (***********************************)
+
+  fun frame_inference_tac ctxt =
+    resolve_tac ctxt @{thms frame_inference_init} 
+    THEN' match_frame_tac (resolve_tac ctxt @{thms ent_refl}) ctxt
+    THEN' resolve_tac ctxt @{thms frame_inference_finalize};
+
+
+  (***********************************)
   (*       Entailment Solver         *)
   (***********************************)
 
@@ -508,6 +576,40 @@ struct
   end;
 
 
+  (***********************************)
+  (* Verification Condition Generator*)
+  (***********************************)
+
+  fun heap_rule_tac ctxt h_thms = 
+    resolve_tac ctxt h_thms ORELSE' (
+    resolve_tac ctxt @{thms fi_rule} THEN' (resolve_tac ctxt h_thms THEN_IGNORE_NEWGOALS
+    frame_inference_tac ctxt));
+
+  fun vcg_step_tac ctxt = let
+    val h_thms = rev (Named_Theorems.get ctxt @{named_theorems sep_heap_rules});
+    val d_thms = rev (Named_Theorems.get ctxt @{named_theorems sep_decon_rules});
+    val heap_rule_tac = heap_rule_tac ctxt h_thms
+
+    (* Apply consequence rule if postcondition is not a schematic var *)
+    fun app_post_cons_tac i st = 
+      case Logic.concl_of_goal (Thm.prop_of st) i |> HOLogic.dest_Trueprop of
+        Const (@{const_name hoare_triple},_)$_$_$qt =>
+          if is_Var (head_of qt) then no_tac st
+          else resolve_tac ctxt @{thms cons_post_rule} i st
+      | _ => no_tac st;
+
+  in
+    CSUBGOAL (snd #> (FIRST' [
+      CHANGED o dflt_tac ctxt,
+      REPEAT_ALL_NEW (resolve_tac ctxt @{thms normalize_rules}),
+      CHANGED o (FIRST' [resolve_tac ctxt d_thms, heap_rule_tac]
+        ORELSE' (app_post_cons_tac THEN' 
+          FIRST' [resolve_tac ctxt d_thms, heap_rule_tac])) 
+    ]))
+  end;
+
+  fun vcg_tac ctxt = REPEAT_DETERM' (vcg_step_tac ctxt)
+
 
   (***********************************)
   (*        Automatic Solver         *)
@@ -519,7 +621,7 @@ struct
       CHANGED o REPEAT_ALL_NEW (match_tac ctxt @{thms ballI allI impI conjI})
     ];                                
     val main_tacs = [
-      (* match_tac ctxt @{thms is_hoare_triple} THEN' CHANGED o vcg_tac ctxt, *)
+      match_tac ctxt @{thms is_hoare_triple} THEN' CHANGED o vcg_tac ctxt,
       match_tac ctxt @{thms is_entails} THEN' CHANGED o solve_entails_tac ctxt
     ];
     val post_tacs = [SELECT_GOAL (auto_tac ctxt)];
@@ -561,6 +663,19 @@ lemma "A \<Longrightarrow>\<^sub>A A"
   by solve_entails
 
 
+lemma "A * B \<Longrightarrow>\<^sub>A A * true"
+  by solve_entails
+
+lemma "$1 * A * B * C \<Longrightarrow>\<^sub>A B * A * $1 * true"
+  by solve_entails
+
+thm sep_eintros
+
+lemma "$1 * $2 * A * B * C \<Longrightarrow>\<^sub>A B * A * $3 * true"
+  by solve_entails
+
+lemma "A * B * C \<Longrightarrow>\<^sub>A B * A * true"
+  by solve_entails
 
 
 
@@ -586,10 +701,15 @@ lemma [simp]: "(x \<and>\<^sub>A y) \<and>\<^sub>A z = x \<and>\<^sub>A y \<and>
 simproc_setup assn_simproc 
   ( "h \<Turnstile> P" | "P\<Longrightarrow>\<^sub>AQ" | "P\<Longrightarrow>\<^sub>tQ" | "(P::assn) = Q" ) 
   = {*K Seplogic_Auto.assn_simproc_fun*}
- 
+  
 lemma "h \<Turnstile> F * \<up> (a' = None) * F' \<Longrightarrow> G" apply simp oops
 lemma "true * true = G" apply simp oops
 lemma "G * true * F * true = H"  apply (simp )  oops
+
+lemma "$a * $b = $(a+b)"  
+  by (simp add: time_credit_add)
+
+lemma "$1* \<up>g * G * $2 * $3 *true * F * true * \<up>f * $4 * $5 = H"  apply (simp add: time_credit_add[symmetric] )  oops
 
 lemma "G * \<up>f * true *  F   = H"  apply (simp )   oops
 
