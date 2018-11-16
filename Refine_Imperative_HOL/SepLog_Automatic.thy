@@ -1,8 +1,9 @@
 theory SepLog_Automatic
 imports "SepLogicTime_RBTreeBasic.SepAuto" 
-  "HOL-Eisbach.Eisbach" "../SepLogic_Misc"
+  "HOL-Eisbach.Eisbach" "../SepLogic_Misc"   NatMatcher
 begin
 
+ 
 subsection \<open>stuff for VCG\<close>
 
 lemma is_hoare_triple: "<P> c <Q> \<Longrightarrow> <P> c <Q>" .
@@ -127,7 +128,7 @@ lemmas solve_ent_preprocess_simps =
   ent_pure_post_iff ent_pure_post_iff_sng ent_pure_pre_iff ent_pure_pre_iff_sng
 lemmas ent_refl = entails_triv
 lemmas ent_triv = ent_true ent_false
-lemmas norm_assertion_simps = assn_one_left 
+lemmas norm_assertion_simps = assn_one_left  time_credit_add[symmetric]
 
 (*
 theorem solve_ent_preprocess_simps:
@@ -258,6 +259,23 @@ named_theorems sep_eintros "Seplogic: Intro rules for entailment solver"
 named_theorems sep_heap_rules "Seplogic: VCG heap rules"
 named_theorems sep_decon_rules "Seplogic: VCG deconstruct rules"
 
+
+
+subsection {* Frame Inference *}
+lemma timeframe_inference_init:
+  assumes
+      "TI_QUERY T T' FT"
+      "FI_QUERY P Q FH"
+      "F = FH * $FT"
+  shows "P * $T\<Longrightarrow>\<^sub>A (Q * F) * $T'"
+  using assms apply (simp add: time_credit_add mult.assoc)
+  apply(rotater) apply rotater apply rotatel apply rotatel apply(rule match_first)  apply rotatel apply (rule match_first)
+  .
+lemma timeframe_inference_init_normalize:
+ "emp * $T\<Longrightarrow>\<^sub>A F * $T' \<Longrightarrow> $T\<Longrightarrow>\<^sub>A F * $T'"
+  by auto
+
+
 ML \<open>
 infix 1 THEN_IGNORE_NEWGOALS
 
@@ -295,10 +313,13 @@ struct
       >> K (Method.modifier (Named_Theorems.del @{named_theorems sep_eintros}) \<^here>)
   ];
 
-
   val solve_entails_modifiers = dflt_simps_modifiers @ eintros_modifiers;
+
+  val vcg_modifiers = 
+    heap_modifiers @ decon_modifiers @ dflt_simps_modifiers;
+
   val sep_auto_modifiers = 
-    clasimp_modifiers (* @ vcg_modifiers @ eintros_modifiers; *)
+    clasimp_modifiers @ vcg_modifiers @ eintros_modifiers;
 
 
   (***********************************)
@@ -466,8 +487,8 @@ struct
      {lhss =
       [@{term "h \<Turnstile> P"},
        @{term "P \<Longrightarrow>\<^sub>A Q"},
-       @{term "P \<Longrightarrow>\<^sub>t Q"} (*,
-       @{term "Hoare_Triple.hoare_triple P c Q"},
+       @{term "P \<Longrightarrow>\<^sub>t Q"} ,
+       @{term "hoare_triple P c Q"} (*,
        @{term "(P::assn) = Q"} *)],
       proc = K assn_simproc_fun};
 
@@ -534,6 +555,73 @@ struct
 
 
   (***********************************)
+  (*         Time Frame Inference         *)
+  (***********************************)
+
+  fun time_frame_inference_tac ctxt =
+    resolve_tac ctxt @{thms timeframe_inference_init} 
+    (* time_frame inference *) 
+    THEN' SOLVED'(
+         NatMatcher.time_match_frame_tac (resolve_tac ctxt @{thms refl})
+           (simp_tac (Raw_Simplifier.clear_simpset ctxt))
+           (simp_tac (ctxt)) ctxt  
+          THEN'  resolve_tac ctxt @{thms tframe_inference_finalize} 
+            ) 
+
+    (* normal frame inference *)
+    THEN' match_frame_tac (resolve_tac ctxt @{thms ent_refl}) ctxt
+    THEN' resolve_tac ctxt @{thms frame_inference_finalize}
+ 
+    THEN' resolve_tac ctxt @{thms refl}  
+    ;
+
+
+
+  (***********************************)
+  (* Nat splitter  powerd by auto2   *)
+  (***********************************)
+
+  fun mytac ctxt a b = let val _ = tracing (Syntax.string_of_term ctxt a);
+              val _ = tracing (Syntax.string_of_term ctxt b)
+      val ths = map snd (SepTimeSteps.split_nat ctxt ([], (a, b))); 
+      val _ = length ths
+      val _ =  let fun print thm = tracing (Thm.string_of_thm ctxt thm)
+          in map print ths end
+   in
+         (if length ths > 0 then (EqSubst.eqsubst_tac ctxt [1] ths 
+                                    THEN' (resolve_tac ctxt @{thms refl})   ) 1 else no_tac) end 
+
+  fun split_nat_tac ctxt = Subgoal.FOCUS_PARAMS (fn {context = ctxt, ...} => ALLGOALS (
+        SUBGOAL (fn (t, _) => case Logic.strip_imp_concl t of
+          @{mpat "Trueprop (?a = ?b + _)"} => 
+            mytac ctxt a b 
+         |  _ => no_tac
+        ))
+      ) ctxt  
+ 
+
+  (***********************************)
+  (*         Time Frame Inference 2  *)
+  (***********************************)
+
+  fun time2_frame_inference_tac ctxt =
+    TRY o resolve_tac ctxt @{thms timeframe_inference_init_normalize}
+    THEN' 
+    resolve_tac ctxt @{thms timeframe_inference_init} 
+    (* time_frame inference *) 
+    THEN'  TRY o (EqSubst.eqsubst_tac ctxt [0] @{thms One_nat_def[symmetric]} ) 
+    THEN' (resolve_tac ctxt @{thms TI_QUERYD})
+    THEN' SOLVED' (split_nat_tac ctxt)
+
+    (* normal frame inference *)
+    THEN' match_frame_tac (resolve_tac ctxt @{thms ent_refl}) ctxt
+    THEN' resolve_tac ctxt @{thms frame_inference_finalize}
+ 
+    THEN' resolve_tac ctxt @{thms refl}  
+    ;
+
+
+  (***********************************)
   (*       Entailment Solver         *)
   (***********************************)
 
@@ -580,36 +668,36 @@ struct
   (* Verification Condition Generator*)
   (***********************************)
 
-  fun heap_rule_tac ctxt h_thms = 
+  fun heap_rule_tac ctxt h_thms = let val _ = tracing "here" in
     resolve_tac ctxt h_thms ORELSE' (
     resolve_tac ctxt @{thms fi_rule} THEN' (resolve_tac ctxt h_thms THEN_IGNORE_NEWGOALS
-    frame_inference_tac ctxt));
+    ( dflt_tac ctxt THEN'  time2_frame_inference_tac ctxt) )) end;                                          
+
+  (* Apply consequence rule if postcondition is not a schematic var *)
+  fun app_post_cons_tac ctxt i st = 
+    case Logic.concl_of_goal (Thm.prop_of st) i |> HOLogic.dest_Trueprop of
+      Const (@{const_name hoare_triple},_)$_$_$qt =>
+        if is_Var (head_of qt) then no_tac st
+        else resolve_tac ctxt @{thms cons_post_rule} i st
+    | _ => no_tac st;
 
   fun vcg_step_tac ctxt = let
     val h_thms = rev (Named_Theorems.get ctxt @{named_theorems sep_heap_rules});
     val d_thms = rev (Named_Theorems.get ctxt @{named_theorems sep_decon_rules});
     val heap_rule_tac = heap_rule_tac ctxt h_thms
 
-    (* Apply consequence rule if postcondition is not a schematic var *)
-    fun app_post_cons_tac i st = 
-      case Logic.concl_of_goal (Thm.prop_of st) i |> HOLogic.dest_Trueprop of
-        Const (@{const_name hoare_triple},_)$_$_$qt =>
-          if is_Var (head_of qt) then no_tac st
-          else resolve_tac ctxt @{thms cons_post_rule} i st
-      | _ => no_tac st;
-
   in
     CSUBGOAL (snd #> (FIRST' [
       CHANGED o dflt_tac ctxt,
       REPEAT_ALL_NEW (resolve_tac ctxt @{thms normalize_rules}),
       CHANGED o (FIRST' [resolve_tac ctxt d_thms, heap_rule_tac]
-        ORELSE' (app_post_cons_tac THEN' 
+        ORELSE' (app_post_cons_tac ctxt THEN' 
           FIRST' [resolve_tac ctxt d_thms, heap_rule_tac])) 
     ]))
   end;
 
   fun vcg_tac ctxt = REPEAT_DETERM' (vcg_step_tac ctxt)
-
+                                         
 
   (***********************************)
   (*        Automatic Solver         *)
@@ -623,7 +711,7 @@ struct
     val main_tacs = [
       match_tac ctxt @{thms is_hoare_triple} THEN' CHANGED o vcg_tac ctxt,
       match_tac ctxt @{thms is_entails} THEN' CHANGED o solve_entails_tac ctxt
-    ];
+    ];                                                       
     val post_tacs = [SELECT_GOAL (auto_tac ctxt)];
     val tacs = (if do_pre then pre_tacs else [])
       @ main_tacs 
@@ -632,12 +720,15 @@ struct
     REPEAT_DETERM' (CHANGED o FIRST' tacs)
   end;
 
+ 
 
 
 end; \<open>struct\<close>
 
 
 \<close> 
+
+
 
 
 
@@ -656,23 +747,73 @@ method_setup solve_entails = {*
   CHANGED o Seplogic_Auto.solve_entails_tac ctxt
 )) *} "Seplogic: Entailment Solver"
 
+method_setup timeframeinf = {* 
+  Method.sections Seplogic_Auto.solve_entails_modifiers >>
+  (fn _ => fn ctxt => SIMPLE_METHOD' (
+  CHANGED o Seplogic_Auto.time2_frame_inference_tac ctxt
+)) *} "Seplogic: Frame Inference with Time Inference"
+ 
+
+simproc_setup assn_simproc 
+  ( "h \<Turnstile> P" | "P\<Longrightarrow>\<^sub>AQ" | "P\<Longrightarrow>\<^sub>tQ" | "(P::assn) = Q" ) 
+  = {*K Seplogic_Auto.assn_simproc_fun*}
+ 
+(* timeframeinf can solve problems of that form: A * $T \<Longrightarrow>\<^sub>A B * ?F * $T' *)
+schematic_goal "\<up> (i < length xs) * a \<mapsto>\<^sub>a xs *  $2  \<Longrightarrow>\<^sub>A a \<mapsto>\<^sub>a xs * ?F * $1"  
+  by timeframeinf
+
+schematic_goal "A * C * $2  \<Longrightarrow>\<^sub>A A * ?F * $1"  
+  by timeframeinf
+
+schematic_goal "a \<mapsto>\<^sub>a xs * $ 1 \<Longrightarrow>\<^sub>A a \<mapsto>\<^sub>a xs * ?F24 (xs ! i)   * $ 1"  
+  by timeframeinf 
 
 
+context begin
+  definition "fffa = (10::nat)"
+   
+  schematic_goal "(3::nat) + 3 * fffa + 6 * 7 = 1 + ?F"
+    apply(tactic \<open>Seplogic_Auto.split_nat_tac @{context} 1\<close>)
+    done
+  
+  schematic_goal "(2::nat) + 3 * fffa  = 1 + ?F"
+    apply(tactic \<open>Seplogic_Auto.split_nat_tac @{context} 1\<close>)
+    done
+end 
+
+
+
+lemma ureturn_rule[sep_decon_rules]: "<P> ureturn x <\<lambda>r. P * \<up>(r = x)>" 
+  apply(rule post_rule)
+  apply(rule pre_rule[rotated])
+    apply(rule frame_rule[OF return_rule, where R=P] )
+  by(auto simp: zero_time)   
+
+declare SepAuto.return_rule [sep_heap_rules] 
+declare bind_rule [sep_decon_rules]
+                                             
+(* sep auto expects pure assertions to be pulled out in the pre condition TODO: is this correct? *)
+lemma nth_rule'[sep_heap_rules]: "(i < length xs) \<Longrightarrow> <a \<mapsto>\<^sub>a xs * $ 1 > Array.nth a i <\<lambda>r. a \<mapsto>\<^sub>a xs * \<up> (r = xs ! i)>"
+  apply(rule pre_rule[OF _ nth_rule]) by sep_auto
+   
+lemma "<a \<mapsto>\<^sub>a (xs::nat list)  * $3 * \<up> (i < length xs)> 
+        do { n \<leftarrow> Array.nth a i;
+             m \<leftarrow> Array.nth a i;
+             return ( n+m ) }
+       <\<lambda>r. a \<mapsto>\<^sub>a xs * \<up> (r = 2 * (xs ! i))>"  
+  by (sep_auto simp: zero_time ) 
+      
+declare new_rule [sep_heap_rules]
+thm new_rule
+schematic_goal "<timeCredit_assn 1> Array.new 0 0 <?Q8>"
+  by(sep_auto simp del: add_Suc One_nat_def) 
 
 lemma "A \<Longrightarrow>\<^sub>A A"
   by solve_entails
 
 
 lemma "A * B \<Longrightarrow>\<^sub>A A * true"
-  by solve_entails
-
-lemma "$1 * A * B * C \<Longrightarrow>\<^sub>A B * A * $1 * true"
-  by solve_entails
-
-thm sep_eintros
-
-lemma "$1 * $2 * A * B * C \<Longrightarrow>\<^sub>A B * A * $3 * true"
-  by solve_entails
+  by solve_entails  
 
 lemma "A * B * C \<Longrightarrow>\<^sub>A B * A * true"
   by solve_entails
@@ -698,10 +839,8 @@ lemma and_extract_pure_right_ctx_iff[simp]: "P \<and>\<^sub>A Q*\<up>b = (P\<and
 lemma [simp]: "(x \<and>\<^sub>A y) \<and>\<^sub>A z = x \<and>\<^sub>A y \<and>\<^sub>A z"
   sorry
 
-simproc_setup assn_simproc 
-  ( "h \<Turnstile> P" | "P\<Longrightarrow>\<^sub>AQ" | "P\<Longrightarrow>\<^sub>tQ" | "(P::assn) = Q" ) 
-  = {*K Seplogic_Auto.assn_simproc_fun*}
-  
+ 
+
 lemma "h \<Turnstile> F * \<up> (a' = None) * F' \<Longrightarrow> G" apply simp oops
 lemma "true * true = G" apply simp oops
 lemma "G * true * F * true = H"  apply (simp )  oops
@@ -709,9 +848,10 @@ lemma "G * true * F * true = H"  apply (simp )  oops
 lemma "$a * $b = $(a+b)"  
   by (simp add: time_credit_add)
 
-lemma "$1* \<up>g * G * $2 * $3 *true * F * true * \<up>f * $4 * $5 = H"  apply (simp add: time_credit_add[symmetric] )  oops
+lemma "$1* \<up>g * G * $2 * $3 *true * F * true * \<up>ff * $4 * $5 = G * F * true * $ 10 * (\<up> g *  $5 * \<up> ff)"
+  by (simp add :time_credit_add[symmetric] )  
 
-lemma "G * \<up>f * true *  F   = H"  apply (simp )   oops
+lemma "G * \<up>ff * true *  F   = H"  apply (simp )   oops
 
 lemma "h \<Turnstile> F \<and>\<^sub>A \<up> (a' = None) * F' \<Longrightarrow> G" apply simp oops
 
