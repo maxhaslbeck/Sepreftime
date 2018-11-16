@@ -556,9 +556,7 @@ lemmas find_shortest_augmenting_spec_cf = Ed_Res.find_shortest_augmenting_spec_c
       RETURNT f
     }"
 
- 
-
-lemma "s\<in>V" by auto
+  
 
     lemma edka3_refine: "edka3 \<le> \<Down>Id Ed_Res.edka2"
       unfolding edka3_def Ed_Res.edka2_def

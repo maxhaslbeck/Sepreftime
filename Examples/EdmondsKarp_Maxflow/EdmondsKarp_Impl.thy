@@ -561,7 +561,8 @@ lemma edka_cost_simp: "edka_cost (cV,cE) =
     (57 +
      (20 * cV +
       (2 * rbt_insert_logN 1 +
-       (2 * cE * (48 + (2 * rbt_insert_logN (1 + cV) + (rbt_search_time_logN (1 + cV) + rbt_delete_time_logN (1 + cV)))) + (rbt_delete_time_logN (1 + cV) + cV * rbt_search_time_logN (1 + cV)))))) *
+       (2 * cE * (48 + (2 * rbt_insert_logN (1 + cV) + (rbt_search_time_logN (1 + cV) + rbt_delete_time_logN (1 + cV))))   \<comment> \<open> bfs \<close>
+         + (rbt_delete_time_logN (1 + cV) + cV * rbt_search_time_logN (1 + cV)))))) *                                      \<comment> \<open> extract path \<close>
     (2 * cV * cE + cV + 1)" by (simp add: edka_cost_def)
 
 context Network_Impl begin
@@ -605,5 +606,7 @@ context Network_Impl begin
 
       from 1 show ?thesis unfolding  t .
     qed
-  end    
+end    
+ 
+
 end
