@@ -2368,13 +2368,13 @@ lemma [simp]: "SPECT Map.empty \<le> a" apply(cases a) apply auto subgoal for x2
 lemma kla: "(FAILT \<in> X) \<Longrightarrow> Sup X = FAILT " by (simp add: nrest_Sup_FAILT)
 
 
-
+(*
 lemma "spp (SPECT (emb P 0)) (\<lambda>s. RETURNT (f s)) = foo"
   unfolding spp_def apply (auto simp: emb'_def RETURNT_def)
   unfolding Sup_nrest_def apply auto 
   apply(rule ext)apply auto
   unfolding Sup_fun_def
-   defer unfolding SUP_eq_None_iff apply auto oops
+   defer unfolding SUP_eq_None_iff apply auto oops *)
 
 
 lemma "spp P (%_. bindT m c) = spp (spp P (\<lambda>_. m)) c"
