@@ -139,6 +139,7 @@ end
 locale EdKa_Res = Network c s t for c :: "'capacity::linordered_idom graph" and s t +
   fixes shortestpath_time :: nat
     and augment_with_path_time :: nat 
+     and init_graph :: "nat \<Rightarrow> nat"
   assumes augment_progress[simp]: "0 \<noteq> enat shortestpath_time"
 begin
 
@@ -175,7 +176,7 @@ begin
 
     text \<open>This leads to the following refined algorithm\<close>  
     definition  "edka2 \<equiv> do {
-      cf \<leftarrow> RETURNT c;
+      cf \<leftarrow>  SPECT [c \<mapsto> init_graph (card V)];
 
       (cf,_) \<leftarrow> whileT 
         (\<lambda>(cf,brk). \<not>brk) 
@@ -216,7 +217,7 @@ begin
         unfolding edka2_def Ed.edka_def 
         apply (rule bindT_refine[where R'=cfi_rel] ) 
         subgoal unfolding cfi_rel_alt 
-          apply(rule RETURNT_refine) by (auto simp add: residualGraph_zero_flow zero_flow)  
+          apply(rule SPECT_refine) by (auto simp add: residualGraph_zero_flow zero_flow split: if_splits)
           apply(rule bindT_refine[where R'="cfi_rel \<times>\<^sub>r bool_rel"])
          apply(rule WHILET_refine)     apply simp
         subgoal by auto
@@ -485,6 +486,7 @@ end
 locale EdKa_Res_Up = Network c s t for c :: "'capacity::linordered_idom graph" and s t +
   fixes shortestpath_time :: nat
     and matrix_lookup_time matrix_set_time :: nat
+     and init_graph :: "nat \<Rightarrow> nat"
   assumes augment_progress[simp]: "0 \<noteq> enat shortestpath_time"
 begin
 
@@ -532,7 +534,7 @@ lemmas find_shortest_augmenting_spec_cf = Ed_Res.find_shortest_augmenting_spec_c
     text \<open>Finally, we arrive at the algorithm where augmentation is 
       implemented algorithmically: \<close>  
     definition "edka3 \<equiv> do {
-      cf \<leftarrow> RETURNT c;
+      cf \<leftarrow> SPECT [c \<mapsto> init_graph (card V)];
 
       (cf,_) \<leftarrow> whileT 
         (\<lambda>(cf,brk). \<not>brk) 
@@ -561,8 +563,7 @@ lemmas find_shortest_augmenting_spec_cf = Ed_Res.find_shortest_augmenting_spec_c
     lemma edka3_refine: "edka3 \<le> \<Down>Id Ed_Res.edka2"
       unfolding edka3_def Ed_Res.edka2_def
       apply(rule bindT_refine)
-       apply(rule RETURNT_refine) 
-       apply(rule ccId)
+       apply(rule SPECT_refine[where R=Id]) apply (auto split: if_splits)[] 
       apply(rule bindT_refine[where R'="Id \<times>\<^sub>r bool_rel"])
        apply(rule WHILET_refine)
          apply simp apply simp
@@ -600,7 +601,7 @@ lemmas find_shortest_augmenting_spec_cf = Ed_Res.find_shortest_augmenting_spec_c
       apply (auto simp: pw_le_iff refine_pw_simps)
       done *) 
                                                                          
-lemma  edka3_correct: "edka3 \<le> \<Down>Id (SPECT (emb isMaxFlow (enat (EdKa.edka_time c shortestpath_time augment_with_path_time))))"
+lemma  edka3_correct: "edka3 \<le> \<Down>Id (SPECT (emb isMaxFlow (enat (EdKa.edka_time c shortestpath_time augment_with_path_time init_graph))))"
     apply(rule order.trans) apply(rule edka3_refine) 
     using Ed_Res.edka2_correct by simp 
 end
@@ -616,6 +617,7 @@ locale EdKa_Res_Bfs = Network c s t for c :: "'capacity::linordered_idom graph" 
     and map_lookup_time  :: "nat \<Rightarrow> nat"
     and set_empty_time set_isempty_time init_state_time :: nat 
     and matrix_lookup_time matrix_set_time init_get_succs_list_time :: nat 
+     and init_graph :: "nat \<Rightarrow> nat"
   assumes [simp]: "\<And>c. map_lookup_time c > 0"
   assumes [simp]: "set_pick_time > 0" 
 begin
@@ -635,7 +637,7 @@ abbreviation "shortest_path_time == shortest_path_time_aux (card V) (2 * card E)
     by (metis add_is_0 enat_0_iff(1) not_gr_zero)
   
 
-    sublocale edru: EdKa_Res_Up c s t  shortest_path_time matrix_lookup_time matrix_set_time
+    sublocale edru: EdKa_Res_Up c s t  shortest_path_time matrix_lookup_time matrix_set_time init_graph
       apply standard  by auto
 
     abbreviation "resCap_cf_impl'' cf p \<equiv> edru.resCap_cf_impl' cf p"
@@ -649,7 +651,7 @@ abbreviation "shortest_path_time == shortest_path_time_aux (card V) (2 * card E)
 
     text \<open>We refine the Edmonds-Karp algorithm to use breadth first search (BFS)\<close>
     definition "edka4 \<equiv> do {
-      cf \<leftarrow> RETURNT c;
+      cf \<leftarrow> SPECT [c \<mapsto> init_graph (card V)];
 
       (cf,_) \<leftarrow> whileT 
         (\<lambda>(cf,brk). \<not>brk) 
@@ -712,8 +714,7 @@ abbreviation "shortest_path_time == shortest_path_time_aux (card V) (2 * card E)
     lemma edka4_refine: "edka4 \<le> \<Down>Id edru.edka3"
       unfolding edka4_def edru.edka3_def        
       apply(rule bindT_refine)
-       apply(rule RETURNT_refine) 
-       apply(rule ccId)
+       apply(rule SPECT_refine[where R=Id]) subgoal by(auto split: if_splits)
       apply(rule bindT_refine[where R'="Id \<times>\<^sub>r bool_rel"])
        apply(rule WHILET_refine)
          apply simp apply simp
@@ -734,7 +735,7 @@ abbreviation "shortest_path_time == shortest_path_time_aux (card V) (2 * card E)
       apply (vc_solve simp: bfs_refines_shortest_augmenting_spec)
       done *)  
  
-  lemma  edka4_correct: "edka4 \<le> \<Down> Id (SPECT (emb isMaxFlow (enat (EdKa.edka_time c shortest_path_time edru.augment_with_path_time))))"
+  lemma  edka4_correct: "edka4 \<le> \<Down> Id (SPECT (emb isMaxFlow (enat (EdKa.edka_time c shortest_path_time edru.augment_with_path_time init_graph))))"
     apply(rule order.trans) apply(rule edka4_refine) 
     using edru.edka3_correct by simp 
 end
@@ -901,6 +902,7 @@ locale EdKa_Tab = Network c s t for c :: "'capacity::linordered_idom graph" and 
     and map_lookup_time  :: "nat \<Rightarrow> nat"
     and set_empty_time set_isempty_time init_state_time :: nat 
     and matrix_lookup_time matrix_set_time :: nat 
+    and init_graph_time :: "nat \<Rightarrow> nat"
   assumes [simp]: "\<And>c. map_lookup_time c > 0"
   assumes [simp]: "set_pick_time > 0" 
 begin
@@ -917,9 +919,9 @@ begin
       Note, on the abstract level, the tabulation functions are just identity,
       and merely serve as marker constants for implementation.
       \<close>
-    definition (in Network) init_cf :: "'capacity graph nrest" 
+    definition (in Network) init_cf :: "(nat \<Rightarrow> nat) \<Rightarrow> 'capacity graph nrest" 
       \<comment> \<open>Initialization of residual graph from network\<close>
-      where "init_cf \<equiv> RETURNT c"
+      where "init_cf init_graph_time \<equiv> SPECT [ c \<mapsto> init_graph_time (card V) ]"
     definition (in Network)  init_ps :: "(node \<Rightarrow> node list) \<Rightarrow> _" 
       \<comment> \<open>Initialization of adjacency map\<close>
       where "init_ps am \<equiv> ASSERT (is_adj_map am) \<then> RETURNT am"
@@ -975,8 +977,8 @@ abbreviation "bfs2_op am cf init_state \<equiv> bfs2_op_aux c s t (set_insert_ti
 
      text \<open>We split the algorithm into a tabulation function, and the 
       running of the actual algorithm:\<close>
-    definition (in Network) "edka5_tabulate am \<equiv> do {
-      cf \<leftarrow> init_cf;
+    definition (in Network) "edka5_tabulate init_graph_time am  \<equiv> do {
+      cf \<leftarrow> init_cf init_graph_time;
       am \<leftarrow> init_ps am;
       RETURNT (cf,am)
     }"
@@ -984,10 +986,10 @@ abbreviation "bfs2_op am cf init_state \<equiv> bfs2_op_aux c s t (set_insert_ti
 
 
     sublocale edka: EdKa_Res_Bfs c s t set_insert_time map_dom_member_time set_delete_time
-      get_succs_list_time
+      get_succs_list_time  
       map_update_time set_pick_time 
       list_append_time map_lookup_time set_empty_time  set_isempty_time init_state_time
-      matrix_lookup_time matrix_set_time 2
+      matrix_lookup_time matrix_set_time 2 init_graph_time
       apply(standard) by auto
 
   lemma pff: "RGraph c s t cf \<Longrightarrow> (Graph.V cf) = (Graph.V c)"
@@ -1016,8 +1018,8 @@ abbreviation "bfs2_op am cf init_state \<equiv> bfs2_op_aux c s t (set_insert_ti
       RETURNT f
     }"
 
-    definition "edka5 am init_state \<equiv> do {
-      (cf,am) \<leftarrow> edka5_tabulate am;
+    definition "edka5 am init_state   \<equiv> do {
+      (cf,am) \<leftarrow> edka5_tabulate init_graph_time am ;
       edka5_run cf am init_state
     }"
  
@@ -1062,11 +1064,13 @@ proof -
 qed
 
 
-  lemma edka5_refine: "\<lbrakk>is_adj_map am ; \<And>src. init_state src \<le> SPECT [ (False,[src\<mapsto>src],{src},{},0::nat) \<mapsto> init_state_time ]\<rbrakk> \<Longrightarrow> edka5 am init_state \<le> \<Down>Id edka.edka4"
+  lemma edka5_refine: "\<lbrakk>is_adj_map am ; \<And>src. init_state src \<le> SPECT [ (False,[src\<mapsto>src],{src},{},0::nat) \<mapsto> init_state_time ]\<rbrakk> \<Longrightarrow> edka5 am init_state   \<le> \<Down>Id edka.edka4"
       unfolding edka5_def edka5_tabulate_def edka5_run_def
         edka.edka4_def init_cf_def compute_rflow_def 
         init_ps_def Let_def   bfs2_op_aux_def
       unfolding nres_bind_assoc nres_bind_left_identity prod.case 
+      apply(rule bindT_refine) 
+      apply(rule SPECT_refine[where R=Id]) subgoal by (auto) 
       apply(rule ASSERT_leI) apply simp
       apply(rule bindT_refine) 
        apply(rule WHILET_refine[where R="Id \<times>\<^sub>r bool_rel"] ) apply simp
@@ -1105,10 +1109,9 @@ qed
       apply (simp add: RPreGraph.resV_netV[OF RGraph.this_loc_rpg])
       apply (simp add: RGraph.rg_succ_ref)
       done *)  
- 
-
+  
     thm edka.edka4_correct
-  lemma  edka5_correct: "\<lbrakk>is_adj_map am; \<And>src. init_state src \<le> SPECT [ (False,[src\<mapsto>src],{src},{},0::nat) \<mapsto> init_state_time] \<rbrakk> \<Longrightarrow> edka5 am init_state \<le> \<Down> Id (SPECT (emb isMaxFlow (enat (EdKa.edka_time c edka.shortest_path_time (EdKa_Res_Up.augment_with_path_time c matrix_lookup_time matrix_set_time)))))"
+  lemma  edka5_correct: "\<lbrakk>is_adj_map am; \<And>src. init_state src \<le> SPECT [ (False,[src\<mapsto>src],{src},{},0::nat) \<mapsto> init_state_time] \<rbrakk> \<Longrightarrow> edka5 am init_state \<le> \<Down> Id (SPECT (emb isMaxFlow (enat (EdKa.edka_time c edka.shortest_path_time (EdKa_Res_Up.augment_with_path_time c matrix_lookup_time matrix_set_time) init_graph_time))))"
     apply(rule order.trans) apply(rule edka5_refine) 
     using edka.edka4_correct by simp_all 
 

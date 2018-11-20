@@ -8,6 +8,7 @@ begin
     \<and> (\<forall>i<N. \<forall>j<M. l!(i*M+j) = c (i,j))
     \<and> (\<forall>i j. (i\<ge>N \<or> j\<ge>M) \<longrightarrow> c (i,j) = 0)))"
 
+(*
   lemma is_amtx_precise[safe_constraint_rules]: "precise (is_amtx N M)"
     apply rule
     unfolding is_amtx_def
@@ -19,6 +20,7 @@ begin
     apply (rename_tac i j)
     apply (case_tac "i<N"; case_tac "j<M"; simp)
     done *) sorry
+*)
     
   lemma is_amtx_bounded:
     shows "rdomp (is_amtx N M) m \<Longrightarrow> mtx_nonzero m \<subseteq> {0..<N}\<times>{0..<M}"
@@ -34,6 +36,45 @@ begin
 
 partial_function (heap) imp_for' :: "nat \<Rightarrow> nat \<Rightarrow> (nat \<Rightarrow> 'a \<Rightarrow> 'a Heap) \<Rightarrow> 'a \<Rightarrow> 'a Heap" where
   "imp_for' i u f s = (if i \<ge> u then return s else f i s \<bind> imp_for' (i + 1) u f)"
+
+declare imp_for'.simps[code]
+
+lemma imp_for'_simps[simp]:
+  "i \<ge> u \<Longrightarrow> imp_for' i u f s = return s"
+  "i < u \<Longrightarrow> imp_for' i u f s = f i s \<bind> imp_for' (i + 1) u f"
+  by (auto simp: imp_for'.simps)
+
+lemma "a=b \<Longrightarrow> timeCredit_assn a \<Longrightarrow>\<^sub>A timeCredit_assn b" by auto
+
+
+
+
+lemma imp_for'_rule:
+  assumes LESS: "l\<le>u" 
+  assumes STEP: "\<And>i s. \<lbrakk> l\<le>i; i<u \<rbrakk> \<Longrightarrow> <I i s * timeCredit_assn t> f i s <I (i+1)>\<^sub>t"
+  shows "<I l s * timeCredit_assn (t*(u-l)+1)> imp_for' l u f s <I u>\<^sub>t"
+  using LESS 
+proof (induction arbitrary: s rule: inc_induct)  
+  case base thus ?case by auto2
+next
+  case (step k)
+  then have f: "(t * (u - k)) = t + (t * (u - (k+1)))"  
+    by (metis Suc_diff_Suc add.assoc add.commute mult_Suc_right plus_1_eq_Suc)  
+  have s: "Suc k = k + 1" by simp
+  show ?case                 
+    using step.hyps 
+    by (sep_auto heap: STEP step.IH[unfolded s] simp: f simp del: add_Suc One_nat_def)  
+qed 
+
+
+lemma imp_for'_rule':
+  assumes LESS: "l\<le>u"
+  assumes PRE: "P \<Longrightarrow>\<^sub>A I l s * timeCredit_assn (t*(u-l)+1)"
+  assumes STEP: "\<And>i s. \<lbrakk> l\<le>i; i<u \<rbrakk> \<Longrightarrow> <I i s * timeCredit_assn t> f i s <I (i+1)>\<^sub>t"
+  shows "<P> imp_for' l u f s <I u>\<^sub>t"
+  apply (rule pre_rule[OF PRE])  
+  apply(rule imp_for'_rule) by fact+
+
 
   definition "mtx_tabulate N M c \<equiv> do {
     m \<leftarrow> Array.new (N*M) 0;
@@ -71,37 +112,93 @@ partial_function (heap) imp_for' :: "nat \<Rightarrow> nat \<Rightarrow> (nat \<
   lemma mtx_index_unique[simp]: "\<lbrakk>i<(N::nat); j<M; i'<N; j'<M\<rbrakk> \<Longrightarrow> i*M+j = i'*M+j' \<longleftrightarrow> i=i' \<and> j=j'"
     by (metis ab_semigroup_add_class.add.commute add_diff_cancel_right' div_if div_mult_self3 gr0I not_less0)
 
+
+  
+
 declare [[print_trace]]
-(*
+ 
+thm sep_heap_rules 
+thm sep_decon_rules 
+declare upd_rule [sep_heap_rules]
+
+thm upd_rule[no_vars]
+
+lemma upd_rule': "i < length xs \<Longrightarrow> <a \<mapsto>\<^sub>a xs * timeCredit_assn 1 > Array.upd i x a <\<lambda>r. a \<mapsto>\<^sub>a xs[i := x] * \<up> (r = a)>"
+  apply(rule pre_rule[OF _ upd_rule])  
+  by solve_entails
+
+
+lemma "\<And>x. x \<mapsto>\<^sub>a replicate (N * M) 0 * timeCredit_assn ((M * N * 9))  * timeCredit_assn (2) \<Longrightarrow>\<^sub>A x \<mapsto>\<^sub>a replicate (N * M) 0 * timeCredit_assn (Suc (Suc (9 * (N * M))))"
+  by (sep_auto) 
+
+
+lemma prod_split_rule: "(\<And>a b. x = (a, b) \<Longrightarrow> <P> f a b <Q>) \<Longrightarrow> <P> case x of (a, b) \<Rightarrow> f a b <Q>"
+  by(auto split: prod.split)
+ 
+
+lemma prod_case_simp[sep_dflt_simps]: "(case (a, b) of (c, d) \<Rightarrow> f c d) = f a b" by simp
+
+lemma Let_rule[sep_decon_rules]: "(\<And>x. x = t \<Longrightarrow> <P> f x <Q>) \<Longrightarrow> <P> Let t f <Q>" 
+  by simp
+
+lemma If_rule[sep_decon_rules]: "(b \<Longrightarrow> <P> f <Q>) \<Longrightarrow> (\<not> b \<Longrightarrow> <P> g <Q>) \<Longrightarrow> <P> if b then f else g <Q>"
+  by auto 
+
+
+lemma "\<And>ia j m ma.
+       ia * M + j < N * M \<Longrightarrow>
+       length ma = N * M \<Longrightarrow>
+       \<forall>i'<ia. \<forall>j<M. ma ! (i' * M + j) = c (i', j) \<Longrightarrow>
+       \<forall>j'<j. ma ! (ia * M + j') = c (ia, j') \<Longrightarrow>
+       Suc j < M \<Longrightarrow>
+       m \<mapsto>\<^sub>a ma[ia * M + j := c (ia, j)] * timeCredit_assn (Suc 0) \<Longrightarrow>\<^sub>A
+       \<exists>\<^sub>Ama. m \<mapsto>\<^sub>a ma * true * timeCredit_assn (Suc 0) * \<up> (length ma = N * M \<and> (\<forall>i'<ia. \<forall>j<M. ma ! (i' * M + j) = c (i', j)) \<and> (\<forall>j'<Suc j. ma ! (ia * M + j') = c (ia, j')))"
+
+      apply(tactic \<open>IF_EXGOAL (Seplogic_Auto.extract_ex_tac @{context}) 1\<close>)
+  oops
+
+
+lemmas [sep_eintros] = impI conjI exI
+ 
+
+
   lemma mtx_tabulate_rl[sep_heap_rules]:
     assumes NONZ: "mtx_nonzero c \<subseteq> {0..<N}\<times>{0..<M}"
-    shows "<timeCredit_assn (N*M*10+1)> mtx_tabulate N M c <IICF_Array_Matrix.is_amtx N M c>"
+    shows "<timeCredit_assn (N*M*3+3)> mtx_tabulate N M c <IICF_Array_Matrix.is_amtx N M c>\<^sub>t"
   proof (cases "M=0")
     case True thus ?thesis
       unfolding mtx_tabulate_def  
-      using mtx_nonzeroD[OF _ NONZ]  
-      apply simp apply auto2
-      by (sep_auto simp: is_amtx_def)
+      using mtx_nonzeroD[OF _ NONZ]
+      by (sep_auto simp: is_amtx_def zero_time simp del: add_Suc One_nat_def add_2_eq_Suc') 
   next
     case False hence M_POS: "0<M" by auto
     show ?thesis
       unfolding mtx_tabulate_def  
-      apply (sep_auto 
+apply (sep_auto 
         decon: 
-          imp_for'_rule[where 
+          imp_for'_rule'[where 
             I="\<lambda>k (i,j,mi). \<exists>\<^sub>Am. mi \<mapsto>\<^sub>a m 
             * \<up>( k=i*M+j \<and> j<M \<and> k\<le>N*M \<and> length m = N*M )
             * \<up>( \<forall>i'<i. \<forall>j<M. m!(i'*M+j) = c (i',j) )
-            * \<up>( \<forall>j'<j. m!(i*M+j') = c (i,j') )
-          "]
-        simp: nth_list_update M_POS dest: Suc_lessI
-      )
+            * \<up>( \<forall>j'<j. m!(i*M+j') = c (i,j') )* timeCredit_assn 1 " and t="2"
+          ]   
+        heap: upd_rule'
+        simp: nth_list_update M_POS dest: Suc_lessI simp del: One_nat_def add_2_eq_Suc'
+      ) (* the setup is wrong here, somehow I need to ensure that
+            within $ expressions, natural numbers are not rewritten,
+            but the simplification rules should be applied when solving side-conditions
+          *)
+         apply (auto  simp del: One_nat_def add_2_eq_Suc') [] apply auto[]
+          apply auto[]
+       apply (auto simp: nth_list_update M_POS dest: Suc_lessI)[]
+      apply (sep_auto)
       unfolding is_amtx_def
       using mtx_nonzeroD[OF _ NONZ] 
       apply sep_auto  
-      by (metis add.right_neutral M_POS mtx_idx_unique_conv)  
+      by (metis add.right_neutral M_POS mtx_idx_unique_conv) 
   qed
-*)
+  
+
 (*
   lemma mtx_copy_rl[sep_heap_rules]:
     "<is_amtx N M c mtx> amtx_copy mtx <\<lambda>r. is_amtx N M c mtx * is_amtx N M c r>"
@@ -138,10 +235,7 @@ lemma "i<   N \<Longrightarrow> map (\<lambda>i. k) [0..<N] ! i = k"
 @qed
 declare upt_zero_length [rewrite_arg]
 lemma "i<   N*M \<Longrightarrow> map (\<lambda>i. k) [0..<N*M] ! i = k"  by auto2
-
-lemma "(\<forall>i<N. \<forall>j<M. map (\<lambda>i. k) [0..<N * M] ! (i * M + j) = (if i < N \<and> j < M then k else 0))"
-  apply auto2 oops
-  thm nth_map
+ 
 
 
 lemma mtx_idx_valid[simp,backward]: "\<lbrakk>i < (N::nat); j < M\<rbrakk> \<Longrightarrow> i * M + j < N * M"
@@ -158,7 +252,7 @@ lemma "i<N \<Longrightarrow> j<M \<Longrightarrow>  map (\<lambda>i. k) [0..<N *
 
   lemma mtx_dflt_rl: "<timeCredit_assn (N*M+1)> amtx_dflt N M k <is_amtx N M (op_amtx_dfltNxM N M k)>"
     (* by (sep_auto simp: amtx_dflt_def is_amtx_def) *) 
-    apply auto2 sorry
+    by auto2
 
   lemma ij[backward]: "i<N \<Longrightarrow> j<M \<Longrightarrow> i * M + j < N* (M::nat)" by auto2
 
@@ -299,8 +393,7 @@ lemma mop_matrix_update_rule[sepref_fr_rules]:
   subgoal apply rotatel apply rotatel apply rotatel apply rotater apply rotater apply (rule match_first) apply simp
     apply(simp only: ex_distrib_star' pure_def hr_comp_def)
     apply(auto simp add: ex_distrib_star')
-    apply(rule ent_ex_postI[where x="m'(k' := v')"]) apply simp  
-      using entt_refl' by blast   
+    apply(rule ent_ex_postI[where x="m'(k' := v')"]) by simp   
   subgoal by simp
   done
  
@@ -321,8 +414,7 @@ lemma mop_matrix_get_rule[sepref_fr_rules]:
   subgoal 
     apply rotater  unfolding amtx_assn_def
       apply (simp add:  ) apply (simp add: pure_def  )    apply safe
-    apply(rule inst_ex_assn[where x="m' k'"]) apply (auto simp: )
-      using entt_refl' by blast    
+    apply(rule inst_ex_assn[where x="m' k'"]) by (auto simp: ) 
     subgoal by auto 
     done
 
@@ -350,28 +442,43 @@ lemma mop_matrix_get_rule[sepref_fr_rules]:
 
 
 
-context fixes N M :: nat begin
+context fixes N M :: nat
+    and t :: "nat \<Rightarrow> nat \<Rightarrow> nat"  
+    begin
 
-    definition "mop_amtx_new = (%c. RETURNT (op_amtx_new N M c))"
+    definition "mop_amtx_new c =  SPECT [op_amtx_new N M c \<mapsto> t N M] "
+
+
     sepref_register "mop_amtx_new"
 
 
   end
-                      
-  term mop_amtx_new
+
+
+  lemma is_amtx_impl_amtx_assn: "(xi, x) \<in> Id \<rightarrow> the_pure A \<Longrightarrow> is_amtx N M xi r \<Longrightarrow>\<^sub>A amtx_assn N M A x r"  
+    by (simp add: hr_compI mtx_rel_def amtx_assn_def)  
 
   lemma amtx_new_hnr[sepref_fr_rules]: 
     fixes A :: "'a::zero \<Rightarrow> 'b::{zero,heap} \<Rightarrow> assn"
     shows "CONSTRAINT (IS_PURE PRES_ZERO_UNIQUE) A \<Longrightarrow>
-    (mtx_tabulate N M, ( PR_CONST (mop_amtx_new N M)))
+      N*M*3+3 \<le> t N M    \<Longrightarrow>
+    (mtx_tabulate N M, ( PR_CONST (mop_amtx_new N M t)))
     \<in> [\<lambda>x. mtx_nonzero x \<subseteq> {0..<N} \<times> {0..<M}]\<^sub>a (pure (nat_rel \<times>\<^sub>r nat_rel \<rightarrow> the_pure A))\<^sup>k \<rightarrow> amtx_assn N M A"
-   (* using amtx_new_by_tab_hnr[of A N M] by simp *) sorry
-  
-
-lemma amtx_fold_custom_new:
-    "\<And>c. RETURNT (op_mtx_new c) =  mop_amtx_new N M c" by(auto simp: mop_amtx_new_def)
-
-
+    apply sepref_to_hoare
+    apply(rule hn_refine_preI)    
+    unfolding autoref_tag_defs constraint_abbrevs   mop_amtx_new_def 
+    subgoal for x xi
+      apply (rule extract_cost_otherway[OF _  mtx_tabulate_rl, where F = "\<up> ((xi, x) \<in> nat_rel \<times>\<^sub>r nat_rel \<rightarrow> the_pure A)"])
+         apply sep_auto
+          subgoal by (auto dest: mtx_nonzero_zu_eq)  
+      subgoal  apply sep_auto apply(rule isolate_first) apply(rule is_amtx_impl_amtx_assn) by auto  
+        subgoal by auto
+        done
+      done
+   
+    lemma amtx_fold_custom_new:
+        "\<And>c tt. SPECT [op_mtx_new c \<mapsto> tt N] =  mop_amtx_new N M (\<lambda>N M. tt N N) c" by(auto simp: mop_amtx_new_def)
+ 
 (*
   lemma [def_pat_rules]: "op_amtx_new$N$M \<equiv> UNPROTECT (op_amtx_new N M)" by simp
 

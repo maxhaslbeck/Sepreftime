@@ -14,6 +14,7 @@ subsection \<open>Algorithm\<close>
 locale EdKa = Network c s t for c :: "'capacity::linordered_idom graph" and s t +
   fixes shortestpath_time :: nat
     and augment_with_path_time :: nat 
+     and init_graph :: "nat \<Rightarrow> nat"
   assumes augment_progress: "0 \<noteq> enat shortestpath_time"
 begin
 
@@ -51,9 +52,9 @@ lemma augments: "\<And>f p. NFlow c s t f \<Longrightarrow> info f p \<Longright
 print_locale FoFu
 
 definition (in -) edka_time_aux   where
-  "edka_time_aux shortestpath_time augment_with_path_time cE cV  =   (shortestpath_time+augment_with_path_time) * (2 * cV * cE + cV + 1)"
+  "edka_time_aux shortestpath_time augment_with_path_time init_graph cE cV  = init_graph cV +  (shortestpath_time+augment_with_path_time) * (2 * cV * cE + cV + 1)"
 
-interpretation edka: FoFu c s t "edka_measure:: (nat \<times> nat \<Rightarrow> 'capacity) \<Rightarrow> nat" shortestpath_time augment_with_path_time "info :: (nat \<times> nat \<Rightarrow> 'capacity) \<Rightarrow> (nat \<times> nat) list \<Rightarrow> bool"
+interpretation edka: FoFu c s t "edka_measure:: (nat \<times> nat \<Rightarrow> 'capacity) \<Rightarrow> nat" shortestpath_time augment_with_path_time init_graph "info :: (nat \<times> nat \<Rightarrow> 'capacity) \<Rightarrow> (nat \<times> nat) list \<Rightarrow> bool"
   apply standard
   subgoal using NFlow.augmenting_path_imp_shortest info_def by blast 
   subgoal using edka_measure_decreases info_def augments by simp
@@ -77,7 +78,7 @@ text \<open>Next, we specify the Edmonds-Karp algorithm.
   Our first specification still uses partial correctness, 
   termination will be proved afterwards. \<close>  
 definition "edka_partial \<equiv> do {
-  f \<leftarrow> RETURNT (\<lambda>_. 0);
+  f \<leftarrow> SPECT [(\<lambda>_. 0) \<mapsto> init_graph (card V)];
 
   (f,_) \<leftarrow> whileT(*\<^bsup>fofu_invar\<^esup>*)
     (\<lambda>(f,brk). \<not>brk) 
@@ -131,7 +132,7 @@ subsubsection \<open>Total Correctness\<close>
  
 text \<open>We specify the total correct version of Edmonds-Karp algorithm.\<close>
 definition "edka \<equiv> do {
-  f \<leftarrow> RETURNT (\<lambda>_. 0);
+  f \<leftarrow> SPECT [(\<lambda>_. 0) \<mapsto> init_graph (card V)];
 
   (f,_) \<leftarrow> whileT(*\<^bsup>fofu_invar\<^esup>*)
     (\<lambda>(f,brk). \<not>brk) 
@@ -238,7 +239,7 @@ text \<open>Finally, we present a version of the Edmonds-Karp algorithm
   Note that we only count the non-breaking loop iterations.
   \<close>
 
-abbreviation "edka_time \<equiv> edka_time_aux shortestpath_time augment_with_path_time (card E) (card V)"
+abbreviation "edka_time \<equiv> edka_time_aux shortestpath_time augment_with_path_time init_graph (card E) (card V)"
 
 lemma maxFlow_time_ub: "edka.maxFlow_time \<le>  edka_time"
   unfolding edka.maxFlow_time_def edka_measure_def unfolding edka_time_aux_def

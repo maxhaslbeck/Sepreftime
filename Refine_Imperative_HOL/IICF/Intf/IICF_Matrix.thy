@@ -16,11 +16,11 @@ begin
   subsection \<open>Operations\<close>  
 
   definition op_mtx_new :: "'a mtx \<Rightarrow> 'a mtx" where [simp]: "op_mtx_new c \<equiv> c"
-(*
+ 
   sepref_decl_op (no_def) mtx_new: "op_mtx_new" :: "(nat_rel\<times>\<^sub>rnat_rel \<rightarrow> A) \<rightarrow> \<langle>A\<rangle>mtx_rel"
     apply (rule fref_ncI) unfolding op_mtx_new_def[abs_def] mtx_rel_def 
     by parametricity
-*)
+ 
   (* TODO: Ad-hoc rule *)
   lemma mtx_init_adhoc_frame_match_rule[sepref_frame_match_rules]:
     "hn_val (nat_rel\<times>\<^sub>rnat_rel \<rightarrow> A) x y \<Longrightarrow>\<^sub>t hn_val (nat_rel\<times>\<^sub>rnat_rel \<rightarrow> the_pure (pure A)) x y"

@@ -18,6 +18,7 @@ locale FoFu = Network c s t for c :: "'capacity::linordered_idom graph" and s t 
   fixes  R :: "(nat \<times> nat \<Rightarrow> 'capacity) \<Rightarrow> nat"
      and find_augmenting_time :: "nat "
      and augment_with_path_time :: "nat"
+     and init_graph :: "nat \<Rightarrow> nat"
      and special_info :: "(nat \<times> nat \<Rightarrow> 'capacity) \<Rightarrow> (nat \<times> nat) list \<Rightarrow> bool"
    assumes ff: "NFlow c s t a \<Longrightarrow>
  \<forall>x. \<not> special_info a x
@@ -61,7 +62,7 @@ fun (in FoFu) Te where "Te (f,brk) = (if brk then 0 else (find_augmenting_time +
 text \<open>Finally, we obtain the Ford-Fulkerson algorithm.
   Note that we annotate some assertions to ease later refinement\<close>
 definition (in FoFu) "fofu \<equiv> do {
-  f\<^sub>0 \<leftarrow> RETURNT (\<lambda>_. 0);
+  f\<^sub>0 \<leftarrow> SPECT [(\<lambda>_. 0) \<mapsto> init_graph (card V)];
 
   (f,_) \<leftarrow> whileIET fofu_invar Te
     (\<lambda>(f,brk). \<not>brk) 
@@ -114,7 +115,7 @@ text \<open>Finally, we can use the verification condition generator to
   show correctness\<close>
 
 
-definition (in FoFu) "maxFlow_time = enat ( (find_augmenting_time + augment_with_path_time) * (R (\<lambda>_. 0) + 1)) "
+definition (in FoFu) "maxFlow_time = enat ( init_graph (card V) + (find_augmenting_time + augment_with_path_time) * (R (\<lambda>_. 0) + 1)) "
 
 
 theorem (in FoFu)  fofu_partial_correct: "fofu \<le> SPECT (emb (\<lambda>f. isMaxFlow f) (maxFlow_time))"
