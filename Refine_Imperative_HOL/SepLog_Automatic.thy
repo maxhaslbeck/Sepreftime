@@ -123,12 +123,16 @@ lemma enorm_exI': (* Incomplete, as chosen x may depend on heap! *)
   by (metis ent_ex_postI)
 
 
+lemma s: "(\<exists>\<^sub>Ax. Q x) * R = (\<exists>\<^sub>Ax. Q x * R)" by auto
+lemma f: "\<up> a * \<up> b = \<up> (a \<and> b)" 
+  by (simp add: pure_conj)   
+
 lemma ent_false: "false \<Longrightarrow>\<^sub>A P" by simp  
 lemmas solve_ent_preprocess_simps = 
   ent_pure_post_iff ent_pure_post_iff_sng ent_pure_pre_iff ent_pure_pre_iff_sng
 lemmas ent_refl = entails_triv
 lemmas ent_triv = ent_true ent_false
-lemmas norm_assertion_simps = assn_one_left  time_credit_add[symmetric]
+lemmas norm_assertion_simps = assn_one_left  time_credit_add[symmetric] s f
 
 (*
 theorem solve_ent_preprocess_simps:
@@ -244,9 +248,11 @@ lemma frame_inference_finalize:
 
 subsection {* Entailment Solver *}
 lemma entails_solve_init:
+  "FI_QUERY P (Q*$T) true \<Longrightarrow> P \<Longrightarrow>\<^sub>A Q * true * $T"
   "FI_QUERY P Q true \<Longrightarrow> P \<Longrightarrow>\<^sub>A Q * true"
   "FI_QUERY P Q emp \<Longrightarrow> P \<Longrightarrow>\<^sub>A Q"
-  by (simp_all add: mult.assoc)  
+    apply (simp_all add: mult.assoc )   
+  by (simp add:  mult.commute)  
 
 lemma entails_solve_finalize:
   "FI_RESULT M P emp true"
@@ -274,6 +280,10 @@ lemma timeframe_inference_init:
 lemma timeframe_inference_init_normalize:
  "emp * $T\<Longrightarrow>\<^sub>A F * $T' \<Longrightarrow> $T\<Longrightarrow>\<^sub>A F * $T'"
   by auto
+
+
+lemma dollarD: "a = b \<Longrightarrow> $a \<Longrightarrow>\<^sub>A $b"
+  by simp
 
 
 ML \<open>
@@ -586,10 +596,11 @@ struct
       val ths = map snd (SepTimeSteps.split_nat ctxt ([], (a, b))); 
       val _ = length ths
       val _ =  let fun print thm = tracing (Thm.string_of_thm ctxt thm)
-          in map print ths end
+          in map print ths end 
    in
-         (if length ths > 0 then (EqSubst.eqsubst_tac ctxt [1] ths 
-                                    THEN' (resolve_tac ctxt @{thms refl})   ) 1 else no_tac) end 
+         (if length ths > 0 then let val _ = tracing "in" in (EqSubst.eqsubst_tac ctxt [1] ths 
+              THEN' FIRST' [ resolve_tac ctxt @{thms refl}, 
+                             SOLVED' (simp_tac (put_simpset HOL_ss ctxt  addsimps @{thms mult.commute})) ] ) 1 end else no_tac) end 
 
   fun split_nat_tac ctxt = Subgoal.FOCUS_PARAMS (fn {context = ctxt, ...} => ALLGOALS (
         SUBGOAL (fn (t, _) => case Logic.strip_imp_concl t of
@@ -635,11 +646,22 @@ struct
 
     val concl = Logic.concl_of_goal (Thm.prop_of st) i |> HOLogic.dest_Trueprop;
     val thm = count_ex concl;
+    val _ = tracing (Thm.string_of_thm ctxt thm);
   in
     (TRY o REPEAT_ALL_NEW (match_tac ctxt @{thms ent_ex_preI}) THEN'
      resolve_tac ctxt [thm]) i st
   end;
 
+  fun print_tac ctxt i st =
+    let val _ = tracing ("..>");
+        val _ = tracing (Thm.string_of_thm ctxt st)
+    in all_tac st end
+
+  fun atom_solve_tac ctxt = 
+        FIRST' [ resolve_tac ctxt @{thms ent_refl},
+                 SOLVED' ( resolve_tac ctxt @{thms dollarD} THEN'
+                             (SELECT_GOAL (auto_tac ctxt))  )
+               ]  
 
   (* Solve Entailment *)
   fun solve_entails_tac ctxt = let
@@ -651,13 +673,13 @@ struct
 
     val match_entails_tac =
       resolve_tac ctxt @{thms entails_solve_init} 
-      THEN' match_frame_tac (resolve_tac ctxt @{thms ent_refl}) ctxt
+      THEN' match_frame_tac (atom_solve_tac ctxt)  ctxt
       THEN' resolve_tac ctxt @{thms entails_solve_finalize};
   in
     preprocess_entails_tac
     THEN' (TRY o
       REPEAT_ALL_NEW (match_tac ctxt (rev (Named_Theorems.get ctxt @{named_theorems sep_eintros}))))
-    THEN_ALL_NEW (dflt_tac ctxt THEN' 
+    THEN_ALL_NEW (print_tac ctxt THEN' dflt_tac ctxt THEN'                                             
       TRY o (match_tac ctxt @{thms ent_triv} 
         ORELSE' resolve_tac ctxt @{thms ent_refl}
         ORELSE' match_entails_tac))
@@ -668,7 +690,7 @@ struct
   (* Verification Condition Generator*)
   (***********************************)
 
-  fun heap_rule_tac ctxt h_thms = let val _ = tracing "here" in
+  fun heap_rule_tac ctxt h_thms = let val _ = tracing "here heap_rule_tac" in
     resolve_tac ctxt h_thms ORELSE' (
     resolve_tac ctxt @{thms fi_rule} THEN' (resolve_tac ctxt h_thms THEN_IGNORE_NEWGOALS
     ( dflt_tac ctxt THEN'  time2_frame_inference_tac ctxt) )) end;                                          
@@ -697,7 +719,7 @@ struct
   end;
 
   fun vcg_tac ctxt = REPEAT_DETERM' (vcg_step_tac ctxt)
-                                         
+                                          
 
   (***********************************)
   (*        Automatic Solver         *)
@@ -757,7 +779,53 @@ method_setup timeframeinf = {*
 simproc_setup assn_simproc 
   ( "h \<Turnstile> P" | "P\<Longrightarrow>\<^sub>AQ" | "P\<Longrightarrow>\<^sub>tQ" | "(P::assn) = Q" ) 
   = {*K Seplogic_Auto.assn_simproc_fun*}
- 
+
+
+
+lemma " P * $ 1 \<Longrightarrow>\<^sub>A P * true * $ 1"
+  by (solve_entails)
+
+thm enorm_exI'
+lemma "QA \<Longrightarrow> (P \<Longrightarrow>\<^sub>A \<exists>\<^sub>Ax. Q x)"
+      apply(tactic \<open>IF_EXGOAL (Seplogic_Auto.extract_ex_tac @{context}) 1\<close>)
+  oops
+
+
+
+lemma "\<And>x. x \<mapsto>\<^sub>a replicate (N * M) 0 * timeCredit_assn ((M * N * 9))  * timeCredit_assn (2) \<Longrightarrow>\<^sub>A x \<mapsto>\<^sub>a replicate (N * M) 0 * timeCredit_assn (Suc (Suc (9 * (N * M))))"
+  by (solve_entails)
+
+
+declare entt_refl' [simp]
+
+lemma "\<And>x. M = 0 \<Longrightarrow> (\<And>j i. c (i, j) = 0) \<Longrightarrow> x \<mapsto>\<^sub>a [] \<Longrightarrow>\<^sub>A \<exists>\<^sub>Al. x \<mapsto>\<^sub>a l * true * \<up> (l = []) "
+  apply(sep_auto)  
+  done
+
+
+
+schematic_goal "timeCredit_assn (B* A * 10 + 3) \<Longrightarrow>\<^sub>A ?F1 * timeCredit_assn (B* A + 1)"
+  by timeframeinf  
+
+schematic_goal "timeCredit_assn (B* A * 10 + 3) \<Longrightarrow>\<^sub>A ?F1 * timeCredit_assn (B* A + 1)"
+  
+       apply(rule timeframe_inference_init_normalize)
+       apply(rule timeframe_inference_init)
+      apply(rule TI_QUERYD)
+    apply(tactic \<open>Seplogic_Auto.split_nat_tac @{context} 1\<close>)  
+   oops
+
+
+schematic_goal "timeCredit_assn (A* B * 10 + 3) \<Longrightarrow>\<^sub>A ?F1 * timeCredit_assn (A* B + 1)"
+  
+       apply(rule timeframe_inference_init_normalize)
+       apply(rule timeframe_inference_init)
+      apply(rule TI_QUERYD)
+    apply(tactic \<open>Seplogic_Auto.split_nat_tac @{context} 1\<close>)
+   oops
+
+
+
 (* timeframeinf can solve problems of that form: A * $T \<Longrightarrow>\<^sub>A B * ?F * $T' *)
 schematic_goal "\<up> (i < length xs) * a \<mapsto>\<^sub>a xs *  $2  \<Longrightarrow>\<^sub>A a \<mapsto>\<^sub>a xs * ?F * $1"  
   by timeframeinf
@@ -781,6 +849,8 @@ context begin
     done
 end 
 
+
+thm sep_eintros
 
 
 lemma ureturn_rule[sep_decon_rules]: "<P> ureturn x <\<lambda>r. P * \<up>(r = x)>" 

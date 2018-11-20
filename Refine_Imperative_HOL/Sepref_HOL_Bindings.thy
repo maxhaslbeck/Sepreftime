@@ -359,7 +359,7 @@ lemma b_assn_subtyping_match_tL[sepref_frame_match_rules]:
 lemma b_assn_subtyping_match_eqA_tR[sepref_frame_match_rules]: 
   "hn_ctxt (b_assn A P) x y \<Longrightarrow>\<^sub>t hn_ctxt A x y"
   unfolding hn_ctxt_def b_assn_def
-  apply (auto intro!: enttI  ) by(rule ent_true_drop entails_triv)+
+  by (auto intro!: enttI  ) 
 
 lemma b_assn_subtyping_match_eqA_tL[sepref_frame_match_rules]:
   assumes "\<lbrakk>vassn_tag (hn_ctxt A x y)\<rbrakk> \<Longrightarrow> P' x"
@@ -882,7 +882,7 @@ lemma hn_Some[sepref_fr_rules]: "hn_refine
   (option_assn P)
   (RETURNT$(Some$v))"
   apply (auto simp: hn_refine_def relH_def invalid_assn_def zero_enat_def execute_ureturn hn_ctxt_def invalidate_clone')
-  apply(rule entailsD) apply auto apply (rule match_rest) by simp
+  apply(rule entailsD) by auto  
 
 definition "imp_option_eq eq a b \<equiv> case (a,b) of 
   (None,None) \<Rightarrow> return True
