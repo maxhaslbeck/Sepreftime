@@ -116,14 +116,10 @@ lemma imp_for'_rule':
   
 
 declare [[print_trace]]
+  
  
-thm sep_heap_rules 
-thm sep_decon_rules 
-declare upd_rule [sep_heap_rules]
 
-thm upd_rule[no_vars]
-
-lemma upd_rule': "i < length xs \<Longrightarrow> <a \<mapsto>\<^sub>a xs * timeCredit_assn 1 > Array.upd i x a <\<lambda>r. a \<mapsto>\<^sub>a xs[i := x] * \<up> (r = a)>"
+lemma upd_rule'[sep_heap_rules]: "i < length xs \<Longrightarrow> <a \<mapsto>\<^sub>a xs * timeCredit_assn 1 > Array.upd i x a <\<lambda>r. a \<mapsto>\<^sub>a xs[i := x] * \<up> (r = a)>"
   apply(rule pre_rule[OF _ upd_rule])  
   by solve_entails
 
@@ -181,8 +177,7 @@ apply (sep_auto
             * \<up>( k=i*M+j \<and> j<M \<and> k\<le>N*M \<and> length m = N*M )
             * \<up>( \<forall>i'<i. \<forall>j<M. m!(i'*M+j) = c (i',j) )
             * \<up>( \<forall>j'<j. m!(i*M+j') = c (i,j') )* timeCredit_assn 1 " and t="2"
-          ]   
-        heap: upd_rule'
+          ]    
         simp: nth_list_update M_POS dest: Suc_lessI simp del: One_nat_def add_2_eq_Suc'
       ) (* the setup is wrong here, somehow I need to ensure that
             within $ expressions, natural numbers are not rewritten,
@@ -278,10 +273,11 @@ lemma a[rewrite]: "length l = N * M \<Longrightarrow> ia<N \<Longrightarrow> ja<
 @qed 
 
   thm nth_list_update
-  
+  thm sep_heap_rules
   lemma mtx_set_rl': "\<lbrakk>i<N; j<M \<rbrakk> 
     \<Longrightarrow> <timeCredit_assn 1 * is_amtx N M c mtx> mtx_set M mtx (i,j) v <\<lambda>r. is_amtx N M (c((i,j) := v)) r>"
-    apply auto2 sorry
+    unfolding mtx_set_def is_amtx_def
+    by (sep_auto simp del: One_nat_def) 
 
   lemma mtx_set_rl: "\<lbrakk>fst k<N; snd k<M \<rbrakk> 
     \<Longrightarrow> <timeCredit_assn 1 * is_amtx N M c mtx> mtx_set M mtx k v <\<lambda>r. is_amtx N M (c(k := v)) r>"
