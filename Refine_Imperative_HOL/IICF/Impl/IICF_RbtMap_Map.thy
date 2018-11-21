@@ -142,32 +142,13 @@ thm rbt_search
 definition "map_lookup m k = do {
                   v \<leftarrow> rbt_search k m;
                   return (the v) }"
- 
-
-lemma s[resolve]: "x \<in> dom M \<Longrightarrow> M = meval Ma \<Longrightarrow>  v = Ma\<langle>x\<rangle> \<Longrightarrow> xa = the v \<Longrightarrow> xa =
-                     the (M x)"  
-  by simp
-
-thm return_rule
-thm SepAuto.return_rule
-theorem map_lookup_rule [hoare_triple]:
-  "x\<in>dom M \<Longrightarrow> <rbt_map_map_assn M m * $ (rbt_search_time_logN (sizeM1' M)+1)>
-           map_lookup m x  
-   <\<lambda>r. rbt_map_map_assn M m * \<up>(r=the (M x))>\<^sub>t"
-  unfolding map_dom_member_def
-  apply auto2  sorry
 
 theorem map_lookup_rule [hoare_triple]:
   "x\<in>dom M \<Longrightarrow> <rbt_map_map_assn M m * $ (rbt_search_time_logN (sizeM1' M)+1)>
            map_lookup m x  
    <\<lambda>r. rbt_map_map_assn M m * \<up>(r=the (M x))>\<^sub>t"
-  unfolding map_lookup_def  rbt_map_map_assn_def 
-  apply(rule bind_rule) 
-   apply(rule pre_rule[OF _ frame_rule[OF rbt_search]] )
-  apply(rule match_first)
-  apply(rule frame_rule[OF)
-  unfolding map_dom_member_def
-  apply auto2  oops
+  unfolding map_lookup_def  rbt_map_map_assn_def  
+  by (sep_auto simp del: One_nat_def heap: rbt_search simp: sizeM1'_sizeM1 zero_time)  
 
 
 
