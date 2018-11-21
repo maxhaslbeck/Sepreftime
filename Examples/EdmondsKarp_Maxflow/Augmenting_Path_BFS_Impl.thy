@@ -187,6 +187,6 @@ declare rbt_delete_time_logN_mono [intro]
   
   end
 
-  export_code bfs_impl checking SML_imp
+(*  export_code bfs_impl checking SML_imp *)
 
 end

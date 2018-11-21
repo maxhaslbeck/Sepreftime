@@ -51,8 +51,20 @@ begin
       IdI[of t]
       IdI[of c]
 
+
+  
+lemma hn_refineI: 
+  shows "tt = enat ttt ==> <\<Gamma> * $ttt> C <\<lambda>r. \<Gamma>' *  RR ra r>\<^sub>t \<Longrightarrow> hn_refine \<Gamma> C \<Gamma>'  RR (SPECT [ra \<mapsto> tt])"
+    apply(rule extract_cost_otherway[where F=emp and Cost_lb=ttt and G=" \<Gamma> * $ ttt"]) 
+     apply solve_entails apply simp  apply simp apply solve_entails by simp
+lemma RETURNT_SPECT_conv: "RETURNT r = SPECT [r \<mapsto> 0]" unfolding RETURNT_def by auto
+
+
+
     lemma [sepref_fr_rules]: "(uncurry0 (ureturn c),uncurry0 (RETURNT c))\<in>unit_assn\<^sup>k \<rightarrow>\<^sub>a pure (nat_rel\<times>\<^sub>rnat_rel \<rightarrow> int_rel)"
-      sorry (*  apply sepref_to_hoare by sep_auto  *)
+      apply sepref_to_hoare unfolding RETURNT_SPECT_conv
+      apply(rule hn_refineI) apply(simp add: zero_enat_def)       
+      by sep_auto 
 
 
     subsubsection \<open>Implementation of Adjacency Map by Array\<close>  
@@ -79,42 +91,44 @@ begin
 
     sepref_register "ps_get_op" :: "i_ps \<Rightarrow> node \<Rightarrow> node list nrest"
 
-    thm extract_cost_otherway
+    thm extract_cost_otherway  
+ 
 
     lemma ps_get_op_refine[sepref_fr_rules]:       
       "(uncurry ps_get_imp, uncurry (PR_CONST ps_get_op)) 
         \<in> is_am\<^sup>k *\<^sub>a (pure Id)\<^sup>k \<rightarrow>\<^sub>a list_assn (pure Id)"
       unfolding list_assn_pure_conv ps_get_op_def
       apply sepref_to_hoare
-      using V_ss      
-      unfolding autoref_tag_defs    apply simp                      
-      apply(rule hnr_ASSERT)             
-      unfolding is_am_def   ps_get_imp_def  ps_get_op_def 
-      apply(rule hn_refine_cons_pre) unfolding entailst_def 
-      apply (rule extract_cost_otherway[OF _ nth_rule] )
-      apply auto[]
-      
-      apply (sep_auto simp:  
-            simp: is_am_def pure_def ps_get_imp_def 
-            simp: ps_get_op_def refine_pw_simps)
-      subgoal for b a ai h as n l apply(cases "b<length l")
-        apply(subst Array.execute_nth(1)) apply simp
-        sorry
+      unfolding autoref_tag_defs                   
+      apply(rule hnr_ASSERT)   
+      apply(rule hn_refineI) apply(simp add: one_enat_def del: One_nat_def)
+      using V_ss by (sep_auto simp: ps_get_imp_def is_am_def simp del: One_nat_def) 
+
+
 
     lemma is_pred_succ_no_node: "\<lbrakk>is_adj_map a; u\<notin>V\<rbrakk> \<Longrightarrow> a u = []"
       unfolding is_adj_map_def V_def
       by auto
 
+    abbreviation "am_init_time == (N+1::nat)"
+
+    thm make_rule
+    declare make_rule [sep_heap_rules]
 
           (* TODO here, init_ps has no cost, that is wrong! *)
-    lemma [sepref_fr_rules]: "(Array.make N, PR_CONST init_ps) 
+    lemma [sepref_fr_rules]: "(Array.make N, PR_CONST (init_ps am_init_time)) 
       \<in> (pure Id)\<^sup>k \<rightarrow>\<^sub>a is_am" 
-      apply sepref_to_hoare
+      unfolding init_ps_def  
+      apply sepref_to_hoare       
+      unfolding autoref_tag_defs            
+      apply(rule hnr_ASSERT)      
+      apply(rule hn_refineI) apply (simp del: One_nat_def)
       using V_ss
-      apply (sep_auto simp: init_ps_def refine_pw_simps is_am_def pure_def
-        intro: is_pred_succ_no_node) sorry
+      by (sep_auto simp: init_ps_def refine_pw_simps is_am_def pure_def
+        intro: is_pred_succ_no_node simp del: One_nat_def)  
 
-    sepref_register "init_ps" :: "(node \<Rightarrow> node list) \<Rightarrow> i_ps nrest"
+
+    sepref_register "init_ps am_init_time" :: "(node \<Rightarrow> node list) \<Rightarrow> i_ps nrest"
 
     abbreviation "matrix_lookup_time == 1::nat" 
     abbreviation "matrix_set_time == 1::nat" 
@@ -247,10 +261,13 @@ lemma "card V\<le>N"
 
     lemma [sepref_fr_rules]: 
       "(\<lambda>cfi. ureturn cfi, PR_CONST compute_rflow) \<in> (asmtx_assn N id_assn)\<^sup>d \<rightarrow>\<^sub>a is_rflow N"
-      unfolding amtx_cnv
-      apply sepref_to_hoare
-      apply (sep_auto simp: amtx_cnv compute_rflow_def is_rflow_def refine_pw_simps hn_ctxt_def)
-      sorry
+      unfolding amtx_cnv compute_rflow_def
+      apply sepref_to_hoare 
+      unfolding autoref_tag_defs 
+      apply(rule hnr_ASSERT)      unfolding RETURNT_SPECT_conv
+      apply(rule hn_refineI) apply (simp add: zero_enat_def del: Zero_nat_def)
+      by (sep_auto simp: amtx_cnv compute_rflow_def is_rflow_def refine_pw_simps hn_ctxt_def)
+       
 
     sepref_register 
       "compute_rflow" :: "capacity_impl i_mtx \<Rightarrow> i_rflow nrest"
@@ -427,7 +444,7 @@ lemma "card V\<le>N"
       notes [id_rules] = 
         itypeI[Pure.of am "TYPE(node \<Rightarrow> node list)"]
       notes [sepref_import_param] = IdI[of am]
-      shows "hn_refine (emp) (?c::?'c Heap) ?\<Gamma> ?R (edka5_tabulate graph_init_time am )"
+      shows "hn_refine (emp) (?c::?'c Heap) ?\<Gamma> ?R (edka5_tabulate graph_init_time am_init_time am )"
       unfolding edka5_tabulate_def 
       using [[id_debug, goals_limit = 1]]
       by sepref
@@ -442,22 +459,22 @@ lemma "card V\<le>N"
     thm edka_imp_tabulate.refine[OF this_loc]
     thm hn_refine_cons[OF _ edka_imp_tabulate.refine[OF this_loc]]
     lemma edka_imp_tabulate_refine[sepref_fr_rules]: 
-      "(edka_imp_tabulate c N, PR_CONST (edka5_tabulate graph_init_time) ) 
+      "(edka_imp_tabulate c N, PR_CONST (edka5_tabulate graph_init_time am_init_time) ) 
       \<in> (pure Id)\<^sup>k \<rightarrow>\<^sub>a prod_assn (asmtx_assn N id_assn) is_am"
       apply (rule)
       apply (rule hn_refine_preI)
       apply (clarsimp 
         simp: uncurry_def list_assn_pure_conv hn_ctxt_def 
-        split: prod.split)
+        split: prod.split simp del: One_nat_def)
 
       (* TODO, models_id_assnD is too specific, should be solved by clarsimp \<rightarrow> simp set?! *)
-      apply (drule models_id_assnD)  apply clarsimp
+      apply (drule models_id_assnD)  apply (clarsimp simp del: One_nat_def)
 
       apply (rule hn_refine_cons[OF _ edka_imp_tabulate.refine[OF this_loc]])
       apply (sep_auto simp: hn_ctxt_def pure_def)+
       done
  
-    sepref_register "edka5_tabulate graph_init_time"
+    sepref_register "edka5_tabulate graph_init_time am_init_time"
       :: "(node \<Rightarrow> node list) \<Rightarrow> (capacity_impl i_mtx \<times> i_ps) nrest"
 
     term bfs.init_state
@@ -476,6 +493,7 @@ sublocale edkatab: EdKa_Tab  c s t
   matrix_lookup_time 
   matrix_set_time  
 graph_init_time
+am_init_time
       apply unfold_locales unfolding bfs.set_pick_time_def by auto
 
     definition "edka5_run cf am = edkatab.edka5_run cf am bfs.init_state"
@@ -522,9 +540,11 @@ lemma edkatab_bfs2_op_conv: "edkatab.bfs2_op am cf bfs.init_state = bfs2_op am c
 
     definition "edka5 am = edkatab.edka5 am bfs.init_state"
  
+abbreviation "prepare_time == (\<lambda>n. graph_init_time n + am_init_time)"
+
 
     lemma edka5_correct': "is_adj_map am \<Longrightarrow>
-        edka5 am \<le> \<Down> Id (SPECT (emb isMaxFlow (enat (EdKa.edka_time c edkatab.edka.shortest_path_time edkatab.edka.edru.augment_with_path_time graph_init_time))))"
+        edka5 am \<le> \<Down> Id (SPECT (emb isMaxFlow (enat (EdKa.edka_time c edkatab.edka.shortest_path_time edkatab.edka.edru.augment_with_path_time prepare_time))))"
       unfolding edka5_def apply(rule edkatab.edka5_correct)
        apply simp using bfs.init_state_correct by simp
  
@@ -564,7 +584,7 @@ lemma "foo" using edka5_correct'
 
 
 definition edka_cost :: "nat \<times> nat \<Rightarrow> nat" 
-    where "edka_cost = (\<lambda>(cV,cE). 3 * cV * cV + 3 + (3 + rbt_insert_logN 1 + rbt_insert_logN 1 + 10 +
+    where "edka_cost = (\<lambda>(cV,cE). 3 * cV * cV + 3 + cV + 1 + (3 + rbt_insert_logN 1 + rbt_insert_logN 1 + 10 +
      (2 * cE *
       (rbt_search_time_logN (1 + cV) + 1 + (rbt_insert_logN (cV + 1) + rbt_insert_logN (1 + cV) + Suc 0) + (1 + 1) + (10 + rbt_delete_time_logN (cV + 1) + 2 + 2 * 10 + 10) + (1 + 1)) +
       (10 + rbt_delete_time_logN (cV + 1) + 2 + 2 * 10 + 10)) +
@@ -572,8 +592,8 @@ definition edka_cost :: "nat \<times> nat \<Rightarrow> nat"
      (1 + (1 + 10) * cV + (1 + cV * (2 * 1 + 2 * 1 + 3)))) *
     (2 * cV * cE + cV + 1) )"
 
-lemma edka_cost_simp: "edka_cost (cV,cE) =  3 +
-    (3 * cV * cV + 
+lemma edka_cost_simp: "edka_cost (cV,cE) =  4 +
+    (3 * cV * cV + cV +  
           (57 +
            (20 * cV +
             (2 * rbt_insert_logN (1 + 0) +
@@ -596,7 +616,7 @@ context Network_Impl begin
       from VN have NN: "N = card (Graph.V c)" by simp
       interpret Edka_Impl by unfold_locales fact
 
-      let ?t = "((edka_time_aux edkatab.edka.shortest_path_time edkatab.edka.edru.augment_with_path_time graph_init_time (card E) (card V) ))"
+      let ?t = "((edka_time_aux edkatab.edka.shortest_path_time edkatab.edka.edru.augment_with_path_time prepare_time (card E) (card V) ))"
 
       note edka5_correct'[OF ABS_PS] 
       then have t: "edka5 am \<le> SPECT (emb isMaxFlow (enat ?t))" by simp
