@@ -556,13 +556,6 @@ proof -
     by (simp add: distrib_left)
   finally show ?thesis by auto
 qed
-
-
-(*
-lemma Te_start_ub': "(Te src (False, [src \<mapsto> src], {src}, {}, 0)) \<le> pre_bfs_time' src"
-  apply (simp add: Te_def pre_bfs_time'_def) sorry
-  *)   
-      (* (f,PRED,C,N,d) *)
   
   lemma TeTF_[simp]: "(Te src (True, a1, b1, c1, d1) \<le>  Te src (False, x, y, z, f)) \<longleftrightarrow> True"
       unfolding Te_def by simp 
@@ -613,10 +606,6 @@ proof -
     subgoal
       by (metis IntE Suc_n_not_le_n \<open>N = pre_bfs_invar.Vd c src (d + 1) \<inter> E `` (pre_bfs_invar.Vd c src d - C)\<close> assms(1) assms(2) nf_invar.inPREDD pre_bfs_invar.in_Vd_conv)  
     done
-  (*
-  have "pre_bfs_invar.Vd c src (Suc d) = (N \<union> (E `` {x} - dom PRED))"
-    unfolding nf_invar'.N_eq[OF assms(1)[unfolded nf_invar_def, THEN conjunct1]] assms(2)
-    apply simp using pre_bfs_invar.Vdsucinter_conv sledgehammer sorry *)
 
   have k: "Vvisited src (N \<union> (E `` {x} - dom PRED)) (Suc d)
       = Vvisited src {} d"
