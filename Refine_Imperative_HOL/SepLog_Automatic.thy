@@ -270,8 +270,8 @@ named_theorems sep_decon_rules "Seplogic: VCG deconstruct rules"
 subsection {* Frame Inference *}
 lemma timeframe_inference_init:
   assumes
+      "FI_QUERY P Q FH"   (* first do frame inference in order to instatiate schematics! *)
       "TI_QUERY T T' FT"
-      "FI_QUERY P Q FH"
       "F = FH * $FT"
   shows "P * $T\<Longrightarrow>\<^sub>A (Q * F) * $T'"
   using assms apply (simp add: time_credit_add mult.assoc)
@@ -619,16 +619,17 @@ struct
     TRY o resolve_tac ctxt @{thms timeframe_inference_init_normalize}
     THEN' 
     resolve_tac ctxt @{thms timeframe_inference_init} 
+    (* normal frame inference *)
+    THEN' match_frame_tac (resolve_tac ctxt @{thms ent_refl}) ctxt
+    THEN' resolve_tac ctxt @{thms frame_inference_finalize}
+
     (* time_frame inference *) 
     THEN'  TRY o (EqSubst.eqsubst_tac ctxt [0] @{thms One_nat_def[symmetric]} ) 
     THEN' (resolve_tac ctxt @{thms TI_QUERYD})
     THEN' SOLVED' (split_nat_tac ctxt)
-
-    (* normal frame inference *)
-    THEN' match_frame_tac (resolve_tac ctxt @{thms ent_refl}) ctxt
-    THEN' resolve_tac ctxt @{thms frame_inference_finalize}
  
     THEN' resolve_tac ctxt @{thms refl}  
+
     ;
 
 
@@ -806,24 +807,7 @@ lemma "\<And>x. M = 0 \<Longrightarrow> (\<And>j i. c (i, j) = 0) \<Longrightarr
 
 schematic_goal "timeCredit_assn (B* A * 10 + 3) \<Longrightarrow>\<^sub>A ?F1 * timeCredit_assn (B* A + 1)"
   by timeframeinf  
-
-schematic_goal "timeCredit_assn (B* A * 10 + 3) \<Longrightarrow>\<^sub>A ?F1 * timeCredit_assn (B* A + 1)"
-  
-       apply(rule timeframe_inference_init_normalize)
-       apply(rule timeframe_inference_init)
-      apply(rule TI_QUERYD)
-    apply(tactic \<open>Seplogic_Auto.split_nat_tac @{context} 1\<close>)  
-   oops
-
-
-schematic_goal "timeCredit_assn (A* B * 10 + 3) \<Longrightarrow>\<^sub>A ?F1 * timeCredit_assn (A* B + 1)"
-  
-       apply(rule timeframe_inference_init_normalize)
-       apply(rule timeframe_inference_init)
-      apply(rule TI_QUERYD)
-    apply(tactic \<open>Seplogic_Auto.split_nat_tac @{context} 1\<close>)
-   oops
-
+ 
 
 
 (* timeframeinf can solve problems of that form: A * $T \<Longrightarrow>\<^sub>A B * ?F * $T' *)
