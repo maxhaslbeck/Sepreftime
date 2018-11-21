@@ -93,8 +93,7 @@ lemma hn_ctxt_triple'': "\<And>A B C .
 
 lemma hn_ctxt_triple': "hn_val Id as as * (hn_val Id x x' * hn_ctxt rbt_map_assn' xa S') \<Longrightarrow>\<^sub>A
        hn_ctxt (\<lambda>(c1, c2, c3) (a1, a2, a3). pure Id c1 a1 * (pure Id c2 a2 * rbt_map_assn' c3 a3)) (as, x, xa) (as, x', S')"
-  unfolding hn_ctxt_def apply simp 
-  by (simp add: entails_triv) 
+  unfolding hn_ctxt_def by simp  
 
 
 

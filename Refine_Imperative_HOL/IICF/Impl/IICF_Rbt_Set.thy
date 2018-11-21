@@ -28,11 +28,6 @@ definition set_init_t :: "nat" where "set_init_t = 1"
 definition set_init_SPEC :: "nat set nrest" where
   "set_init_SPEC \<equiv> SPECT [{} \<mapsto> set_init_t ]"
 
-(*
-lemma set_init_hnr:
-  "hn_refine (emp) tree_empty emp rbt_map_assn (\<Down>Z (set_init_SPEC))"
-  sorry *)
-
 definition rbt_map_assn' where "rbt_map_assn' a c =
         (\<exists>\<^sub>AM. rbt_map_assn M c * \<up>((M,a)\<in>Z))"
 
@@ -267,11 +262,6 @@ definition set_ins_t :: "nat\<Rightarrow>nat" where "set_ins_t n = rbt_insert_lo
 definition set_ins_SPEC where
   "set_ins_SPEC x S \<equiv> SPECT [insert x S \<mapsto> set_ins_t (card S)]"
 
-(*
-lemma set_ins_hnr:
-  "hn_refine (rbt_map_assn M p) (rbt_insert x () p) emp rbt_map_assn (\<Down>Z (set_ins_SPEC x S))"
-  sorry *)
-
 lemma ent_ex: "(\<And>x. P x \<Longrightarrow>\<^sub>A Q) \<Longrightarrow> (\<exists>\<^sub>Ax. P x) \<Longrightarrow>\<^sub>A Q"
   by (meson entails_ex) 
 
@@ -280,10 +270,7 @@ lemma isolate_first: "\<And>A B C. \<Gamma> \<Longrightarrow>\<^sub>A \<Gamma>' 
   by (simp add: ent_star_mono)  
 
 lemma inZ_conv: "(M, S) \<in> Z \<longleftrightarrow> (S = keys_of M)" unfolding Z_def by auto
-(*
-lemma set_ins_hnr':
-  "hn_refine (rbt_map_assn' S p * hn_val Id x x') (rbt_insert x' () p) (hn_val Id x x') rbt_map_assn' (set_ins_SPEC x S)"
-  sorry *)
+
 
 lemma set_ins_hnr_abs:
   "hn_refine (rbt_set_assn S p * hn_val Id x x') (rbt_set_insert x' p) (hn_val Id x x') rbt_set_assn (set_ins_SPEC x S)"
@@ -310,33 +297,10 @@ definition set_mem_SPEC :: "'a \<Rightarrow> 'a set \<Rightarrow> bool nrest" wh
 
 definition Y :: "(unit option \<times> bool) set" where
     "Y = {(c,a)|c a. c = Some () \<longleftrightarrow> a}"
-(*
-lemma set_mem_hnr:
-  "hn_refine (rbt_map_assn M p) (rbt_search x p) (rbt_map_assn M p) (pure Id) (\<Down>Y (set_mem_SPEC x S))"
-  sorry *)
 
 definition Y' :: "bool \<Rightarrow> unit option \<Rightarrow> assn" where
   "Y' b v = \<up>(  v = Some () \<longleftrightarrow> b )"
-
-(*
-lemma set_mem_hnr':
-  "hn_refine (rbt_map_assn' S p * hn_val Id x x') (rbt_search (x'::nat) p) (rbt_map_assn' S p * hn_val Id x x') Y' ( (set_mem_SPEC x S))"
-  sorry  *)
-(*
-lemma set_mem_hnr_abs:
-  "hn_refine (rbt_set_assn S p * hn_val Id x x') (rbt_search (x'::nat) p) (rbt_set_assn S p * hn_val Id x x') Y' ( (set_mem_SPEC x S))"
-  unfolding set_mem_SPEC_def
-  apply (rule extract_cost_otherway[OF _  rbt_search_abs ]) unfolding mult.assoc
-    apply(rule match_first)
-    apply rotatel apply(rule match_first) apply (rule entails_triv)
-
-   apply(rule match_first) 
-  apply(rule fl') unfolding hn_ctxt_def pure_def apply rotatel
-  apply(rule fl')  apply(rule fl_) apply(simp only: ex_distrib_star[symmetric])
-    apply(rule inst_ex_assn) unfolding Y'_def unfolding mult.assoc
-    apply(rule fl_)   apply(rule fl_) apply(rule entails_triv)
-  apply simp apply simp apply simp by simp 
-*)
+ 
 (* theorems that should be visible from the outside *)
 
 (* init *)

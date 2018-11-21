@@ -4,16 +4,7 @@ theory Remdups
     "../Refine_Imperative_HOL/IICF/Impl/IICF_DArray_List"  
  "../RefineMonadicVCG"
 begin
-
-
-(*
-lemma set_mem_hnr_abs[sepref_fr_rules]:
-  "hn_refine (hn_ctxt rbt_set_assn S p * hn_val Id x x')
-     (rbt_search (x'::nat) p)
-     (hn_ctxt rbt_set_assn S p * hn_val Id x x') Y' ( (set_mem_SPEC $ x $ S))"
-  sorry *)
         
-term remdups
 
 definition "rd_inv as \<equiv> (\<lambda>(xs,ys,S). (\<exists>zs. as = zs@xs \<and> S = set ys \<and> distinct ys \<and> set zs = set ys))"
 

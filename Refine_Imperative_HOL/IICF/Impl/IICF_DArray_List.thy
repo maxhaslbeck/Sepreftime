@@ -22,8 +22,8 @@ lemma push[sepref_fr_rules]:  "23  \<le> t xs' ==> hn_refine (hn_ctxt dyn_array 
              dyn_array (PR_CONST (mop_push_list t) $  x' $   xs')" 
   unfolding mop_push_list_def autoref_tag_defs
   apply (rule extract_cost_otherway[OF _ push_array_rule, where F="hn_val Id x' x * hn_invalid dyn_array xs' p" ])
-    apply(simp add: mult.assoc) apply rotater apply rotater apply rotater apply (taker) apply (rule isolate_first)
-  apply (simp add: gr_def hn_ctxt_def)   apply(rule invalidate_clone) apply rotater apply(rule entails_triv)
+    apply(simp ) apply (simp only: mult.assoc)  apply rotater apply rotater  apply (swapr) apply(taker) apply (rule isolate_first)
+  apply (simp add: gr_def hn_ctxt_def)   apply(rule invalidate_clone)   apply(rule entails_triv)
   apply auto
   apply(rule ent_ex_postI[where x="xs' @ [x]"]) apply (auto simp: hn_ctxt_def pure_def)
   apply(simp only: mult.assoc)
@@ -34,12 +34,12 @@ lemma push[sepref_fr_rules]:  "23  \<le> t xs' ==> hn_refine (hn_ctxt dyn_array 
 subsection "get parametricity in element for 'free'"
 thm param
 term REST
-lemma [param]: "(REST,REST) \<in> (A \<rightarrow> Id) \<rightarrow> \<langle>A\<rangle>nrest_rel" sorry           (* ? gilt das ? *)                                                                
+lemma [param]: "(REST,REST) \<in> (A \<rightarrow> Id) \<rightarrow> \<langle>A\<rangle>nrest_rel" oops           (* ? gilt das ? *)                                                                
 lemma pl_param: "(PR_CONST (mop_push_list n),PR_CONST (mop_push_list n)) \<in> A \<rightarrow> \<langle>A\<rangle>list_rel \<rightarrow> \<langle>\<langle>A\<rangle>list_rel\<rangle>nrest_rel"
-  unfolding mop_push_list_def autoref_tag_defs apply parametricity sorry
+  unfolding mop_push_list_def autoref_tag_defs (* apply parametricity *) oops
 
 
-thm pl_param[to_fref]
+(* thm pl_param[to_fref] *)
 definition "da_assn R \<equiv> hr_comp dyn_array (\<langle>the_pure R\<rangle>list_rel)"
 
 declare da_assn_def[symmetric, fcomp_norm_unfold]
@@ -82,21 +82,5 @@ lemma [simp]: "dyn_array_assn R [] r = dyn_array [] r"
 
 thm new
 
-(*
-
-lemma  "hn_refine emp dyn_array_new emp (dyn_array_assn R) (mop_empty_list)"
-  unfolding mop_empty_list_def
-  apply (rule extract_cost_otherway[OF _ dyn_array_new_rule, where Cost_lb=7 and F=emp])
-    apply auto
-  apply(rule ent_ex_postI[where x="[]"]) by simp
-
-                         
-lemma   "hn_refine (dyn_array_assn R xs' p * hn_ctxt R x' x) (push_array x p)
-         (hn_invalid (dyn_array_assn R) xs' p * hn_invalid R x' x)  
-             (dyn_array_assn R) (mop_push_list xs' x')"
-  unfolding mop_push_list_def
-  apply (rule extract_cost_otherway[OF _ push_array_rule, where Cost_lb=23 ]) 
-  unfolding dyn_array_assn_def  apply (simp add: mult.assoc) apply(rule ent_ex_preI)
-  apply(rule match_first) 
-  apply(rule ent_ex_postI[where x="[]"]) sorry *)
+   
 end

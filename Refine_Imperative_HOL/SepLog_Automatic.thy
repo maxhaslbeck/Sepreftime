@@ -890,8 +890,8 @@ lemma and_extract_pure_right_iff[simp]: "P \<and>\<^sub>A \<up>b = (emp\<and>\<^
 lemma and_extract_pure_right_ctx_iff[simp]: "P \<and>\<^sub>A Q*\<up>b = (P\<and>\<^sub>AQ)*\<up>b"
   by (cases b) auto
 
-lemma [simp]: "(x \<and>\<^sub>A y) \<and>\<^sub>A z = x \<and>\<^sub>A y \<and>\<^sub>A z"
-  sorry
+lemma [simp]: "(x \<and>\<^sub>A y) \<and>\<^sub>A z = x \<and>\<^sub>A y \<and>\<^sub>A z" 
+  using assn_ext and_assn_conv by presburger 
 
  
 

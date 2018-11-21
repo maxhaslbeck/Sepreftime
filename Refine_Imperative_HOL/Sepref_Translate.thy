@@ -697,16 +697,7 @@ lemma hn_monadic_WHILE_lin[sepref_comb_rules]:
   using assms(2-)
   unfolding APP_def PROTECT2_def CONSTRAINT_def PR_CONST_def
   by (rule hn_monadic_WHILE_aux)
-(*
-lemma monadic_WHILEIT_refine:  
-  assumes  "(s',s) \<in> R"
-  assumes  "\<And>s' s. \<lbrakk> (s',s)\<in>R; I s \<rbrakk> \<Longrightarrow> I' s'"  
-  assumes  "\<And>s' s. \<lbrakk> (s',s)\<in>R; I s; I' s' \<rbrakk> \<Longrightarrow> b' s' \<le>\<Down>bool_rel (b s)"
-  assumes  "\<And>s' s. \<lbrakk> (s',s)\<in>R; I s; I' s'; nofailT (b s); (\<exists>t. inresT (b s) True t) \<rbrakk> \<Longrightarrow> f' s' \<le>\<Down>R (f s)"
-  shows "monadic_WHILEIT I' b' f' s' \<le>\<Down>R (monadic_WHILEIT I b f s)"
-  unfolding monadic_WHILEIT_def  
-  apply (auto simp: bindT_refine')
-  apply (assumption?; auto)  sorry*) 
+ 
   
 (* lemma monadic_WHILEIT_refine_WHILEIT:  
   assumes "(s',s) \<in> R"

@@ -111,8 +111,8 @@ text \<open>We define a relation between distinct lists and sets.\<close>
 definition [to_relAPP]: "list_set_rel R \<equiv> \<langle>R\<rangle>list_rel O br set distinct"
 
 
-lemma list_set_rel_finite: "(succl, succ) \<in> \<langle>Id\<rangle>list_set_rel \<Longrightarrow> finite succ"
-  sorry
+(*lemma list_set_rel_finite: "(succl, succ) \<in> \<langle>Id\<rangle>list_set_rel \<Longrightarrow> finite succ"
+  sorry *)
 
 (* ... *)
 

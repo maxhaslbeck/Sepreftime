@@ -1233,24 +1233,6 @@ qed
               
 section "Experimental Hoare reasoning"
 
-(*
-lemma assumes 
-      "T Q' f \<ge> Some 0"
-      "T Q (SPECT Q') \<ge> Some 0"
-    shows T_conseq: "T Q f \<ge> Some 0"
-  sorry
-
-lemma "T Q M \<ge> t \<longleftrightarrow> (\<forall>x. nres3 Q M x t)"
-  unfolding T_def nres3_def
-  by (metis T_def T_pw) 
-
-lemma assumes 
-      "T Q' f \<ge> Some 0"
-      "\<And>x. mm2 (Q x) (Q' x) \<ge> Some 0"
-    shows T_conseq2: "T Q f \<ge> Some 0"
-  sorry
-
-*)
 
 lemma aux1': "Some t \<le> mm2 Q (Some t') \<longleftrightarrow> Some (t+t') \<le> Q"
   apply (auto simp: mm2_def split: option.splits)
@@ -1461,41 +1443,6 @@ lemma fold_TSPEC: "T Q m \<ge> Some t \<longleftrightarrow> TSPEC (\<lambda>x. m
   done
 
 
-(*
-thm T_bindT
-
-find_theorems "T _ (REST _)"
-
-lemma "TSPEC Q (bindT m f) \<longleftrightarrow> TSPEC (emb (%x. TSPEC Q (f x)) 0) m"
-  unfolding TSPEC_def T_bindT
-*)
-(*
-
-  subgoal for x a b c
-    apply (drule spec[where x=x])
-    apply (auto simp: mm2_def split: option.splits if_splits)
-    apply (cases b; cases c; simp) 
-    done
-
-  thm aux1a'[where t=0, symmetric, simplified]
-
-  oops
-      apply (auto simp: mm2_def split: option.splits if_splits)
-
-  oops
-  subgoal sledgehammer sorry
-  subgoal sledgehammer sorry
-  subgoal sledgehammer sorry
-  subgoal sledgehammer sorry
-  subgoal sledgehammer sorry
-  subgoal sledgehammer sorry
-
-
-  thm aux1a'
-  subgoal
-    by (metis aux1a' less_eq_option_Some_None) sorry
-
-*)
 
 lemma enat_minus_mono: "a' \<ge> b \<Longrightarrow> a' \<ge> a \<Longrightarrow> a' - b \<ge> (a::enat) - b"
   apply(cases a; cases b; cases a') by auto
@@ -1531,41 +1478,6 @@ lemma
   unfolding whileT_def
 proof (induction arbitrary: t' rule: RECT_wf_induct[where R="{(y, x)|x M y. I x \<noteq> None \<and> b x \<and> c x = SPECT M \<and> M y \<noteq> None}"])
   case 1
-(*
-  { 
-    assume progress: "\<And>s. I s \<noteq> None \<Longrightarrow> b s \<Longrightarrow> (\<exists>M. c s = SPECT M \<and> (\<forall>y. M y > Some 0))"
-    assume finite: "\<And>s. I s \<noteq> None \<Longrightarrow> (\<exists>b. I s = Some (enat b))"
-    let ?b = "Sup {b|b x. I x = Some (enat b)}"
-    obtain d where d: "?b = enat d" and led: "\<And>x t. I x = Some t \<Longrightarrow> t \<le> enat d"  sorry
-  have ?case apply(rule wf_bounded_measure[where ub="\<lambda>_. d" and f="\<lambda>x. case I x of Some x \<Rightarrow> (case x of enat a \<Rightarrow> a)"])
-  proof (safe, goal_cases)
-    case (1 a ba s M y IM yb)
-    from 1(3,4) IS[OF 1(1,2)] have "\<And>x. Some IM \<le> mii I (c s) x" apply(subst (asm) T_pw)  by auto
-    from this[of y] 1(3,4) have "I y \<noteq> None" by (auto simp: mii_alt mm2_def split: nrest.splits option.splits) 
-    with finite obtain b where Iy: "I y = Some (enat b)" by auto
-
- 
-    have "enat (case I y of Some (enat a) \<Rightarrow> a) \<le> enat d"
-     using led Iy by force
-    then show ?case unfolding Iy   by simp
-  next
-    case (2 a b s M y IM yb)
-    from 2(3,4) IS[OF 2(1,2)] have k: "\<And>x. Some IM \<le> mii I (c s) x" apply(subst (asm) T_pw)  by auto
-    from k[of y] 2(3,4) have "I y \<noteq> None" by (auto simp: mii_alt mm2_def split: nrest.splits option.splits) 
-    with finite obtain b where Iy: "I y = Some (enat b)" by auto
-    from finite 2(1)  obtain a where Is: "I s = Some (enat a)" by blast 
-    from 2(1) Is have IMa: "IM = enat a" by auto
-
-    from progress[of s] 2(1,2,3) have myg0: "M y > Some 0" by auto   
-    have bc: "a < b" using k[of y] IMa unfolding mii_alt Iy using 2(3) apply(auto)
-      unfolding mm2_def using myg0  apply (auto split: option.splits if_splits)
-      by (smt diff_less enat_0_iff(1) enat_iless enat_ord_simps(1) gr_zeroI idiff_enat_enat nat_less_le not_less_iff_gr_or_eq order_trans)
-    
-
-    show ?case   unfolding Iy Is using bc by simp
-  qed 
-}*)
-  
   show ?case by fact
 next
   case 2
@@ -1948,40 +1860,6 @@ lemma
 
 print_statement RECT_wf_induct
 
-(*
-lemma
-  assumes 
-    "RECT B s = r"
-    "I s = Some t'"
-    and wf: "wf R"
-and IS: "\<And>t' f x. \<lbrakk> \<And>x'. \<lbrakk>I x' = Some t'; (x',x)\<in>R\<rbrakk> \<Longrightarrow> f x' \<le> M x';  
-                        RECT B = f
-    \<rbrakk> \<Longrightarrow> Some t' \<le> T I (B f x)"    
-  shows
-   "Some t' \<le> T I r"
-  using assms(1,2)                                
-proof (induction arbitrary: t' rule: RECT_wf_induct[where R="R"])
-  case 1
-  then show ?case sorry
-next
-  case 2
-  then show ?case sorry
-next
-  case step: (3 x D r)
-  note IH[vcg_rules] = step.IH[OF _ refl] 
-  note step.hyps[symmetric, simp]   
-  
-  from step.prems
-  show ?case 
-    apply clarsimp
-    apply(rule IS)
-
-    unfolding T_pw mii_alt 
-    apply safe
-    using IH
-    apply(rule IH)
-qed
-*)
 
 
 subsubsection "Examples"
