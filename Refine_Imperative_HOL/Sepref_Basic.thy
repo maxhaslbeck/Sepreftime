@@ -2,12 +2,11 @@ section \<open>Basic Definitions\<close>
 theory Sepref_Basic
 imports 
   "HOL-Eisbach.Eisbach"
-(*  Separation_Logic_Imperative_HOL.Sep_Main  \<rightarrow> *) "SepLogicTime_RBTreeBasic.SepAuto" 
+(*  Separation_Logic_Imperative_HOL.Sep_Main  \<rightarrow> *) "../Sep_Main" 
 (*  Refine_Monadic.Refine_Monadic  \<rightarrow> *)  "../Sepreftime" 
   "../SepLogic_Misc"
   "Lib/Structured_Apply"
   "Lib/Sepref_Misc"
-  SepLog_Automatic
   Sepref_Id_Op 
 begin
 no_notation i_ANNOT (infixr ":::\<^sub>i" 10)
