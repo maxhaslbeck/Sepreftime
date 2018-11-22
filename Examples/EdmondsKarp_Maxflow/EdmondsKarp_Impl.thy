@@ -50,20 +50,11 @@ begin
       IdI[of s]
       IdI[of t]
       IdI[of c]
-
-
-  
-lemma hn_refineI: 
-  shows "tt = enat ttt ==> <\<Gamma> * $ttt> C <\<lambda>r. \<Gamma>' *  RR ra r>\<^sub>t \<Longrightarrow> hn_refine \<Gamma> C \<Gamma>'  RR (SPECT [ra \<mapsto> tt])"
-    apply(rule extract_cost_otherway[where F=emp and Cost_lb=ttt and G=" \<Gamma> * $ ttt"]) 
-     apply solve_entails apply simp  apply simp apply solve_entails by simp
-lemma RETURNT_SPECT_conv: "RETURNT r = SPECT [r \<mapsto> 0]" unfolding RETURNT_def by auto
-
+ 
 
 
     lemma [sepref_fr_rules]: "(uncurry0 (ureturn c),uncurry0 (RETURNT c))\<in>unit_assn\<^sup>k \<rightarrow>\<^sub>a pure (nat_rel\<times>\<^sub>rnat_rel \<rightarrow> int_rel)"
-      apply sepref_to_hoare unfolding RETURNT_SPECT_conv
-      apply(rule hn_refineI) apply(simp add: zero_enat_def)       
+      apply sepref_to_hoare
       by sep_auto 
 
 
@@ -575,8 +566,8 @@ lemma "foo" using edka5_correct'
     
 
   end
-
-  export_code edka_imp checking SML_imp
+(*
+  export_code edka_imp checking SML_imp *)
 
   subsection \<open>Correctness Theorem for Implementation\<close>
   text \<open>We combine all refinement steps to derive a correctness 

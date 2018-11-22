@@ -254,8 +254,11 @@ lemma  edka2_correct: "edka2 \<le> \<Down>Id  (SPECT (emb isMaxFlow (enat Ed.edk
  
 end
 
+thm monadic_WHILEIT_def
+
 locale RGraph_impl = RGraph c s t cf for c :: "'capacity::linordered_idom graph" and s t cf +
   fixes matrix_lookup_time matrix_set_time :: nat
+    assumes [simp]: "matrix_lookup_time > 0" 
 begin
  
 
@@ -299,6 +302,7 @@ begin
     lemma resCap_cf_impl_time_mono: "n \<le> m \<Longrightarrow> resCap_cf_impl_time n \<le> resCap_cf_impl_time m"
       unfolding resCap_cf_impl_time_aux_def by simp
 
+
     lemma  resCap_cf_impl_refine:   
       assumes AUG: "cf.isSimplePath s p t"
       shows "resCap_cf_impl p \<le> SPECT (emb (\<lambda>r. r = resCap_cf cf p) (resCap_cf_impl_time (length p)))"
@@ -328,16 +332,9 @@ begin
             apply (auto intro!: arg_cong[where f=Min])  []
         subgoal apply(rule T_specifies_I) apply(vcg'\<open>-\<close> rules: mop_min matrix_get)  
           by (auto simp add: emb_le_Some_conv numeral_eq_enat intro!: arg_cong[where f=Min])  
-        by (auto simp: emb_eq_Some_conv Some_le_emb'_conv resCap_cf_impl_time_aux_def intro!: arg_cong[where f=Min])
- 
-        
- (*
-        apply (refine_vcg nfoldli_rule[where 
-            I = "\<lambda>l l' cap. 
-              cap = Min (cf`insert e (set l)) 
-            \<and> set (l@l') \<subseteq> Collect valid_edge"])
-        apply (auto intro!: arg_cong[where f=Min])
-        done *)  
+        apply (auto simp: emb_eq_Some_conv Some_le_emb'_conv resCap_cf_impl_time_aux_def intro!: arg_cong[where f=Min])
+        subgoal by (progress \<open>clarsimp\<close>)
+        done 
     qed    
 
     definition (in Graph) 
@@ -488,6 +485,7 @@ locale EdKa_Res_Up = Network c s t for c :: "'capacity::linordered_idom graph" a
     and matrix_lookup_time matrix_set_time :: nat
      and init_graph :: "nat \<Rightarrow> nat"
   assumes augment_progress[simp]: "0 \<noteq> enat shortestpath_time"
+    assumes [simp]: "matrix_lookup_time > 0" 
 begin
 
 
@@ -513,11 +511,11 @@ proof -
   term RGraph_impl.resCap_cf_impl_time
   have "RGraph_impl.resCap_cf_impl_time matrix_lookup_time (length p) \<le> RGraph_impl.resCap_cf_impl_time matrix_lookup_time (card V)"
     apply(rule RGraph_impl.resCap_cf_impl_time_mono)
-    using assms(3) le RGraph_impl_def by auto
+    using assms(3) le by (auto simp: RGraph_impl_def RGraph_impl_axioms_def)
   moreover
   have "RGraph_impl.augment_cf_impl_time matrix_lookup_time matrix_set_time (length p) \<le> RGraph_impl.augment_cf_impl_time matrix_lookup_time matrix_set_time (card V)"
     apply(rule RGraph_impl.augment_cf_impl_time_mono)
-    using assms(3) le RGraph_impl_def by auto
+    using assms(3) le by (auto simp: RGraph_impl_def RGraph_impl_axioms_def)
   ultimately
   show ?thesis unfolding augment_with_path_time_aux_def by simp
 qed
@@ -583,11 +581,11 @@ lemmas find_shortest_augmenting_spec_cf = Ed_Res.find_shortest_augmenting_spec_c
         apply(rule T_specifies_I)   
         apply(vcg'\<open>-\<close> rules: RGraph_impl.resCap_cf_impl_refine[THEN T_specifies_rev , THEN T_conseq4] 
              RGraph_impl.augment_cf_impl_refine[THEN T_specifies_rev , THEN T_conseq4]  )
-        unfolding RGraph_impl_def apply simp
-           apply(auto intro: Graph.shortestPath_is_simple)[] 
-        apply simp
+        unfolding RGraph_impl_def apply (simp add: RGraph_impl_axioms_def)
+           apply(auto simp: RGraph_impl_axioms_def intro:  Graph.shortestPath_is_simple)[] 
+        apply (simp add: RGraph_impl_axioms_def)
          apply(auto intro: Graph.shortestPath_is_simple)[] 
-        apply (auto split: if_splits simp: emb_eq_Some_conv)
+        apply (auto split: if_splits simp: RGraph_impl_axioms_def emb_eq_Some_conv)
         apply(subst tTT ) by auto
       apply simp apply simp done
        (*
@@ -620,6 +618,7 @@ locale EdKa_Res_Bfs = Network c s t for c :: "'capacity::linordered_idom graph" 
      and init_graph :: "nat \<Rightarrow> nat"
   assumes [simp]: "\<And>c. map_lookup_time c > 0"
   assumes [simp]: "set_pick_time > 0" 
+    assumes [simp]: "matrix_lookup_time > 0" 
 begin
 term Pre_BFS_Impl.pre_bfs_time
   definition (in -)   "shortest_path_time_aux cV cE v1 v2 v3 v4 v5 v6 v7 v8 v9 v10 v11 v12 =
@@ -906,6 +905,7 @@ locale EdKa_Tab = Network c s t for c :: "'capacity::linordered_idom graph" and 
     and init_adjm_time :: nat
   assumes [simp]: "\<And>c. map_lookup_time c > 0"
   assumes [simp]: "set_pick_time > 0" 
+    assumes [simp]: "matrix_lookup_time > 0" 
 begin
  
 
@@ -1107,8 +1107,7 @@ qed
         apply(rule nrest_Rel_mono)
         apply (auto simp add: le_fun_def get_succs_list_time_aux_def Succ_Impl.rg_succ_time_def
                 RPreGraph.resV_netV[OF RGraph.this_loc_rpg] is_adj_map_app_le_V)
-        subgoal apply(subst Graph.hh) by auto
-        subgoal apply(subst Graph.hh) by auto
+        subgoal apply(subst Graph.hh) by auto 
           done
       apply (simp split: prod.split option.split)
       apply(rule le_R_ASSERTI)
