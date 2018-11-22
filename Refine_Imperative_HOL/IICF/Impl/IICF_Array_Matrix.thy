@@ -118,43 +118,6 @@ lemma imp_for'_rule':
 declare [[print_trace]]
   
  
-
-lemma upd_rule'[sep_heap_rules]: "i < length xs \<Longrightarrow> <a \<mapsto>\<^sub>a xs * timeCredit_assn 1 > Array.upd i x a <\<lambda>r. a \<mapsto>\<^sub>a xs[i := x] * \<up> (r = a)>"
-  apply(rule pre_rule[OF _ upd_rule])  
-  by solve_entails
-
-
-lemma "\<And>x. x \<mapsto>\<^sub>a replicate (N * M) 0 * timeCredit_assn ((M * N * 9))  * timeCredit_assn (2) \<Longrightarrow>\<^sub>A x \<mapsto>\<^sub>a replicate (N * M) 0 * timeCredit_assn (Suc (Suc (9 * (N * M))))"
-  by (sep_auto) 
-
-
-lemma prod_split_rule: "(\<And>a b. x = (a, b) \<Longrightarrow> <P> f a b <Q>) \<Longrightarrow> <P> case x of (a, b) \<Rightarrow> f a b <Q>"
-  by(auto split: prod.split)
- 
-
-lemma prod_case_simp[sep_dflt_simps]: "(case (a, b) of (c, d) \<Rightarrow> f c d) = f a b" by simp
-
-lemma Let_rule[sep_decon_rules]: "(\<And>x. x = t \<Longrightarrow> <P> f x <Q>) \<Longrightarrow> <P> Let t f <Q>" 
-  by simp
-
-lemma If_rule[sep_decon_rules]: "(b \<Longrightarrow> <P> f <Q>) \<Longrightarrow> (\<not> b \<Longrightarrow> <P> g <Q>) \<Longrightarrow> <P> if b then f else g <Q>"
-  by auto 
-
-
-lemma "\<And>ia j m ma.
-       ia * M + j < N * M \<Longrightarrow>
-       length ma = N * M \<Longrightarrow>
-       \<forall>i'<ia. \<forall>j<M. ma ! (i' * M + j) = c (i', j) \<Longrightarrow>
-       \<forall>j'<j. ma ! (ia * M + j') = c (ia, j') \<Longrightarrow>
-       Suc j < M \<Longrightarrow>
-       m \<mapsto>\<^sub>a ma[ia * M + j := c (ia, j)] * timeCredit_assn (Suc 0) \<Longrightarrow>\<^sub>A
-       \<exists>\<^sub>Ama. m \<mapsto>\<^sub>a ma * true * timeCredit_assn (Suc 0) * \<up> (length ma = N * M \<and> (\<forall>i'<ia. \<forall>j<M. ma ! (i' * M + j) = c (i', j)) \<and> (\<forall>j'<Suc j. ma ! (ia * M + j') = c (ia, j')))"
-
-      apply(tactic \<open>IF_EXGOAL (Seplogic_Auto.extract_ex_tac @{context}) 1\<close>)
-  oops
-
-
-lemmas [sep_eintros] = impI conjI exI
  
 
 
@@ -183,7 +146,7 @@ apply (sep_auto
             within $ expressions, natural numbers are not rewritten,
             but the simplification rules should be applied when solving side-conditions
           *)
-         apply (auto  simp del: One_nat_def add_2_eq_Suc') [] apply auto[]
+        (* apply (auto  simp del: One_nat_def add_2_eq_Suc') [] *) apply auto[]
           apply auto[]
        apply (auto simp: nth_list_update M_POS dest: Suc_lessI)[]
       apply (sep_auto)
@@ -471,10 +434,10 @@ context fixes N M :: nat
         subgoal by auto
         done
       done
-   
+   (*
     lemma amtx_fold_custom_new:
         "\<And>c tt. SPECT [op_mtx_new c \<mapsto> tt N] =  mop_amtx_new N M (\<lambda>N M. tt N N) c" by(auto simp: mop_amtx_new_def)
- 
+ *)
 (*
   lemma [def_pat_rules]: "op_amtx_new$N$M \<equiv> UNPROTECT (op_amtx_new N M)" by simp
 

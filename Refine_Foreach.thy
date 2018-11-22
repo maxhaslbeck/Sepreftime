@@ -186,6 +186,7 @@ proof -
   finally show ?thesis .
 qed
 
+
 text {* We relate our fold-function to the while-loop that we used in
   the original definition of the foreach-loop *}
 lemma nfoldli_while: "nfoldli l c f \<sigma>
@@ -194,52 +195,65 @@ lemma nfoldli_while: "nfoldli l c f \<sigma>
            (FOREACH_cond c) (FOREACH_body f) (l, \<sigma>) \<bind>
           (\<lambda>(_, \<sigma>). RETURNT \<sigma>))"
 proof (induct l arbitrary: \<sigma>)
-  case Nil thus ?case (* by (subst WHILEIT_unfold) (auto simp: FOREACH_cond_def) *) sorry
+  case Nil thus ?case 
+    unfolding whileIET_def 
+     apply (subst whileT_unfold) by (auto simp: FOREACH_cond_def)
 next
   case (Cons x ls)
-  show ?case (*
+  show ?case 
   proof (cases "c \<sigma>")
     case False thus ?thesis
-      apply (subst WHILEIT_unfold)
+    unfolding whileIET_def 
+     apply (subst whileT_unfold)
       unfolding FOREACH_cond_def
       by simp
   next
     case [simp]: True
     from Cons show ?thesis
-      apply (subst WHILEIT_unfold)
+    unfolding whileIET_def 
+     apply (subst whileT_unfold)
       unfolding FOREACH_cond_def FOREACH_body_def
       apply clarsimp
-      apply (rule Refine_Basic.bind_mono)
+      apply (rule  bindT_mono)
       apply simp_all
       done
-  qed *) sorry
+  qed    
 qed
+
+lemma rr: "l0 = l1 @ a \<Longrightarrow> a \<noteq> [] \<Longrightarrow> l0 = l1 @ hd a # tl a" by auto 
 
 lemma nfoldli_rule:
   assumes I0: "I [] l0 \<sigma>0"
   assumes IS: "\<And>x l1 l2 \<sigma>. \<lbrakk> l0=l1@x#l2; I l1 (x#l2) \<sigma>; c \<sigma> \<rbrakk> \<Longrightarrow> f x \<sigma> \<le> SPECT (emb (I (l1@[x]) l2) (enat body_time))"
   assumes FNC: "\<And>l1 l2 \<sigma>. \<lbrakk> l0=l1@l2; I l1 l2 \<sigma>; \<not>c \<sigma> \<rbrakk> \<Longrightarrow> P \<sigma>"
   assumes FC: "\<And>\<sigma>. \<lbrakk> I l0 [] \<sigma>; c \<sigma> \<rbrakk> \<Longrightarrow> P \<sigma>"
+  assumes progressf: "\<And>x y. progress (f x y)"
   shows "nfoldli l0 c f \<sigma>0 \<le> SPECT (emb P (body_time * length l0))"
   apply (rule order_trans[OF nfoldli_while[
-    where I="\<lambda>(l2,\<sigma>). \<exists>l1. l0=l1@l2 \<and> I l1 l2 \<sigma>" and E="\<lambda>(l2,\<sigma>). (length l2) * body_time"]]) (*
-  unfolding FOREACH_cond_def FOREACH_body_def
-  apply (refine_rcg WHILEIT_rule[where R="measure (length o fst)"] refine_vcg)
-  apply simp
-  using I0 apply simp
+          where I="\<lambda>(l2,\<sigma>). \<exists>l1. l0=l1@l2 \<and> I l1 l2 \<sigma>" and E="\<lambda>(l2,\<sigma>). (length l2) * body_time"]])  
+  unfolding FOREACH_cond_def FOREACH_body_def 
+  apply(rule T_specifies_I) 
+  apply(vcg'_step \<open>clarsimp\<close>)
+  subgoal  using I0 by auto
+  subgoal 
+    apply(vcg'_step \<open>clarsimp\<close>) 
+    apply (elim exE conjE)
+    subgoal for a b l1      
+      apply(vcg'_step \<open>clarsimp\<close> rules: IS[THEN T_specifies_rev , THEN T_conseq4 ])
+         apply(rule rr) apply simp_all    
+      apply(auto simp add: Some_le_mm3_Some_conv emb_eq_Some_conv left_diff_distrib')
+      apply(rule exI[where x="l1@[hd a]"]) by simp        
+    done
+  subgoal (* progress *)
+    supply progressf [progress_rules] by (progress \<open>clarsimp\<close>)  
+  subgoal 
+    apply(vcg' \<open>clarsimp\<close>) 
+    subgoal for a \<sigma>
+      apply(cases "c \<sigma>")       
+      using FC  FNC  by(auto simp add: Some_le_emb'_conv  mult.commute)         
+    done
+  done
 
-  apply (case_tac a, simp)
-  apply simp
-  apply (elim exE conjE)
-  apply (rule order_trans[OF IS], assumption+)
-  apply auto []
-
-  apply simp
-  apply (elim exE disjE2)
-  using FC apply auto []
-  using FNC apply auto []
-  done *)
-  sorry
 
 
 definition "LIST_FOREACH' tsl c f \<sigma> \<equiv> do {xs \<leftarrow> tsl; nfoldli xs c f \<sigma>}"
@@ -284,6 +298,7 @@ proof -
 qed    
     *)
 
+(*
 lemma LFOci_refine: (* TODO: Generalize! *)
   assumes "(li,l)\<in>\<langle>A\<rangle>list_set_rel"
   assumes "\<And>s si. (si,s)\<in>R \<Longrightarrow> ci si \<longleftrightarrow> c s"
@@ -299,7 +314,7 @@ proof -
     done
 qed    
 *)sorry
-
+*)
 
 
 

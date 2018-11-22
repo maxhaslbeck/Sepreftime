@@ -506,16 +506,7 @@ lemma hn_RCALL[sepref_comb_rules]:
   by simp
 
 
-definition "monadic_WHILEIT I b f s \<equiv> do {
-  RECT (\<lambda>D s. do {
-    ASSERT (I s);
-    bv \<leftarrow> b s;
-    if bv then do {
-      s \<leftarrow> f s;
-      D s
-    } else do {RETURNT s}
-  }) s
-}"
+
 
 definition "heap_WHILET b f s \<equiv> do {
   heap.fixp_fun (\<lambda>D s. do {

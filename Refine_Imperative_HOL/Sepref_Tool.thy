@@ -1,6 +1,6 @@
 section \<open>Sepref Tool\<close>
 theory Sepref_Tool
-imports Sepref_Translate  Sepref_Definition   Sepref_Combinator_Setup Sepref_Intf_Util
+imports Sepref_Translate Sepref_Definition Sepref_Combinator_Setup Sepref_Intf_Util
 begin
 
 text \<open>In this theory, we set up the sepref tool.\<close>
@@ -302,7 +302,8 @@ method_setup sepref_to_hoare = \<open>
     in
       Sepref.preproc_tac ctxt 
       THEN' Sepref_Frame.weaken_post_tac ctxt 
-   (*   THEN' resolve_tac ctxt @{thms hn_refineI} *)
+      THEN' TRY o (FIRST' [ resolve_tac ctxt @{thms hn_refineI0},
+                     resolve_tac ctxt @{thms hn_refineI} THEN' asm_full_simp_tac ss])
       THEN' asm_full_simp_tac ss
     end  
   in
@@ -320,9 +321,7 @@ sepref_register COPY
 text \<open>Copy is treated as normal operator, and one can just declare rules for it! \<close>
 lemma hnr_pure_COPY[sepref_fr_rules]:
   "CONSTRAINT is_pure R \<Longrightarrow> (ureturn, RETURNT o COPY) \<in> R\<^sup>k \<rightarrow>\<^sub>a R"
-  apply (auto simp: is_pure_conv pure_def intro!: hfrefI  )
-  unfolding hn_refine_def apply (auto simp: execute_ureturn' pure_conj[symmetric] simp del: pure_conj)
-   apply(rule exI[where x=0]) by (auto simp: zero_enat_def top_assn_rule  relH_def dest: pureD)
+  by (sep_auto simp: is_pure_conv pure_def intro!: hfrefI hn_refineI0) 
   
 
 subsubsection \<open>Short-Circuit Boolean Evaluation\<close>

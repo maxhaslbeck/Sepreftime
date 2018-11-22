@@ -1,5 +1,5 @@
 theory RefineMonadicVCG
-  imports "Refine_Imperative_HOL/Sepref"
+  imports "Sepreftime" "DataRefinement"
     "Case_Labeling.Case_Labeling"
 
 begin
@@ -160,9 +160,7 @@ lemma While:
   done
 
 
-term whileT
-term monadic_WHILEIT
-thm monadic_WHILEIT_def 
+term whileT 
  
 
 definition "monadic_WHILE b f s \<equiv> do {
@@ -726,10 +724,7 @@ lemma RETURN_le_RETURN_iff[simp]: "RETURNT x \<le> RETURNT y \<longleftrightarro
   apply auto
   by (simp add: pw_le_iff)
 
-lemma [sepref_import_param]: 
-  "((=),(=))\<in>Id\<rightarrow>Id\<rightarrow>Id" 
-  "((<),(<))\<in>Id\<rightarrow>Id\<rightarrow>Id" 
-  by simp_all
+
 
 
 

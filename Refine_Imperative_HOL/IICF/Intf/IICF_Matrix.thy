@@ -44,7 +44,11 @@ begin
 
   lemma matrix_get: "\<And>tt. tt \<le> TTT Q (SPECT [ m e \<mapsto> t]) \<Longrightarrow> tt
            \<le> TTT Q (mop_matrix_get m e)" unfolding mop_matrix_get_def by simp 
- 
+
+
+  lemma progress_mop_matrix_get[progress_rules]: "t > 0 \<Longrightarrow> progress (mop_matrix_get m e)"
+    unfolding mop_matrix_get_def by (auto intro!: progress_rules simp add:   zero_enat_def) 
+
   sepref_register "mop_matrix_get" 
   print_theorems 
 end 

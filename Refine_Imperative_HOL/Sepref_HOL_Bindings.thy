@@ -1451,17 +1451,17 @@ lemmas [sepref_comb_rules] = sum_cases_hnr[sepref_prep_comb_rule]
 sepref_register isl projl projr
 lemma isl_hnr[sepref_fr_rules]: "(ureturn o isl,RETURNT o isl) \<in> (sum_assn A B)\<^sup>k \<rightarrow>\<^sub>a bool_assn"
   apply sepref_to_hoare
-  subgoal for a b by (cases a; cases b; auto simp: hn_refine_def execute_ureturn zero_enat_def relH_def intro: mod_star_trueI)
+  subgoal for a b by (cases a; cases b; sep_auto)
   done
 
 lemma projl_hnr[sepref_fr_rules]: "(ureturn o projl,RETURNT o projl) \<in> [isl]\<^sub>a (sum_assn A B)\<^sup>d \<rightarrow> A"
   apply sepref_to_hoare
-  subgoal for a b by (cases a; cases b; auto simp: hn_refine_def execute_ureturn zero_enat_def relH_def intro: mod_star_trueI)
+  subgoal for a b by (cases a; cases b; sep_auto)
   done
 
 lemma projr_hnr[sepref_fr_rules]: "(ureturn o projr,RETURNT o projr) \<in> [Not o isl]\<^sub>a (sum_assn A B)\<^sup>d \<rightarrow> B"
   apply sepref_to_hoare
-  subgoal for a b by (cases a; cases b; auto simp: hn_refine_def execute_ureturn zero_enat_def relH_def intro: mod_star_trueI)
+  subgoal for a b by (cases a; cases b; sep_auto)
   done
   
 subsection \<open>String Literals\<close>  
@@ -1494,5 +1494,10 @@ lemma Literal_pat [def_pat_rules]:
   "String.Literal $ b0 $ b1 $ b2 $ b3 $ b4 $ b5 $ b6 $ s \<equiv>
     UNPROTECT (String.Literal $ b0 $ b1 $ b2 $ b3 $ b4 $ b5 $ b6 $ s)"
   by simp
-  
+
+lemma [sepref_import_param]: 
+  "((=),(=))\<in>Id\<rightarrow>Id\<rightarrow>Id" 
+  "((<),(<))\<in>Id\<rightarrow>Id\<rightarrow>Id" 
+  by simp_all
+
 end

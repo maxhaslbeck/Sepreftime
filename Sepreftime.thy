@@ -702,6 +702,18 @@ theorem RECT_wf_induct[consumes 1]:
 
 
 
+definition "monadic_WHILEIT I b f s \<equiv> do {
+  RECT (\<lambda>D s. do {
+    ASSERT (I s);
+    bv \<leftarrow> b s;
+    if bv then do {
+      s \<leftarrow> f s;
+      D s
+    } else do {RETURNT s}
+  }) s
+}"
+
+
 term REST
 
 (*

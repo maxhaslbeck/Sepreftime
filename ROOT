@@ -20,3 +20,11 @@ session SeprefTime_RB = HOL +
 	theories
 		"Sepreftime"
 		"SepLogicTime_RBTreeBasic.RBTree_Impl"
+
+
+session EdmondsKarp_Time = SepLogicTime_RBTreeBasic +
+  sessions
+    Flow_Networks
+    Case_Labeling
+  theories
+    "Examples/EdmondsKarp_Maxflow/EdmondsKarp_Time"

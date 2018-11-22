@@ -166,6 +166,18 @@ lemma extract_cost_ub':
   apply(rule pre_rule[OF pre])
   apply(rule post_rulet[OF _ post]) 
   apply(rule extract_cost_ub) by fact+
+ 
 
+lemma hn_refineI: 
+  shows "tt = enat ttt ==> <\<Gamma> * timeCredit_assn ttt> C <\<lambda>r. \<Gamma>' *  RR ra r>\<^sub>t \<Longrightarrow> hn_refine \<Gamma> C \<Gamma>'  RR (SPECT [ra \<mapsto> tt])"
+    apply(rule extract_cost_otherway[where F=emp and Cost_lb=ttt and G=" \<Gamma> * timeCredit_assn ttt"]) 
+     apply solve_entails apply simp  apply simp apply solve_entails by simp
+lemma RETURNT_SPECT_conv: "RETURNT r = SPECT [r \<mapsto> 0]" unfolding RETURNT_def by auto
+lemma hn_refineI0: 
+  shows "<\<Gamma>> C <\<lambda>r. \<Gamma>' *  RR ra r>\<^sub>t \<Longrightarrow> hn_refine \<Gamma> C \<Gamma>'  RR (RETURNT ra)"
+  unfolding RETURNT_SPECT_conv
+    apply(rule extract_cost_otherway[where F=emp and Cost_lb=0 and G=" \<Gamma> * timeCredit_assn 0"]) 
+     apply solve_entails apply (simp add: zero_time)  apply simp apply solve_entails by (simp add: zero_enat_def)
 
+        
 end
