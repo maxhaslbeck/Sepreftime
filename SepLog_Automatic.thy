@@ -1,6 +1,6 @@
 theory SepLog_Automatic
 imports "SepLogicTime_RBTreeBasic.SepAuto" 
-  "HOL-Eisbach.Eisbach" "../SepLogic_Misc"   NatMatcher
+  "HOL-Eisbach.Eisbach" "SepLogic_Misc"
 begin
 
  
@@ -268,6 +268,10 @@ named_theorems sep_decon_rules "Seplogic: VCG deconstruct rules"
 
 
 subsection {* Frame Inference *}
+
+definition [simp]: "TI_QUERY P Q F \<equiv> P = Q + F"
+lemma TI_QUERYD: "P = Q + F \<Longrightarrow> TI_QUERY P Q F" by simp
+
 lemma timeframe_inference_init:
   assumes
       "FI_QUERY P Q FH"   (* first do frame inference in order to instatiate schematics! *)
@@ -563,29 +567,7 @@ struct
     THEN' match_frame_tac (resolve_tac ctxt @{thms ent_refl}) ctxt
     THEN' resolve_tac ctxt @{thms frame_inference_finalize};
 
-
-  (***********************************)
-  (*         Time Frame Inference         *)
-  (***********************************)
-
-  fun time_frame_inference_tac ctxt =
-    resolve_tac ctxt @{thms timeframe_inference_init} 
-    (* time_frame inference *) 
-    THEN' SOLVED'(
-         NatMatcher.time_match_frame_tac (resolve_tac ctxt @{thms refl})
-           (simp_tac (Raw_Simplifier.clear_simpset ctxt))
-           (simp_tac (ctxt)) ctxt  
-          THEN'  resolve_tac ctxt @{thms tframe_inference_finalize} 
-            ) 
-
-    (* normal frame inference *)
-    THEN' match_frame_tac (resolve_tac ctxt @{thms ent_refl}) ctxt
-    THEN' resolve_tac ctxt @{thms frame_inference_finalize}
  
-    THEN' resolve_tac ctxt @{thms refl}  
-    ;
-
-
 
   (***********************************)
   (* Nat splitter  powerd by auto2   *)
@@ -612,10 +594,10 @@ struct
  
 
   (***********************************)
-  (*         Time Frame Inference 2  *)
+  (*         Time Frame Inference   *)
   (***********************************)
 
-  fun time2_frame_inference_tac ctxt =
+  fun time_frame_inference_tac ctxt =
     TRY o resolve_tac ctxt @{thms timeframe_inference_init_normalize}
     THEN' 
     resolve_tac ctxt @{thms timeframe_inference_init} 
@@ -694,7 +676,7 @@ struct
   fun heap_rule_tac ctxt h_thms = let val _ = tracing "here heap_rule_tac" in
     resolve_tac ctxt h_thms ORELSE' (
     resolve_tac ctxt @{thms fi_rule} THEN' (resolve_tac ctxt h_thms THEN_IGNORE_NEWGOALS
-    ( dflt_tac ctxt THEN'  time2_frame_inference_tac ctxt) )) end;                                          
+    ( dflt_tac ctxt THEN'  time_frame_inference_tac ctxt) )) end;                                          
 
   (* Apply consequence rule if postcondition is not a schematic var *)
   fun app_post_cons_tac ctxt i st = 
@@ -773,7 +755,7 @@ method_setup solve_entails = {*
 method_setup timeframeinf = {* 
   Method.sections Seplogic_Auto.solve_entails_modifiers >>
   (fn _ => fn ctxt => SIMPLE_METHOD' (
-  CHANGED o Seplogic_Auto.time2_frame_inference_tac ctxt
+  CHANGED o Seplogic_Auto.time_frame_inference_tac ctxt
 )) *} "Seplogic: Frame Inference with Time Inference"
  
 
@@ -938,6 +920,32 @@ lemma prec_frame:
 
 thm false_absorb 
 
-               
+
+
+
+lemma upd_rule'[sep_heap_rules]: "i < length xs \<Longrightarrow> <a \<mapsto>\<^sub>a xs * timeCredit_assn 1 > Array.upd i x a <\<lambda>r. a \<mapsto>\<^sub>a xs[i := x] * \<up> (r = a)>"
+  apply(rule pre_rule[OF _ upd_rule])  
+  by solve_entails
+
+
+lemma "\<And>x. x \<mapsto>\<^sub>a replicate (N * M) 0 * timeCredit_assn ((M * N * 9))  * timeCredit_assn (2) \<Longrightarrow>\<^sub>A x \<mapsto>\<^sub>a replicate (N * M) 0 * timeCredit_assn (Suc (Suc (9 * (N * M))))"
+  by (sep_auto) 
+
+
+lemma prod_split_rule: "(\<And>a b. x = (a, b) \<Longrightarrow> <P> f a b <Q>) \<Longrightarrow> <P> case x of (a, b) \<Rightarrow> f a b <Q>"
+  by(auto split: prod.split)
+ 
+
+lemma prod_case_simp[sep_dflt_simps]: "(case (a, b) of (c, d) \<Rightarrow> f c d) = f a b" by simp
+
+lemma Let_rule[sep_decon_rules]: "(\<And>x. x = t \<Longrightarrow> <P> f x <Q>) \<Longrightarrow> <P> Let t f <Q>" 
+  by simp
+
+lemma If_rule[sep_decon_rules]: "(b \<Longrightarrow> <P> f <Q>) \<Longrightarrow> (\<not> b \<Longrightarrow> <P> g <Q>) \<Longrightarrow> <P> if b then f else g <Q>"
+  by auto 
+lemmas [sep_eintros] = impI conjI exI
+
+ 
+
 
 end
