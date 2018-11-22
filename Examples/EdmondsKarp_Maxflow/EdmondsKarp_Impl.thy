@@ -82,9 +82,6 @@ begin
 
     sepref_register "ps_get_op" :: "i_ps \<Rightarrow> node \<Rightarrow> node list nrest"
 
-    thm extract_cost_otherway  
- 
-
     lemma ps_get_op_refine[sepref_fr_rules]:       
       "(uncurry ps_get_imp, uncurry (PR_CONST ps_get_op)) 
         \<in> is_am\<^sup>k *\<^sub>a (pure Id)\<^sup>k \<rightarrow>\<^sub>a list_assn (pure Id)"
@@ -103,10 +100,6 @@ begin
 
     abbreviation "am_init_time == (N+1::nat)"
 
-    thm make_rule
-    declare make_rule [sep_heap_rules]
-
-          (* TODO here, init_ps has no cost, that is wrong! *)
     lemma [sepref_fr_rules]: "(Array.make N, PR_CONST (init_ps am_init_time)) 
       \<in> (pure Id)\<^sup>k \<rightarrow>\<^sub>a is_am" 
       unfolding init_ps_def  
@@ -126,16 +119,6 @@ begin
     definition cf_get' where "cf_get' cff e = cf_get cff e matrix_lookup_time"
     definition cf_set' where "cf_set' cff e cap= cf_set cff e cap matrix_set_time"
 
-    subsubsection \<open>Implementation of Capacity Matrix by Array\<close>  (*
-    lemma [def_pat_rules]: "Network.cf_get$c \<equiv> UNPROTECT cf_get" by simp
-    lemma [def_pat_rules]: "Network.cf_set$c \<equiv> UNPROTECT cf_set" by simp
-
-    sepref_register 
-      "PR_CONST cf_get" :: "capacity_impl i_mtx \<Rightarrow> edge \<Rightarrow> capacity_impl nrest"
-    sepref_register 
-      "PR_CONST cf_set" :: "capacity_impl i_mtx \<Rightarrow> edge \<Rightarrow> capacity_impl 
-        \<Rightarrow> capacity_impl i_mtx nrest" *)
-
     sepref_register 
       "cf_get'" :: "capacity_impl i_mtx \<Rightarrow> edge \<Rightarrow> capacity_impl nrest"
     print_theorems
@@ -146,8 +129,6 @@ begin
 
     text \<open>We have to link the matrix implementation, which encodes the bound, 
       to the abstract assertion of the bound\<close>
-
-    thm mop_matrix_get_rule
 
     sepref_definition cf_get_impl is "uncurry (PR_CONST cf_get')" :: "(asmtx_assn N id_assn)\<^sup>k *\<^sub>a (prod_assn id_assn id_assn)\<^sup>k \<rightarrow>\<^sub>a id_assn"
       unfolding PR_CONST_def  cf_get'_def
@@ -199,14 +180,13 @@ begin
  
     abbreviation "graph_init_time == (\<lambda>n. 3*N*N +3)"
 
-    thm sepref_fr_rules
 
-lemma uu: "SPECT [op_mtx_new c \<mapsto> enat (3 * N * N + 3)]
-          = mop_amtx_new N N (\<lambda>N M. 3*N*M +3) c"
-  unfolding mop_amtx_new_def by simp    
+  lemma uu: "SPECT [op_mtx_new c \<mapsto> enat (3 * N * N + 3)]
+            = mop_amtx_new N N (\<lambda>N M. 3*N*M +3) c"
+    unfolding mop_amtx_new_def by simp    
 
-lemma "card V\<le>N"  
-  using V_ss subset_eq_atLeast0_lessThan_card by blast  
+  lemma "card V\<le>N"  
+    using V_ss subset_eq_atLeast0_lessThan_card by blast  
 
     sepref_thm init_cf_impl is "uncurry0 (PR_CONST (init_cf graph_init_time))" :: "unit_assn\<^sup>k \<rightarrow>\<^sub>a asmtx_assn N id_assn"
       unfolding PR_CONST_def init_cf_def              
@@ -222,18 +202,7 @@ lemma "card V\<le>N"
     (* TODO: Use sepref to synthesize the get-operations! *)
     lemma amtx_cnv: "amtx_assn N M id_assn = IICF_Array_Matrix.is_amtx N M" 
       by (simp add: amtx_assn_def)
-
-    (*
-
-    lemma init_cf_imp_refine[sepref_fr_rules]: 
-      "(uncurry0 (mtx_new N c), uncurry0 (PR_CONST init_cf)) 
-        \<in> (pure unit_rel)\<^sup>k \<rightarrow>\<^sub>a (asmtx_assn N id_assn)"
-      unfolding asmtx_cnv
-      apply sepref_to_hoare
-      using E_ss
-      by (sep_auto simp: init_cf_def)
-    *)  
-
+ 
     sepref_register "init_cf graph_init_time" :: "capacity_impl i_mtx nrest"
 
     subsubsection \<open>Representing Result Flow as Residual Graph\<close>
@@ -265,13 +234,10 @@ lemma "card V\<le>N"
 
 
     subsubsection \<open>Implementation of Functions\<close>  
-
-    term Succ_Impl.rg_succ2
-
+ 
     abbreviation "list_append_time == 1::nat" 
     definition "rg_succ2 am cf u = Succ_Impl.rg_succ2 c list_append_time matrix_lookup_time am cf u "
 
-    term cf_get'
     schematic_goal rg_succ2_impl:
       fixes am :: "node \<Rightarrow> node list" and cf :: "capacity_impl graph"
       notes [id_rules] = 
@@ -291,9 +257,6 @@ lemma "card V\<le>N"
     concrete_definition (in -) succ_imp uses Edka_Impl.rg_succ2_impl
     prepare_code_thms (in -) succ_imp_def
 
-    term succ_imp
-    thm succ_imp_def
-
     lemma succ_imp_refine[sepref_fr_rules]: 
       "(uncurry2 (succ_imp N), uncurry2 (PR_CONST rg_succ2)) 
         \<in> is_am\<^sup>k *\<^sub>a (asmtx_assn N id_assn)\<^sup>k *\<^sub>a (pure Id)\<^sup>k \<rightarrow>\<^sub>a list_assn (pure Id)"
@@ -310,10 +273,7 @@ lemma "card V\<le>N"
 
     abbreviation "is_path \<equiv> list_assn (prod_assn (pure Id) (pure Id))"
 
-    term Network.resCap_cf_impl_aux
     definition "resCap_cf_impl cf p = Network.resCap_cf_impl_aux c matrix_lookup_time cf p"
-
-    thm Network.resCap_cf_impl_aux_def
 
     schematic_goal resCap_imp_impl:
       fixes am :: "node \<Rightarrow> node list" and cf :: "capacity_impl graph" and p pi
@@ -354,9 +314,8 @@ lemma "card V\<le>N"
       :: "capacity_impl i_mtx \<Rightarrow> path \<Rightarrow> capacity_impl nrest"
 
 
-    term  Network.augment_edge_impl_aux
     definition "augment_cf_impl cf p = Network.augment_cf_impl_aux c matrix_lookup_time matrix_set_time cf p"
-    term augment_cf_impl
+
     sepref_thm augment_imp is "uncurry2 (PR_CONST augment_cf_impl)" :: "((asmtx_assn N id_assn)\<^sup>d *\<^sub>a (is_path)\<^sup>k *\<^sub>a (pure Id)\<^sup>k \<rightarrow>\<^sub>a asmtx_assn N id_assn)"
       unfolding augment_cf_impl_def[abs_def] augment_cf_impl_aux_def augment_edge_impl_aux_def PR_CONST_def
       unfolding cf_get'_def[symmetric] cf_set'_def[symmetric]
@@ -384,17 +343,9 @@ lemma "card V\<le>N"
       apply (simp add: fold_partial_uncurry)
       apply (rule hfref_cons[OF succ_imp_refine[unfolded PR_CONST_def]])
       by auto
-
-    term Impl_Succ.init_state
-    term bfs.init_state
-
-    thm bfs.op_bfs_def
       
     definition (in -) "bfsi' N s t psi cfi 
       \<equiv> bfs_impl (\<lambda>(am, cf). succ_imp N am cf) (psi,cfi) s t"
-
-    term EdKa_Tab.bfs2_op
- 
  
     abbreviation "set_empty_time == 10"
     abbreviation "set_isempty_time == 10" 
@@ -403,8 +354,6 @@ lemma "card V\<le>N"
        (bfs.map_update_time ) bfs.set_pick_time  bfs.list_append_time 
        (bfs.map_lookup_time ) bfs.set_empty_time bfs.set_isempty_time
        matrix_lookup_time am cf bfs.init_state"
-
-    thm bfs.bfs_impl_fr_rule
  
     lemmas n = bfs.bfs_impl_fr_rule[unfolded hfref_def,  unfolded bfs.op_bfs_def, simplified, simplified all_to_meta]
  
@@ -447,8 +396,6 @@ lemma "card V\<le>N"
 
     lemma models_id_assnD: "h \<Turnstile> id_assn a ca \<Longrightarrow> a = ca" by (auto simp: pure_def)
 
-    thm edka_imp_tabulate.refine[OF this_loc]
-    thm hn_refine_cons[OF _ edka_imp_tabulate.refine[OF this_loc]]
     lemma edka_imp_tabulate_refine[sepref_fr_rules]: 
       "(edka_imp_tabulate c N, PR_CONST (edka5_tabulate graph_init_time am_init_time) ) 
       \<in> (pure Id)\<^sup>k \<rightarrow>\<^sub>a prod_assn (asmtx_assn N id_assn) is_am"
@@ -468,29 +415,27 @@ lemma "card V\<le>N"
     sepref_register "edka5_tabulate graph_init_time am_init_time"
       :: "(node \<Rightarrow> node list) \<Rightarrow> (capacity_impl i_mtx \<times> i_ps) nrest"
 
-    term bfs.init_state
-    term EdKa_Tab
-sublocale edkatab: EdKa_Tab  c s t
-       "bfs.set_insert_time" 
- "bfs.map_dom_member_time"
- " bfs.set_delete_time"
- "bfs.map_update_time"
- bfs.set_pick_time 
-  list_append_time
-  "bfs.map_lookup_time" 
-  set_empty_time 
-  set_isempty_time
-  bfs.init_state_time
-  matrix_lookup_time 
-  matrix_set_time  
-graph_init_time
-am_init_time
+    sublocale edkatab: EdKa_Tab  c s t
+           "bfs.set_insert_time" 
+     "bfs.map_dom_member_time"
+     " bfs.set_delete_time"
+     "bfs.map_update_time"
+     bfs.set_pick_time 
+      list_append_time
+      "bfs.map_lookup_time" 
+      set_empty_time 
+      set_isempty_time
+      bfs.init_state_time
+      matrix_lookup_time 
+      matrix_set_time  
+    graph_init_time
+    am_init_time
       apply unfold_locales unfolding bfs.set_pick_time_def by auto
 
     definition "edka5_run cf am = edkatab.edka5_run cf am bfs.init_state"
 
-lemma edkatab_bfs2_op_conv: "edkatab.bfs2_op am cf bfs.init_state = bfs2_op am cf"
-  by (simp add: bfs2_op_def bfs.list_append_time_def bfs.set_empty_time_def bfs.set_isempty_time_def )
+  lemma edkatab_bfs2_op_conv: "edkatab.bfs2_op am cf bfs.init_state = bfs2_op am cf"
+    by (simp add: bfs2_op_def bfs.list_append_time_def bfs.set_empty_time_def bfs.set_isempty_time_def )
                             
   schematic_goal edka_imp_run_impl:
       notes [sepref_opt_simps] = heap_WHILET_def
@@ -512,7 +457,6 @@ lemma edkatab_bfs2_op_conv: "edkatab.bfs2_op am cf bfs.init_state = bfs2_op am c
     concrete_definition (in -) edka_imp_run uses Edka_Impl.edka_imp_run_impl
     prepare_code_thms (in -) edka_imp_run_def
 
-    thm edka_imp_run_def
     lemma edka_imp_run_refine[sepref_fr_rules]: 
       "(uncurry (edka_imp_run s t N), uncurry (PR_CONST edka5_run)) 
         \<in> (asmtx_assn N id_assn)\<^sup>d *\<^sub>a (is_am)\<^sup>k \<rightarrow>\<^sub>a is_rflow N"
@@ -531,7 +475,7 @@ lemma edkatab_bfs2_op_conv: "edkatab.bfs2_op am cf bfs.init_state = bfs2_op am c
 
     definition "edka5 am = edkatab.edka5 am bfs.init_state"
  
-abbreviation "prepare_time == (\<lambda>n. graph_init_time n + am_init_time)"
+    abbreviation "prepare_time == (\<lambda>n. graph_init_time n + am_init_time)"
 
 
     lemma edka5_correct': "is_adj_map am \<Longrightarrow>
@@ -539,12 +483,6 @@ abbreviation "prepare_time == (\<lambda>n. graph_init_time n + am_init_time)"
       unfolding edka5_def apply(rule edkatab.edka5_correct)
        apply simp using bfs.init_state_correct by simp
  
-lemma "foo" using edka5_correct'       
-  unfolding edka_time_aux_def get_succs_list_time_aux_def shortest_path_time_aux_def
-      pre_bfs_time_aux_def
-       
-    unfolding  augment_with_path_time_aux_def resCap_cf_impl_time_aux_def
-    oops
   
     schematic_goal edka_imp_impl:
       notes [sepref_opt_simps] = heap_WHILET_def
@@ -561,35 +499,32 @@ lemma "foo" using edka5_correct'
     concrete_definition (in -) edka_imp uses Edka_Impl.edka_imp_impl
     prepare_code_thms (in -) edka_imp_def
     lemmas edka_imp_refine = edka_imp.refine[OF this_loc]
-
-    thm pat_rules TrueI def_pat_rules
-    
-
   end
 (*
   export_code edka_imp checking SML_imp *)
 
-  subsection \<open>Correctness Theorem for Implementation\<close>
-  text \<open>We combine all refinement steps to derive a correctness 
-    theorem for the implementation\<close>
+subsection \<open>Correctness Theorem for Implementation\<close>
+
+text \<open>We combine all refinement steps to derive a correctness 
+  theorem for the implementation\<close>
 
 
 definition edka_cost :: "nat \<times> nat \<Rightarrow> nat" 
-    where "edka_cost = (\<lambda>(cV,cE). 3 * cV * cV + 3 + cV + 1 + (3 + rbt_insert_logN 1 + rbt_insert_logN 1 + 10 +
-     (2 * cE *
-      (rbt_search_time_logN (1 + cV) + 1 + (rbt_insert_logN (cV + 1) + rbt_insert_logN (1 + cV) + Suc 0) + (1 + 1) + (10 + rbt_delete_time_logN (cV + 1) + 2 + 2 * 10 + 10) + (1 + 1)) +
-      (10 + rbt_delete_time_logN (cV + 1) + 2 + 2 * 10 + 10)) +
-     cV * (rbt_search_time_logN (1 + cV) + 1 + 1) +
-     (1 + (1 + 10) * cV + (1 + cV * (2 * 1 + 2 * 1 + 3)))) *
-    (2 * cV * cE + cV + 1) )"
+  where "edka_cost = (\<lambda>(cV,cE). 3 * cV * cV + 3 + cV + 1 + (3 + rbt_insert_logN 1 + rbt_insert_logN 1 + 10 +
+   (2 * cE *
+    (rbt_search_time_logN (1 + cV) + 1 + (rbt_insert_logN (cV + 1) + rbt_insert_logN (1 + cV) + Suc 0) + (1 + 1) + (10 + rbt_delete_time_logN (cV + 1) + 2 + 2 * 10 + 10) + (1 + 1)) +
+    (10 + rbt_delete_time_logN (cV + 1) + 2 + 2 * 10 + 10)) +
+   cV * (rbt_search_time_logN (1 + cV) + 1 + 1) +
+   (1 + (1 + 10) * cV + (1 + cV * (2 * 1 + 2 * 1 + 3)))) *
+  (2 * cV * cE + cV + 1) )"
 
 lemma edka_cost_simp: "edka_cost (cV,cE) =  4 +
-    (3 * cV * cV + cV +  
-          (57 +
-           (20 * cV +
-            (2 * rbt_insert_logN (1 + 0) +
-             (2 * cE * (48 + (2 * rbt_insert_logN (1 + cV) + (rbt_search_time_logN (1 + cV) + rbt_delete_time_logN (1 + cV)))) + (rbt_delete_time_logN (1 + cV) + cV * rbt_search_time_logN (1 + cV)))))) *
-          (2 * cV * cE + cV + 1))" by (simp add: edka_cost_def)
+  (3 * cV * cV + cV +  
+        (57 +
+         (20 * cV +
+          (2 * rbt_insert_logN (1 + 0) +
+           (2 * cE * (48 + (2 * rbt_insert_logN (1 + cV) + (rbt_search_time_logN (1 + cV) + rbt_delete_time_logN (1 + cV)))) + (rbt_delete_time_logN (1 + cV) + cV * rbt_search_time_logN (1 + cV)))))) *
+        (2 * cV * cE + cV + 1))" by (simp add: edka_cost_def)
 
 context Network_Impl begin
  

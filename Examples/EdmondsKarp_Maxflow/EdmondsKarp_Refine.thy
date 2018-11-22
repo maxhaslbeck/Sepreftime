@@ -4,58 +4,8 @@ imports
   EdmondsKarp_Algo
   Augmenting_Path_BFS
   "../../Refine_Imperative_HOL/IICF/Intf/IICF_Matrix"
+  "../../Refine_Imperative_HOL/IICF/IICF_Misc"
 begin
-
-
-
-    lemma ccId: "\<And>c. (c, c) \<in> Id" by simp
- 
-context
-  fixes t ::  "nat"
-begin
-  definition "mop_min a b =SPECT [min a b \<mapsto> t]"
-
-  lemma mop_min: "\<And>tt. tt \<le> TTT Q (SPECT [ min a b \<mapsto> t]) \<Longrightarrow> tt
-           \<le> TTT Q (mop_min a b)" unfolding mop_min_def by simp 
- 
-  sepref_register "mop_min" 
-  print_theorems 
-end 
- 
-
- 
- 
-lemma hn_refine_min[sepref_fr_rules]: " hn_refine (hn_val Id a' a * hn_val Id b' b)
-           (ureturn (min a b))
-       (hn_val Id a' a * hn_val Id b' b)
-       (pure Id) (((PR_CONST (mop_min t)) $ a' $ b'))"
-  unfolding hn_refine_def apply (auto simp:   mult.assoc  execute_ureturn pure_def hn_ctxt_def)
-  by (auto simp: top_assn_rule zero_enat_def relH_def  mop_min_def elim: pureD ) 
- 
-           
-context
-  fixes t ::  "nat"
-begin
-  definition "mop_swap e =SPECT [prod.swap e \<mapsto> t]"
-
-  lemma mop_swap: "\<And>tt. tt \<le> TTT Q (SPECT [ prod.swap e \<mapsto> t]) \<Longrightarrow> tt
-           \<le> TTT Q (mop_swap e)" unfolding mop_swap_def by simp 
- 
-  sepref_register "mop_swap" 
-  print_theorems 
-end 
- 
-
- 
- 
-lemma hn_refine_swap[sepref_fr_rules]: " hn_refine (hn_ctxt (nat_assn \<times>\<^sub>a nat_assn) e' e)
-           (ureturn (prod.swap e))
-       (hn_ctxt (nat_assn \<times>\<^sub>a nat_assn) e' e)
-       (nat_assn \<times>\<^sub>a nat_assn) (((PR_CONST (mop_swap t)) $ e'))"
-  unfolding hn_refine_def apply (auto simp:      execute_ureturn    )
-   apply (auto simp: top_assn_rule zero_enat_def relH_def prod.swap_def mop_swap_def elim: pureD ) 
-  apply(rule exI[where x=0]) apply auto  
-  by (smt BNF_Greatest_Fixpoint.IdD IdI entails_def entails_true hn_ctxt_def mult.left_neutral pure_assn_rule pure_def pure_true)  
   
   text \<open>We now implement the Edmonds-Karp algorithm.
     Note that, during the implementation, we explicitly write down the 
@@ -153,8 +103,6 @@ begin
         None \<Rightarrow> \<not>Graph.connected cf s t 
       | Some p \<Rightarrow> Graph.isShortestPath cf s p t) shortestpath_time)"
  
-
-    thm RPreGraph.f_def term "RGraph"
     lemma   find_shortest_augmenting_spec_cf_refine: 
        "RGraph c s t cf \<Longrightarrow> find_shortest_augmenting_spec_cf cf \<le> Ed.find_shortest_augmenting_spec (flow_of_cf cf)" 
     proof -
@@ -200,19 +148,8 @@ begin
     }"
 
 
-  (*  interpretation edk: EdKa c s t find_shortest_augmenting_spec_cf_time augment_with_path_time
-      apply standard by simp
-    thm RGraph.find_shortest_augmenting_spec_cf_refine
-*)
-
-
- 
-
-
     lemma  edka2_refine: "edka2 \<le> \<Down>Id Ed.edka"
     proof -
-      (* have [refine_dref_RELATES]: "RELATES cfi_rel" by (simp add: RELATES_def) *)
-
       show ?thesis
         unfolding edka2_def Ed.edka_def 
         apply (rule bindT_refine[where R'=cfi_rel] ) 
@@ -254,7 +191,6 @@ lemma  edka2_correct: "edka2 \<le> \<Down>Id  (SPECT (emb isMaxFlow (enat Ed.edk
  
 end
 
-thm monadic_WHILEIT_def
 
 locale RGraph_impl = RGraph c s t cf for c :: "'capacity::linordered_idom graph" and s t cf +
   fixes matrix_lookup_time matrix_set_time :: nat
@@ -298,7 +234,9 @@ begin
   
 
     definition (in -) "resCap_cf_impl_time_aux n v1 = 1 + (v1+10) * n"
+
     abbreviation "resCap_cf_impl_time n \<equiv> resCap_cf_impl_time_aux n matrix_lookup_time"
+
     lemma resCap_cf_impl_time_mono: "n \<le> m \<Longrightarrow> resCap_cf_impl_time n \<le> resCap_cf_impl_time m"
       unfolding resCap_cf_impl_time_aux_def by simp
 
@@ -386,7 +324,7 @@ begin
     abbreviation "augment_edge_impl == augment_edge_impl_aux matrix_lookup_time matrix_set_time" 
 
     definition (in -) "augment_edge_impl_time_aux v1 v2 = 2* v1 + 2*v2+3"
-abbreviation "augment_edge_impl_time == augment_edge_impl_time_aux matrix_lookup_time matrix_set_time"
+    abbreviation "augment_edge_impl_time == augment_edge_impl_time_aux matrix_lookup_time matrix_set_time"
     lemma augment_edge_impl_refine: 
       assumes "valid_edge e" "\<forall>u. e\<noteq>(u,u)"
       shows "augment_edge_impl cff e cap 
@@ -428,13 +366,10 @@ abbreviation "augment_edge_impl_time == augment_edge_impl_time_aux matrix_lookup
       apply simp
       done      
 
-definition (in -) "augment_cf_impl_time_aux n v1 =    1 + n * v1 "
-abbreviation "augment_cf_impl_time n \<equiv> augment_cf_impl_time_aux n augment_edge_impl_time"
+    definition (in -) "augment_cf_impl_time_aux n v1 =    1 + n * v1 "
+    abbreviation "augment_cf_impl_time n \<equiv> augment_cf_impl_time_aux n augment_edge_impl_time"
     lemma augment_cf_impl_time_mono: "n \<le> m \<Longrightarrow> augment_cf_impl_time n \<le> augment_cf_impl_time m"
       unfolding augment_cf_impl_time_aux_def by simp
-
-
-    term "cf.isSimplePath"
 
     lemma augment_cf_impl_aux:  
       assumes "\<forall>e\<in>set p. valid_edge e"
