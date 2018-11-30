@@ -945,6 +945,7 @@ lemma If_rule[sep_decon_rules]: "(b \<Longrightarrow> <P> f <Q>) \<Longrightarro
   by auto 
 lemmas [sep_eintros] = impI conjI exI
 
+    declare make_rule [sep_heap_rules]
  
 
 
