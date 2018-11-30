@@ -1,5 +1,5 @@
 theory MinWeightBasis
-  imports "../Sepreftime" "../Refine_Foreach"
+  imports "../../Sepreftime" "../../Refine_Foreach"
     "List-Index.List_Index" Matroids.Matroid Complex_Main    
 begin
   
