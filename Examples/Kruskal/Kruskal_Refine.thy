@@ -106,7 +106,7 @@ lemma wsorted_map\<alpha>[simp]: "wsorted' s \<Longrightarrow> wsorted (map \<al
 definition (in -) "obtain_sorted_carrier'_aux c w obst == SPECT (emb (\<lambda>L. wsorted_wrt_w' w L \<and> distinct (map \<alpha> L) \<and> \<alpha> ` set L = c) obst)"
 
 
-abbreviation "obtain_sorted_carrier' == obtain_sorted_carrier'_aux E weight sorted_carrier_time"
+abbreviation "obtain_sorted_carrier' == obtain_sorted_carrier'_aux E weight (getEdges_time + sort_time)"
 
 
 definition RR :: "(('a \<times> 'a)  \<times> 'a uprod) set" where "RR \<equiv> {( (cx,cy) , a). Upair cx cy = a }"
@@ -237,7 +237,7 @@ definition kruskal1
     (per, spanning_forest) \<leftarrow> nfoldli l (\<lambda>_. True)
         (\<lambda>(a,b) (uf, T). do { 
             ASSERT (a\<in>V \<and> b\<in>V \<and> a \<in> Domain uf \<and> b \<in> Domain uf \<and> a\<noteq>b \<and> T\<subseteq>E);
-            i \<leftarrow> SPECT [\<not> per_compare uf a b  \<mapsto> indep_test_time];
+            i \<leftarrow> SPECT [\<not> per_compare uf a b  \<mapsto>  indep_test_time];
             if i then
               do { 
                 let uf = per_union uf a b;
@@ -338,14 +338,21 @@ qed
     
                                       
 
-abbreviation   "getEdges == SPECT (emb (\<lambda>L. lst_graph_P L E) getEdges_time)"  
+abbreviation  (in -) getEdges'
+  :: "('a uprod \<Rightarrow> 'w::{linorder, ordered_comm_monoid_add}) \<Rightarrow> 'a uprod set \<Rightarrow> enat \<Rightarrow> ('a \<times> 'w \<times> 'a) list nrest"
+    where
+    "getEdges' w c get == SPECT (emb (\<lambda>L. lst_graph_P' w L c) get)" 
+abbreviation     "getEdges == getEdges' weight E getEdges_time"  
+ 
 
-abbreviation "sort_time == 10::enat"
+abbreviation (in -) obtain_sorted_carrier''_aux
+  :: "('a uprod \<Rightarrow> 'w::{linorder, ordered_comm_monoid_add}) \<Rightarrow> 'a uprod set \<Rightarrow> enat \<Rightarrow> enat \<Rightarrow> ('a \<times> 'w \<times> 'a) list nrest"  where
+  "obtain_sorted_carrier''_aux w c get st \<equiv> do {
+    (l::('a \<times> 'w \<times> 'a) list) \<leftarrow> getEdges' w c get;
+    SPECT (emb (\<lambda>L. sorted_wrt edges_less_eq L \<and> distinct L \<and> set L = set l) st)
+}"                                                                          
+abbreviation "obtain_sorted_carrier'' \<equiv> obtain_sorted_carrier''_aux weight E getEdges_time sort_time "
 
-abbreviation "obtain_sorted_carrier'' \<equiv> do {
-    l \<leftarrow> getEdges;
-    SPECT (emb (\<lambda>L. sorted_wrt edges_less_eq L \<and> distinct L \<and> set L = set l) sort_time)
-}"
 term "\<langle>edge_rel\<rangle>list_rel"
 
 lemma "distinct x \<Longrightarrow> length x = length y \<Longrightarrow> set x = set y \<Longrightarrow> distinct y"   
@@ -354,7 +361,7 @@ lemma "distinct x \<Longrightarrow> length x = length y \<Longrightarrow> set x 
 
 lemma wsorted'_sorted_wrt_edges_less_eq: "\<forall>x\<in>set s. case x of (a, wv, b) \<Rightarrow> weight (Upair a b) = wv \<Longrightarrow> sorted_wrt edges_less_eq s
   \<Longrightarrow> wsorted' (map \<alpha>'' s) "
-  unfolding wsorted'_def sorted_wrt_map edges_less_eq_def
+  unfolding wsorted_wrt_w'_def sorted_wrt_map edges_less_eq_def
   apply(rule sorted_wrt_mono_rel ) 
   by (auto simp add: \<alpha>_def case_prod_beta) 
 
@@ -366,38 +373,52 @@ lemma " distinct s \<Longrightarrow>
 lemma \<alpha>'_conv: "(((\<lambda>(x, y). Upair x y) \<circ>\<circ> case_prod) (\<lambda>a (_, y). (a, y)))
       = \<alpha>'"   by auto 
 
-lemma obtain_sorted_carrier''_refine: "(obtain_sorted_carrier'', obtain_sorted_carrier') \<in> \<langle>\<langle>edge_rel'\<rangle>list_rel\<rangle>nres_rel"
-  unfolding obtain_sorted_carrier''_def obtain_sorted_carrier'_def
+lemma "SPECT (emb P1 t1) \<bind> (\<lambda>l. SPECT (emb (P2 l) t2))
+  = SPECT (emb P (t1+t2)) " unfolding bindT_def
+  apply auto unfolding emb'_def apply auto
+  oops
+
+lemma obtain_sorted_carrier''_refine: "obtain_sorted_carrier'' \<le> \<Down> (\<langle>edge_rel'\<rangle>list_rel) obtain_sorted_carrier'"
+  unfolding   obtain_sorted_carrier'_aux_def (*
   apply (refine_rcg )
   apply (clarsimp intro!: RES_refine)
   subgoal for l s
     apply(rule exI[where x="map \<alpha>'' s"])
     apply(auto simp: in_br_conv lst_graph_P_def wsorted'_sorted_wrt_edges_less_eq
             \<alpha>_def \<alpha>'_conv distinct_map map_in_list_rel_conv) 
-     using image_iff by fastforce+ 
-  done
+     using image_iff by fas tforce+ 
+  done *) sorry
 
- definition kruskal2
-   where "kruskal2  \<equiv> do {
-    sl \<leftarrow> obtain_sorted_carrier'';
-    let initial_union_find = per_init V;
+ definition (in -) kruskal2_aux
+   where "kruskal2_aux w c  get st eft itt it \<equiv> do {
+    sl \<leftarrow> obtain_sorted_carrier''_aux w c  get st;
+    let initial_union_find = per_init (Kruskal_intermediate_defs.V c);
+    s \<leftarrow> SPECT [(initial_union_find, []) \<mapsto> eft];
     (per, spanning_forest) \<leftarrow> nfoldli sl (\<lambda>_. True)
         (\<lambda>(a,w,b) (uf, T). do { 
             ASSERT (a \<in> Domain uf \<and> b \<in> Domain uf);
-            if \<not> per_compare uf a b then
+            i \<leftarrow> SPECT [\<not> per_compare uf a b  \<mapsto> itt];
+            if i then
               do { 
                 let uf = per_union uf a b;
                 ASSERT ((a,w,b)\<notin>set T);
-                RETURN (uf, T@[(a,w,b)])
+                SPECT [(uf, T@[(a,w,b)])\<mapsto>it] 
               }
             else 
-              RETURN (uf,T)
-        }) (initial_union_find, []);
-        RETURN spanning_forest
+              RETURNT (uf,T)
+        }) s;
+        RETURNT spanning_forest
       }"
+
+abbreviation "kruskal2 == kruskal2_aux weight E getEdges_time sort_time empty_forest_time indep_test_time insert_time"
 
 lemma loop_initial_rel: "((per_init V, []), per_init V, {}) \<in> Id \<times>\<^sub>r lst_graph_rel"
   by simp
+
+lemma loop_initial_refine: " SPECT [(per_init V, []) \<mapsto> enat empty_forest_time] \<le> \<Down> (Id \<times>\<^sub>r lst_graph_rel) (SPECT [(per_init V, {}) \<mapsto> enat empty_forest_time])"
+  apply(rule SPECT_refine)
+  by (auto split: if_splits)
+
 
 lemma wI: "(\<lambda>(a, _, y). Upair a y) ` D = A \<Longrightarrow> Upair b c \<notin> A \<Longrightarrow> (b, w, c) \<notin> D"
   by (metis case_prod_conv pair_imageI)
@@ -417,16 +438,18 @@ lemma list_set_rel_append: "(x,s)\<in>br a I \<Longrightarrow> (xs,S)\<in>\<lang
   apply parametricity by (auto dest: list_relD simp add: in_br_conv)
 
 
-theorem kruskal2_refine: "(kruskal2, kruskal1)\<in>\<langle>lst_graph_rel\<rangle>nres_rel"
-  unfolding kruskal1_def kruskal2_def Let_def 
-  apply (refine_rcg obtain_sorted_carrier''_refine[THEN nres_relD] loop_initial_rel)
+theorem kruskal2_refine: "kruskal2 \<le> \<Down>lst_graph_rel kruskal1 "
+  unfolding kruskal1_def kruskal2_aux_def Let_def 
+  apply (refine_rcg obtain_sorted_carrier''_refine  loop_initial_refine)     
           apply simp apply simp
   subgoal by (auto simp: in_br_conv)  
   subgoal by (auto simp: in_br_conv)
+  apply(rule ffs) subgoal by (auto simp: in_br_conv)
   subgoal by (auto simp: in_br_conv ) 
-  subgoal unfolding in_br_conv lst_graph_rel_def lst_graph_P_def list_set_rel_def
-    apply simp by (metis case_prod_conv pair_imageI)
-  subgoal by (auto simp: in_br_conv lst_graph_rel_alt intro: list_set_rel_append) 
+  subgoal   unfolding in_br_conv lst_graph_rel_def lst_graph_P_def list_set_rel_def
+     by (simp add: wI)     
+  subgoal apply(rule SPECT_refine)
+    by (auto split: if_splits simp: in_br_conv lst_graph_rel_alt intro: list_set_rel_append) 
   subgoal by (auto simp: in_br_conv )
   subgoal by (auto simp: in_br_conv )
   done
