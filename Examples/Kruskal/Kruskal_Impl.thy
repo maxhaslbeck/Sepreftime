@@ -375,7 +375,7 @@ sepref_definition kruskal is
 
 thm kruskal3_refine kruskal2_refine   kruskal1_refine kruskal0_refine minWeightBasis3_refine
  
-thm kruskal3_refine kruskal2_refine   kruskal1_refine kruskal0_refine minWeightBasis3_refine
+thm kruskal.refine kruskal3_refine kruskal2_refine   kruskal1_refine kruskal0_refine minWeightBasis3_refine
 
 
 abbreviation "MST == minBasis"

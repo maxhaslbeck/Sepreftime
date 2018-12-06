@@ -523,6 +523,7 @@ proof -
   finally show ?thesis apply simp
   using kruskal2_refine kruskal1_refine kruskal0_refine minWeightBasis3_refine
     sorry
+qed
 
 end \<comment> \<open>whatIneed\<close>
 
