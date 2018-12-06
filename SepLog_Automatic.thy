@@ -430,7 +430,7 @@ struct
       | Const (@{const_name "snga_assn"},_)$_$_
         => ((has_true,ps,ts,t::ptrs),SOME t)
       | Const (@{const_name "timeCredit_assn"},_)$_
-        => let val _ = tracing ("aha"); in ((has_true,ps,t::ts,ptrs),NONE) end
+        => let val _ = () (* tracing ("aha") *); in ((has_true,ps,t::ts,ptrs),NONE) end
       | Const (@{const_name "top_assn"},_)
         => ((true,ps,ts,ptrs),NONE)
       | (inf_op as Const (@{const_name "and_assn"},_))$t1$t2
@@ -440,7 +440,7 @@ struct
       fun normalizer t = case dfs_opr @{const_name "Groups.times_class.times"}
         ep_tr (false,[],[],[]) t 
       of 
-        ((has_true,ps,ts,ptrs),rt) => let val _ = tracing ("aha1"); in
+        ((has_true,ps,ts,ptrs),rt) => let val _ = () (* tracing ("aha1") *); in
             ((has_true,rev ps,rev ts,ptrs),rt)end;
 
       fun normalize_core t = let 
