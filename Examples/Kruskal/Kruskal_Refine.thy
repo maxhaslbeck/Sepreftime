@@ -84,7 +84,7 @@ thm refine_vcg_cons
 definition edges_less_eq :: "('a \<times> 'w::{linorder, ordered_comm_monoid_add} \<times> 'a) \<Rightarrow> ('a \<times> 'w \<times> 'a) \<Rightarrow> bool"
   where "edges_less_eq a b \<equiv> fst(snd a) \<le> fst(snd b)"
 
-context Kruskal_intermediate
+context Kruskal_intermediate_time
 begin
 
 
@@ -134,7 +134,7 @@ abbreviation "empty_forest \<equiv> {}"
 definition kruskal0 
   where "kruskal0 \<equiv> do {
     l \<leftarrow> obtain_sorted_carrier';
-    s \<leftarrow> SPECT [empty_forest \<mapsto> enat empty_forest_time];
+    s \<leftarrow> SPECT [empty_forest \<mapsto> enat (empty_forest_time+empty_uf_time)];
     spanning_forest \<leftarrow> nfoldli l (\<lambda>_. True)
         (\<lambda>(a,b) T. do { 
             ASSERT (Upair a b\<notin>T \<and> forest T \<and> Upair a b\<in>E \<and> T \<subseteq> E);
@@ -142,7 +142,7 @@ definition kruskal0
             if i then
               do { 
                 ASSERT (Upair a b\<notin>T);
-                SPECT [(insert (Upair a b) T) \<mapsto> insert_time]
+                SPECT [(insert (Upair a b) T) \<mapsto> enat (insert_time+insert_uf_time)]
               }
             else 
               RETURNT T
@@ -229,20 +229,33 @@ lemma uf_graph_relD: "((a,b),c) \<in> uf_graph_rel \<Longrightarrow> b=c \<and> 
   by(auto simp: uf_graph_rel_def in_br_conv)            
 
 
+definition "initState = do {
+  initial_union_find \<leftarrow> SPECT [per_init V \<mapsto> enat empty_uf_time];
+       SPECT [(initial_union_find, empty_forest) \<mapsto> enat empty_forest_time]
+  }"
+
+definition "addEdge uf a b T = do {
+    uf \<leftarrow> SPECT [per_union uf a b \<mapsto> enat insert_uf_time];
+    SPECT [(uf, insert (Upair a b) T)\<mapsto>enat insert_time]
+  }"
+
+
+
+
+
 definition kruskal1
   where "kruskal1 \<equiv> do {
     l \<leftarrow> obtain_sorted_carrier';
-    let initial_union_find = per_init V;
-    s \<leftarrow> SPECT [(initial_union_find, empty_forest) \<mapsto> empty_forest_time];
+    s \<leftarrow> initState;
     (per, spanning_forest) \<leftarrow> nfoldli l (\<lambda>_. True)
         (\<lambda>(a,b) (uf, T). do { 
+            ASSERT (Domain uf = Domain (fst s));
             ASSERT (a\<in>V \<and> b\<in>V \<and> a \<in> Domain uf \<and> b \<in> Domain uf \<and> a\<noteq>b \<and> T\<subseteq>E);
-            i \<leftarrow> SPECT [\<not> per_compare uf a b  \<mapsto>  indep_test_time];
+            i \<leftarrow> SPECT [\<not> per_compare uf a b  \<mapsto>  enat indep_test_time];
             if i then
               do { 
-                let uf = per_union uf a b;
                 ASSERT (Upair a b\<notin>T);
-                SPECT [(uf, insert (Upair a b) T)\<mapsto>insert_time]
+                addEdge uf a b T
               }
             else 
               RETURNT (uf,T)
@@ -264,8 +277,11 @@ lemma uf_graph_invar_preserve: "uf_graph_invar (uf, T) \<Longrightarrow> a\<in>V
          \<Longrightarrow> uf_graph_invar (per_union uf a b, insert (Upair a b) T)"
   by(auto simp add: uf_graph_invar_def corresponding_union_find_def insert_reachable per_union_def)    
 
-lemma initloop: "SPECT [(per_init V, {}) \<mapsto> enat empty_forest_time] \<le> \<Down> uf_graph_rel (SPECT [{} \<mapsto> enat empty_forest_time])"
-  apply(rule SPECT_refine) apply (auto split: if_splits)
+lemma initloop: "initState \<le> \<Down> uf_graph_rel (SPECT [{} \<mapsto> enat (empty_forest_time+empty_uf_time)])"
+  unfolding initState_def conc_fun_RES
+    apply(rule T_specifies_I)         
+  apply (vcg' \<open>-\<close>  )   
+  apply(rule Sup_upper)  apply (auto split: if_splits)
   using empty_forest_refine1 by auto
 
 
@@ -276,12 +292,16 @@ lemma ref: "\<And> xi x si sb x1 x2 x1a x2a x1b x2b.
        si = (x1b, x2b) \<Longrightarrow>
        xi = (x1a, x2a) \<Longrightarrow>
        x1a \<in> V \<and> x2a \<in> V \<and> x1a \<in> Domain x1b \<and> x2a \<in> Domain x1b \<and> x1a \<noteq> x2a \<and> x2b \<subseteq> E \<Longrightarrow>  
-        SPECT [(per_union x1b x1a x2a, insert (Upair x1a x2a) x2b) \<mapsto> enat insert_time]
-       \<le> \<Down> uf_graph_rel (SPECT [insert (Upair x1 x2) sb \<mapsto> enat insert_time]) " 
-  apply(rule SPECT_refine)
+        addEdge x1b x1a x2a x2b 
+       \<le> \<Down> uf_graph_rel (SPECT [insert (Upair x1 x2) sb \<mapsto> enat (insert_time+insert_uf_time)]) " 
+  unfolding addEdge_def  conc_fun_RES 
+    apply(rule T_specifies_I)               
+  apply (vcg' \<open>-\<close>  )   
   by (auto dest: uf_graph_relD E_inV Eproper uf_graph_invarE
           simp:  corresponding_union_find_def uf_graph_rel_def in_br_conv uf_graph_invar_preserve
            split: if_splits)  
+
+
 
 theorem kruskal1_refine: "kruskal1 \<le> \<Down>Id kruskal0"
   unfolding kruskal1_def kruskal0_def Let_def 
@@ -378,31 +398,54 @@ lemma "SPECT (emb P1 t1) \<bind> (\<lambda>l. SPECT (emb (P2 l) t2))
   apply auto unfolding emb'_def apply auto
   oops
 
+
+lemma emb_eq_Some_conv': "\<And>T.  Some t' = emb' Q T x \<longleftrightarrow> (t'=T x \<and> Q x)"
+  by (auto simp: emb'_def)
+
 lemma obtain_sorted_carrier''_refine: "obtain_sorted_carrier'' \<le> \<Down> (\<langle>edge_rel'\<rangle>list_rel) obtain_sorted_carrier'"
-  unfolding   obtain_sorted_carrier'_aux_def (*
-  apply (refine_rcg )
-  apply (clarsimp intro!: RES_refine)
+  unfolding   obtain_sorted_carrier'_aux_def
+  unfolding conc_fun_RES 
+    apply(rule T_specifies_I)               
+  apply(vcg' \<open>-\<close>  )  
+  apply(rule Sup_upper)  apply (auto split: if_splits)  
   subgoal for l s
     apply(rule exI[where x="map \<alpha>'' s"])
+    apply (simp add: emb_eq_Some_conv')
     apply(auto simp: in_br_conv lst_graph_P_def wsorted'_sorted_wrt_edges_less_eq
             \<alpha>_def \<alpha>'_conv distinct_map map_in_list_rel_conv) 
-     using image_iff by fas tforce+ 
-  done *) sorry
+     using image_iff  
+     by fastforce+  
+  done 
+
+
+definition (in -) "initState'_aux c eft eut = do {
+  initial_union_find \<leftarrow> SPECT [per_init (Kruskal_intermediate_defs.V c) \<mapsto> enat eut];
+       SPECT [(initial_union_find, []) \<mapsto> enat eft]
+  }"
+
+abbreviation "initState' == initState'_aux E empty_forest_time empty_uf_time"
+
+definition (in -) "addEdge'_aux uf a w b T iut it = do {
+  uf \<leftarrow> SPECT [per_union uf a b \<mapsto> enat iut];
+  T' \<leftarrow> SPECT [  T@[ ( a,w, b) ] \<mapsto>enat it];
+  RETURNT (uf, T')
+  }"
+
+abbreviation "addEdge' uf a w b T == addEdge'_aux uf a w b T insert_uf_time insert_time"
+
 
  definition (in -) kruskal2_aux
-   where "kruskal2_aux w c  get st eft itt it \<equiv> do {
-    sl \<leftarrow> obtain_sorted_carrier''_aux w c  get st;
-    let initial_union_find = per_init (Kruskal_intermediate_defs.V c);
-    s \<leftarrow> SPECT [(initial_union_find, []) \<mapsto> eft];
+   where "kruskal2_aux w c  get st eft eut itt iut it \<equiv> do {
+    sl \<leftarrow> obtain_sorted_carrier''_aux w c  get st; 
+    s \<leftarrow> initState'_aux c eft eut;
     (per, spanning_forest) \<leftarrow> nfoldli sl (\<lambda>_. True)
         (\<lambda>(a,w,b) (uf, T). do { 
             ASSERT (a \<in> Domain uf \<and> b \<in> Domain uf);
             i \<leftarrow> SPECT [\<not> per_compare uf a b  \<mapsto> itt];
             if i then
-              do { 
-                let uf = per_union uf a b;
+              do {  
                 ASSERT ((a,w,b)\<notin>set T);
-                SPECT [(uf, T@[(a,w,b)])\<mapsto>it] 
+                addEdge'_aux uf a w b T iut it
               }
             else 
               RETURNT (uf,T)
@@ -410,13 +453,16 @@ lemma obtain_sorted_carrier''_refine: "obtain_sorted_carrier'' \<le> \<Down> (\<
         RETURNT spanning_forest
       }"
 
-abbreviation "kruskal2 == kruskal2_aux weight E getEdges_time sort_time empty_forest_time indep_test_time insert_time"
+abbreviation "kruskal2 == kruskal2_aux weight E getEdges_time sort_time
+                             empty_forest_time empty_uf_time indep_test_time insert_uf_time insert_time "
 
 lemma loop_initial_rel: "((per_init V, []), per_init V, {}) \<in> Id \<times>\<^sub>r lst_graph_rel"
   by simp
 
-lemma loop_initial_refine: " SPECT [(per_init V, []) \<mapsto> enat empty_forest_time] \<le> \<Down> (Id \<times>\<^sub>r lst_graph_rel) (SPECT [(per_init V, {}) \<mapsto> enat empty_forest_time])"
-  apply(rule SPECT_refine)
+lemma loop_initial_refine: "initState'
+   \<le> \<Down> (Id \<times>\<^sub>r lst_graph_rel) initState"
+  unfolding initState'_aux_def initState_def
+  apply(refine_rcg SPECT_refine) 
   by (auto split: if_splits)
 
 
@@ -441,19 +487,43 @@ lemma list_set_rel_append: "(x,s)\<in>br a I \<Longrightarrow> (xs,S)\<in>\<lang
 theorem kruskal2_refine: "kruskal2 \<le> \<Down>lst_graph_rel kruskal1 "
   unfolding kruskal1_def kruskal2_aux_def Let_def 
   apply (refine_rcg obtain_sorted_carrier''_refine  loop_initial_refine)     
-          apply simp apply simp
+           apply simp apply simp
   subgoal by (auto simp: in_br_conv)  
   subgoal by (auto simp: in_br_conv)
-  apply(rule ffs) subgoal by (auto simp: in_br_conv)
+       apply(rule ffs) subgoal by (auto simp: in_br_conv)
   subgoal by (auto simp: in_br_conv ) 
   subgoal   unfolding in_br_conv lst_graph_rel_def lst_graph_P_def list_set_rel_def
-     by (simp add: wI)     
-  subgoal apply(rule SPECT_refine)
+    by (simp add: wI)     
+  subgoal unfolding addEdge'_aux_def addEdge_def
+    apply refine_rcg
+     apply refine_dref_type
+     apply(rule SPECT_refine)
+     apply (auto split: if_splits simp: in_br_conv lst_graph_rel_alt  intro: list_set_rel_append)
+    unfolding conc_fun_RES
+    apply(rule T_specifies_I)         
+    apply (vcg' \<open>-\<close>  )   
+    apply(rule Sup_upper)  apply (auto split: if_splits) 
     by (auto split: if_splits simp: in_br_conv lst_graph_rel_alt intro: list_set_rel_append) 
   subgoal by (auto simp: in_br_conv )
   subgoal by (auto simp: in_br_conv )
   done
+
+lemma [simp]: "single_valued lst_graph_rel"
+  unfolding lst_graph_rel_alt list_set_rel_def
+  by(auto intro!: single_valued_relcomp list_rel_sv)  
  
+lemma ffffa:
+  "\<And>A B C. A\<le>\<Down>R  B \<Longrightarrow> B\<le>\<Down>Id C \<Longrightarrow> A\<le>\<Down>R  C" sorry
+lemma kruskal_refine: "kruskal2 \<le> \<Down>lst_graph_rel (SPECT (emb minBasis (enat minBasis_time)))"
+proof -
+  note kruskal2_refine
+  also note kruskal1_refine
+  also (ffffa) note kruskal0_refine
+  also note minWeightBasis3_refine
+  finally show ?thesis apply simp
+  using kruskal2_refine kruskal1_refine kruskal0_refine minWeightBasis3_refine
+    sorry
+
 end \<comment> \<open>whatIneed\<close>
 
 

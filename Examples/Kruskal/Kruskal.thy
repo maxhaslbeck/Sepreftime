@@ -22,6 +22,7 @@ begin
   lemma finiteE_finiteV: "finite E \<Longrightarrow> finite V"
     by(auto simp: V_def)
 
+
 end
   
 locale Kruskal_intermediate = Kruskal_intermediate_defs   E forest connected path weight for
@@ -30,9 +31,6 @@ locale Kruskal_intermediate = Kruskal_intermediate_defs   E forest connected pat
    and connected :: "('a uprod) set \<Rightarrow> ('a*'a) set"
    and path :: "('a uprod) set \<Rightarrow> 'a \<Rightarrow> ('a uprod) list \<Rightarrow> 'a \<Rightarrow> bool"
    and weight :: "'a uprod \<Rightarrow> 'b::{linorder, ordered_comm_monoid_add}" +
- fixes     
-       empty_forest_time indep_test_time insert_time :: nat 
-    and getEdges_time sort_time :: nat 
  assumes Eproper: "\<And>e. e\<in>E \<Longrightarrow> proper_uprod e" 
    and finiteE[simp]: "finite E" 
    and forest_subE: "forest E' \<Longrightarrow> E' \<subseteq> E"
@@ -188,8 +186,7 @@ proof -
     by blast
 qed
 
-sublocale minWeightBasis E forest weight       "getEdges_time + sort_time"
-     empty_forest_time indep_test_time insert_time 
+sublocale minWeightBasis E forest weight  
 proof  
   have "forest {}" using forest_empty by auto
   then show "\<exists>X. forest X" by blast 
@@ -197,5 +194,18 @@ qed (auto simp: forest_subE forest_mono augment)
 
 end
 
+locale Kruskal_intermediate_time = Kruskal_intermediate +
+ fixes     
+       empty_forest_time  empty_uf_time indep_test_time insert_time insert_uf_time :: nat 
+    and getEdges_time sort_time :: nat 
+begin
+
+
+sublocale minWeightBasis_time E forest weight      "getEdges_time + sort_time"
+     "empty_forest_time + empty_uf_time" indep_test_time "insert_time+insert_uf_time" 
+  apply unfold_locales .
+
+
+end
 
 end

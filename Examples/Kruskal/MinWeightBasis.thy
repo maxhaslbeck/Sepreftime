@@ -7,8 +7,6 @@ abbreviation "sorted_wrt_w w == sorted_wrt (\<lambda>e1 e2. w e1 \<le> w e2)"
   
 locale minWeightBasis = matroid carrier indep for carrier::"'a set" and indep  +
   fixes w :: "'a \<Rightarrow> 'b::{linorder, ordered_comm_monoid_add}"
-      and sorted_carrier_time :: nat
-    and  empty_basis_time indep_test_time insert_time :: nat 
 begin
    
 section \<open>minWeightBasis algorithm\<close>
@@ -283,7 +281,12 @@ lemma I_minWeightBasis_fineG: "I_minWeightBasis_fine (T,E) \<Longrightarrow> no_
 lemma I_minWeightBasis_sorted: "I_minWeightBasis_fine (T,E) \<Longrightarrow> (\<forall>x\<in>T.\<forall>y\<in>E. w x \<le> w y)" by(auto simp: no_smallest_element_skipped_def I_minWeightBasis_fine_def)
  
   
-  
+end
+
+locale minWeightBasis_time = minWeightBasis +
+  fixes sorted_carrier_time :: nat
+    and  empty_basis_time indep_test_time insert_time :: nat
+begin
 subsection \<open>Refinement to an algorithm using sorted lists\<close> 
 
   definition (in -) "obtain_sorted_carrier_aux sct c w \<equiv> SPECT (emb (\<lambda>L. sorted_wrt_w w L \<and> distinct L \<and> set L = c) sct)"
