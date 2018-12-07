@@ -3,7 +3,22 @@ theory Kruskal_Impl
         UnionFind_Impl
 begin
 
+context
+  fixes t ::  "nat \<Rightarrow> nat"
+begin
+  definition mop_sortEdges   where
+    "mop_sortEdges l = (SPECT (emb (\<lambda>(L,n). n= Max (set (map fst L) \<union> set (map (snd o snd) L)) \<and> sorted_wrt edges_less_eq L \<and> distinct L \<and> set L = set l) (enat (t (length l)))))"
+  
+    sepref_register "mop_sortEdges"  
+end
 
+locale sortMaxnode = 
+  fixes sortEdges_impl :: "(nat \<times> int \<times> nat) list \<Rightarrow> ((nat \<times> int \<times> nat) list * nat) Heap" 
+    and sort_time' :: "nat \<Rightarrow> nat"
+  assumes   
+      sortEdges_impl[sepref_fr_rules]: "\<And>t. (sortEdges_impl, PR_CONST (mop_sortEdges t)) \<in>
+        [\<lambda>l. sort_time' (length l) \<le> t (length l)]\<^sub>a
+      (list_assn (nat_assn \<times>\<^sub>a int_assn \<times>\<^sub>a nat_assn))\<^sup>k \<rightarrow> (list_assn (nat_assn \<times>\<^sub>a int_assn \<times>\<^sub>a nat_assn)\<times>\<^sub>a nat_assn)"
 
 
 
@@ -28,27 +43,47 @@ qed
 lemma set_uprod_nonempty[simp]: "set_uprod x \<noteq> {}"
   apply(cases x) by auto
 
+
 locale Kruskal_intermediate_Impl0 = Kruskal_intermediate E forest connected path weight for E forest connected path 
       and weight :: "nat uprod \<Rightarrow> int"  +
     fixes getEdges  :: "(nat \<times> int \<times> nat) list nrest"
       and getEdges_impl :: "(nat \<times> int \<times> nat) list Heap" 
       and getEdges_time sort_time :: nat
-      and sortEdges  :: "(nat \<times> int \<times> nat) list \<Rightarrow> ((nat \<times> int \<times> nat) list * nat) nrest"
-      and sortEdges_impl :: "(nat \<times> int \<times> nat) list \<Rightarrow> ((nat \<times> int \<times> nat) list * nat) Heap" 
+(*      and sortEdges  :: "(nat \<times> int \<times> nat) list \<Rightarrow> ((nat \<times> int \<times> nat) list * nat) nrest"
+      and sortEdges_impl :: "(nat \<times> int \<times> nat) list \<Rightarrow> ((nat \<times> int \<times> nat) list * nat) Heap" *)
       and empty_uf_time indep_test_time insert_uf_time :: nat
-    assumes  
+    assumes           
+        E_nonempty: "E\<noteq>{}"
+      and  
         getEdges_refine: "getEdges \<le> \<Down> Id (SPECT (emb (\<lambda>L. lst_graph_P' weight L E) (enat getEdges_time)))"
       and
         getEdges_impl[sepref_fr_rules]: "(uncurry0 getEdges_impl, uncurry0 getEdges) \<in> unit_assn\<^sup>k \<rightarrow>\<^sub>a list_assn (nat_assn \<times>\<^sub>a int_assn \<times>\<^sub>a nat_assn)"
-      and
-        sortEdges_refine: "sortEdges l \<le> \<Down> (br fst (\<lambda>(l,n). n= Max V)) (SPECT (emb (\<lambda>L. sorted_wrt edges_less_eq L \<and> distinct L \<and> set L = set l) (enat sort_time)))"
-      and
+(*       and
+        sortEdges_refine': "sortEdges l \<le> (SPECT (emb (\<lambda>(L,n). n= Max (set (map fst l) \<union> set (map (snd o snd) l)) \<and> sorted_wrt edges_less_eq L \<and> distinct L \<and> set L = set l) (enat sort_time)))"
+     and
         sortEdges_impl[sepref_fr_rules]: "(sortEdges_impl, sortEdges) \<in>
                 (list_assn (nat_assn \<times>\<^sub>a int_assn \<times>\<^sub>a nat_assn))\<^sup>k \<rightarrow>\<^sub>a (list_assn (nat_assn \<times>\<^sub>a int_assn \<times>\<^sub>a nat_assn)\<times>\<^sub>a nat_assn)"
-      and
-         E_nonempty: "E\<noteq>{}"
+     
+*)
                                                    
 begin
+
+thm conc_fun_br
+
+abbreviation "sortEdges \<equiv> mop_sortEdges (\<lambda>_. sort_time)"
+
+
+(*
+lemma sortEdges_refine: 
+  assumes a: "V = set (map fst l) \<union> set (map (snd o snd) l)"
+    shows "sortEdges l = \<Down> (br fst (\<lambda>(l,n). n= Max V)) (SPECT (emb (\<lambda>L. sorted_wrt edges_less_eq L \<and> distinct L \<and> set L = set l) (enat sort_time)))"
+proof -
+  have gg: "(\<lambda>x. (case x of (l, n) \<Rightarrow> n = Max V) \<and> sorted_wrt edges_less_eq (fst x) \<and> distinct (fst x) \<and> set (fst x) = set l)
+        =(\<lambda>(L, n). n = Max (set (map fst l) \<union> set (map (snd o snd) l)) \<and> sorted_wrt edges_less_eq L \<and> distinct L \<and> set L = set l)"
+    unfolding a by auto
+  show ?thesis 
+    apply(simp only: conc_fun_br gg) by(rule sortEdges_refine')
+qed *)
 
 abbreviation "insert_time \<equiv> 23"
 abbreviation "empty_forest_time \<equiv> 12"
@@ -62,14 +97,15 @@ sublocale Kruskal_intermediate_time  E forest connected  path weight
 
 term obtain_sorted_carrier''
        
-definition (in -) obtain_sorted_carrier'''_aux :: "(nat \<times> int \<times> nat) list nrest \<Rightarrow> _ \<Rightarrow> ((nat \<times> int \<times> nat) list \<times> nat) nrest" where
-  "obtain_sorted_carrier'''_aux gE sE =
+definition (in -) obtain_sorted_carrier'''_aux  where
+  "obtain_sorted_carrier'''_aux gE sE c =
       do {
     l \<leftarrow> gE;
+    ASSERT (length l = card c);
     sE l
 }" 
 
-abbreviation "obtain_sorted_carrier''' \<equiv> obtain_sorted_carrier'''_aux getEdges sortEdges"
+abbreviation "obtain_sorted_carrier''' \<equiv> obtain_sorted_carrier'''_aux getEdges sortEdges E"
 
 
 definition "is_linorder_rel R \<equiv> (\<forall>x y. R x y \<or> R y x) \<and> (\<forall>x y z. R x y \<longrightarrow> R y z \<longrightarrow> R x z)"
@@ -101,11 +137,22 @@ proof -
   by (auto simp add:  max_node_def prod.case_distrib pff ) 
 qed
 
-
+lemma lst_graph_P_V: "lst_graph_P la E \<Longrightarrow> V = (fst ` set la \<union> (snd \<circ> snd) ` set la)" 
+  apply (auto simp: emb_eq_Some_conv lst_graph_P_def V_def)
+  subgoal 
+    by blast 
+  subgoal  
+    by (metis image_comp img_snd) 
+  done
+ 
 lemma obtain_sorted_carrier'''_refine: "obtain_sorted_carrier''' \<le> \<Down>add_size_rel obtain_sorted_carrier''"
   unfolding obtain_sorted_carrier'''_aux_def  add_size_rel_def
-  apply(refine_rcg getEdges_refine )  
-  using sortEdges_refine by auto
+  apply(rule bindT_refine')      
+   apply(rule getEdges_refine) apply safe
+  apply(auto simp: emb_eq_Some_conv  dest!:  split: if_splits)
+  unfolding conc_fun_br  mop_sortEdges_def 
+  apply(auto  simp: le_fun_def emb'_def dest: lst_graph_P_V split: if_splits)  sorry
+    
 
 definition (in -) initState''_aux where
   "initState''_aux mn eft eut\<equiv> do {
@@ -134,7 +181,7 @@ definition (in -) "notcompare uf a b itt = do {
 
  definition (in -) kruskal3_aux 
    where "kruskal3_aux E gE sE eft eut iut it   itt \<equiv> do {
-    (sl,mn) \<leftarrow> obtain_sorted_carrier'''_aux gE sE;
+    (sl,mn) \<leftarrow> obtain_sorted_carrier'''_aux gE sE E;
     ASSERT (mn = Max (Kruskal_intermediate_defs.V E));
     s \<leftarrow> initState''_aux mn eft eut ;
     (per, spanning_forest) \<leftarrow> nfoldli sl (\<lambda>_. True)
@@ -153,7 +200,7 @@ definition (in -) "notcompare uf a b itt = do {
         RETURNT spanning_forest
       }"
 
-abbreviation "kruskal3 \<equiv> kruskal3_aux E getEdges sortEdges empty_forest_time empty_uf_time
+abbreviation "kruskal3 \<equiv> kruskal3_aux E getEdges sortEdges  empty_forest_time empty_uf_time
                       insert_uf_time  insert_time  indep_test_time"
 
   definition per_supset_rel :: "('a per \<times> 'a per) set" where
@@ -258,11 +305,12 @@ end
        
 
 locale Kruskal_intermediate_Impl = Kruskal_intermediate_Impl0
-  + UnionFind_Impl +
+  + UnionFind_Impl + sortMaxnode   +
   assumes 
   [simp]:  "uf_init_time (Suc (Max V)) \<le> empty_uf_time" 
     "uf_cmp_time (Suc (Max V)) \<le> indep_test_time" 
     "uf_union_time (Suc (Max V)) \<le> insert_uf_time" 
+    "sort_time' (card E) \<le> sort_time"
 begin
 
 section \<open>Kruskal\<close>
@@ -277,7 +325,6 @@ section \<open>Kruskal\<close>
   lemma [sepref_import_param]: "(max_node, max_node) \<in> \<langle>Id\<times>\<^sub>rId\<times>\<^sub>rId\<rangle>list_rel \<rightarrow> nat_rel" by simp
 
   sepref_register "getEdges" :: "(nat \<times> int \<times> nat) list nrest"
-  sepref_register "sortEdges" :: "(nat \<times> int \<times> nat) list \<Rightarrow> ((nat \<times> int \<times> nat) list * nat) nrest"
   sepref_register uf_init :: "nat \<Rightarrow> uf Heap"
   sepref_register uf_cmp :: "uf \<Rightarrow> nat \<Rightarrow> nat \<Rightarrow> bool Heap"
   sepref_register uf_union :: "uf \<Rightarrow> nat \<Rightarrow> nat \<Rightarrow> uf Heap"
@@ -338,7 +385,7 @@ lemmas k_ref_spec = k3[FCOMP k2, FCOMP k1, FCOMP k0, FCOMP kmw]
     by (auto simp: list_assn_pure_conv)
 lemmas kruskal_ref_spec = kruskal.refine[FCOMP k_ref_spec]
 
-
+thm minBasis_time_def
 lemma kruskal_correct_forest:
   shows "<$ minBasis_time> kruskal <\<lambda>r. (\<exists>\<^sub>Ara. hr_comp (da_assn id_assn) lst_graph_rel ra r * \<up> (MST ra))>\<^sub>t"
 proof -
