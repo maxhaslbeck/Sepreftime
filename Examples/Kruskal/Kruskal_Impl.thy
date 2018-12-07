@@ -1,54 +1,8 @@
 theory Kruskal_Impl
-imports Kruskal_Refine "../../Refine_Imperative_HOL/IICF/Impl/IICF_DArray_List"
+  imports Kruskal_Refine "../../Refine_Imperative_HOL/IICF/Impl/IICF_DArray_List"
+        UnionFind_Impl
 begin
 
-type_synonym uf = "nat array \<times> nat array"
-
-
-context
-  fixes t ::  "nat \<Rightarrow> nat"
-begin
-
-  definition "mop_per_init n = SPECT [ per_init' n \<mapsto> enat (t n) ]"
-
-  lemma progress_mop_per_init[progress_rules]: "t n > 0 \<Longrightarrow> progress (mop_per_init n)"
-    unfolding mop_per_init_def by (auto intro!: progress_rules simp add:   zero_enat_def) 
-
-  lemma mop_per_init: "tt \<le> TTT Q (SPECT [ per_init' n \<mapsto> t n]) \<Longrightarrow> tt
-           \<le> TTT Q (mop_per_init n)" unfolding mop_per_init_def by simp
-
-  sepref_register "mop_per_init" 
-end
-
-context
-  fixes t ::  "('a \<times> 'a) set \<Rightarrow> nat"
-begin
-
-  definition "mop_per_compare R a b = SPECT [ per_compare R a b \<mapsto> enat (t R) ]"
-(*
-  lemma progress_mop_per_init[progress_rules]: "t n > 0 \<Longrightarrow> progress (mop_per_init n)"
-    unfolding mop_per_init_def by (auto intro!: progress_rules simp add:   zero_enat_def) 
-
-  lemma mop_per_init: "tt \<le> TTT Q (SPECT [ per_init' n \<mapsto> t n]) \<Longrightarrow> tt
-           \<le> TTT Q (mop_per_init n)" unfolding mop_per_init_def by simp
-*)
-  sepref_register "mop_per_compare" 
-end
-
-context
-  fixes t ::  "('a \<times> 'a) set \<Rightarrow> nat"
-begin
-
-  definition "mop_per_union R a b = SPECT [ per_union R a b \<mapsto> enat (t R) ]"
-(*
-  lemma progress_mop_per_init[progress_rules]: "t n > 0 \<Longrightarrow> progress (mop_per_init n)"
-    unfolding mop_per_init_def by (auto intro!: progress_rules simp add:   zero_enat_def) 
-
-  lemma mop_per_init: "tt \<le> TTT Q (SPECT [ per_init' n \<mapsto> t n]) \<Longrightarrow> tt
-           \<le> TTT Q (mop_per_init n)" unfolding mop_per_init_def by simp
-*)
-  sepref_register "mop_per_union" 
-end
 
 
 
@@ -74,17 +28,14 @@ qed
 lemma set_uprod_nonempty[simp]: "set_uprod x \<noteq> {}"
   apply(cases x) by auto
 
-locale Kruskal_intermediate_Impl = Kruskal_intermediate E forest connected path weight for E forest connected path 
+locale Kruskal_intermediate_Impl0 = Kruskal_intermediate E forest connected path weight for E forest connected path 
       and weight :: "nat uprod \<Rightarrow> int"  +
     fixes getEdges  :: "(nat \<times> int \<times> nat) list nrest"
       and getEdges_impl :: "(nat \<times> int \<times> nat) list Heap" 
       and getEdges_time sort_time :: nat
       and sortEdges  :: "(nat \<times> int \<times> nat) list \<Rightarrow> ((nat \<times> int \<times> nat) list * nat) nrest"
       and sortEdges_impl :: "(nat \<times> int \<times> nat) list \<Rightarrow> ((nat \<times> int \<times> nat) list * nat) Heap" 
-      and is_uf :: "(nat\<times>nat) set \<Rightarrow> uf \<Rightarrow> assn"
-      and uf_init :: "nat \<Rightarrow> uf Heap"
-      and uf_cmp :: "uf \<Rightarrow> nat \<Rightarrow> nat \<Rightarrow> bool Heap"
-      and uf_union :: "uf \<Rightarrow> nat \<Rightarrow> nat \<Rightarrow> uf Heap"
+      and empty_uf_time indep_test_time insert_uf_time :: nat
     assumes  
         getEdges_refine: "getEdges \<le> \<Down> Id (SPECT (emb (\<lambda>L. lst_graph_P' weight L E) (enat getEdges_time)))"
       and
@@ -96,37 +47,12 @@ locale Kruskal_intermediate_Impl = Kruskal_intermediate E forest connected path 
                 (list_assn (nat_assn \<times>\<^sub>a int_assn \<times>\<^sub>a nat_assn))\<^sup>k \<rightarrow>\<^sub>a (list_assn (nat_assn \<times>\<^sub>a int_assn \<times>\<^sub>a nat_assn)\<times>\<^sub>a nat_assn)"
       and
          E_nonempty: "E\<noteq>{}"
-      and
-
-per_init'_sepref_rule[sepref_fr_rules]:  "\<And>t x' x. 10 * x' \<le> t x' \<Longrightarrow>
-     hn_refine (hn_ctxt nat_assn x' x) (uf_init x)
-         (hn_ctxt nat_assn x' x)  
-             is_uf (PR_CONST (mop_per_init t) $  x' )" 
-
-  and
-
-per_compare_sepref_rule[sepref_fr_rules]:  "\<And>t R' R a' a b' b . 10 \<le> t R' \<Longrightarrow>
-     hn_refine (hn_ctxt is_uf R' R * hn_ctxt nat_assn a' a * hn_ctxt nat_assn b' b) (uf_cmp R a b)
-         (hn_ctxt is_uf R' R * hn_ctxt nat_assn a' a * hn_ctxt nat_assn b' b) 
-             bool_assn (PR_CONST (mop_per_compare t) $  R' $ a' $ b' )" 
-
-  and
-
-per_union_sepref_rule[sepref_fr_rules]:  "\<And>t R' R a' a b' b . a' \<in> Domain R' \<and> b' \<in> Domain R'
-  \<Longrightarrow> 100 * card (Domain R') \<le> t R' \<Longrightarrow> 
-     hn_refine (hn_ctxt is_uf R' R * hn_ctxt nat_assn a' a * hn_ctxt nat_assn b' b) (uf_union R a b)
-         (hn_invalid is_uf R' R * hn_ctxt nat_assn a' a * hn_ctxt nat_assn b' b) 
-             uf_assn (PR_CONST (mop_per_union t) $  R' $ a' $ b' )" 
-                                                      
+                                                   
 begin
 
 abbreviation "insert_time \<equiv> 23"
 abbreviation "empty_forest_time \<equiv> 12"
 
-(* ! ! TODO  *)
-abbreviation "empty_uf_time \<equiv> 10*(Max (Kruskal_intermediate_defs.V E)+1) "
-abbreviation "indep_test_time \<equiv> 10"
-abbreviation "insert_uf_time \<equiv> 100 * (Max (Kruskal_intermediate_defs.V E)+1) "
 
 sublocale Kruskal_intermediate_time  E forest connected  path weight
         empty_forest_time empty_uf_time indep_test_time insert_time insert_uf_time getEdges_time sort_time
@@ -214,11 +140,11 @@ definition (in -) "notcompare uf a b itt = do {
     (per, spanning_forest) \<leftarrow> nfoldli sl (\<lambda>_. True)
         (\<lambda>(a,w,b) (uf, T). do { 
             ASSERT (a \<in> Domain uf \<and> b \<in> Domain uf);
+            ASSERT ( card (Domain uf) = Max (Kruskal_intermediate_defs.V E) + 1);
             i \<leftarrow> notcompare uf a b itt;
             if i then
               do { 
                 ASSERT ((a,w,b)\<notin>set T);
-                ASSERT ( card (Domain uf) = Max (Kruskal_intermediate_defs.V E) + 1);
                 addEdge''_aux uf a w b T iut it
               }
             else 
@@ -315,9 +241,9 @@ theorem kruskal3_refine: "kruskal3 \<le> \<Down> Id kruskal2"
                       simp del: per_compare_def )
   subgoal by(auto dest!: kk_relD per_supset_rel_dom)    
   subgoal by(auto dest!: kk_relD per_supset_rel_dom)  
-  subgoal apply(auto dest!: kk_relD simp: SPECT_bind_RETURNT le_fun_def notcompare_def mop_per_compare_def)
-    by (meson Domain.simps local.per_supset_compare per_compare_def)+ 
   subgoal by(auto simp: kk_rel_def) 
+  subgoal apply(auto dest!: kk_relD simp: SPECT_bind_RETURNT le_fun_def notcompare_def mop_per_compare_def)
+    by (meson Domain.simps local.per_supset_compare per_compare_def)+  
   subgoal unfolding addEdge'_aux_def addEdge''_aux_def mop_per_union_def mop_push_list_def
     apply(refine_rcg)
      apply refine_dref_type            
@@ -326,7 +252,18 @@ theorem kruskal3_refine: "kruskal3 \<le> \<Down> Id kruskal2"
     done
   done
 
+end
 
+
+       
+
+locale Kruskal_intermediate_Impl = Kruskal_intermediate_Impl0
+  + UnionFind_Impl +
+  assumes 
+  [simp]:  "uf_init_time (Suc (Max V)) \<le> empty_uf_time" 
+    "uf_cmp_time (Suc (Max V)) \<le> indep_test_time" 
+    "uf_union_time (Suc (Max V)) \<le> insert_uf_time" 
+begin
 
 section \<open>Kruskal\<close>
 
@@ -336,8 +273,8 @@ section \<open>Kruskal\<close>
   lemma [fcomp_norm_simps]: " (nat_assn \<times>\<^sub>a int_assn \<times>\<^sub>a nat_assn) = id_assn"
     by (auto simp: )
 
-lemma [sepref_import_param]: "(sort_edges,sort_edges)\<in>\<langle>Id\<times>\<^sub>rId\<times>\<^sub>rId\<rangle>list_rel \<rightarrow>\<langle>Id\<times>\<^sub>rId\<times>\<^sub>rId\<rangle>list_rel" by simp
-lemma [sepref_import_param]: "(max_node, max_node) \<in> \<langle>Id\<times>\<^sub>rId\<times>\<^sub>rId\<rangle>list_rel \<rightarrow> nat_rel" by simp
+  lemma [sepref_import_param]: "(sort_edges,sort_edges)\<in>\<langle>Id\<times>\<^sub>rId\<times>\<^sub>rId\<rangle>list_rel \<rightarrow>\<langle>Id\<times>\<^sub>rId\<times>\<^sub>rId\<rangle>list_rel" by simp
+  lemma [sepref_import_param]: "(max_node, max_node) \<in> \<langle>Id\<times>\<^sub>rId\<times>\<^sub>rId\<rangle>list_rel \<rightarrow> nat_rel" by simp
 
   sepref_register "getEdges" :: "(nat \<times> int \<times> nat) list nrest"
   sepref_register "sortEdges" :: "(nat \<times> int \<times> nat) list \<Rightarrow> ((nat \<times> int \<times> nat) list * nat) nrest"
@@ -354,7 +291,7 @@ sepref_definition kruskal is
   unfolding kruskal3_aux_def obtain_sorted_carrier'''_aux_def initState''_aux_def
       addEdge''_aux_def notcompare_def nfoldli_def
   using [[goals_limit = 2]]
-  by sepref (*
+   
   apply sepref_dbg_preproc
   apply sepref_dbg_cons_init
   apply sepref_dbg_id 
@@ -362,16 +299,14 @@ sepref_definition kruskal is
 
          apply sepref_dbg_opt_init
 
-  apply sepref_dbg_trans      
+  apply sepref_dbg_trans 
  
   apply sepref_dbg_opt
   apply sepref_dbg_cons_solve \<comment> \<open>Frame rule, recovering the invalidated list 
     or pure elements, propagating recovery over the list structure\<close>
   apply sepref_dbg_cons_solve \<comment> \<open>Trivial frame rule\<close>
   apply sepref_dbg_constraints
-      done 
- *)
-
+      done  
 
 thm kruskal3_refine kruskal2_refine   kruskal1_refine kruskal0_refine minWeightBasis3_refine
  
@@ -380,33 +315,42 @@ thm kruskal.refine kruskal3_refine kruskal2_refine   kruskal1_refine kruskal0_re
 
 abbreviation "MST == minBasis"
 
+term minWeightBasis3
+
 (* TODO: *) 
 
-lemmas kruskal3_ref_spec = kruskal3_refine[FCOMP kruskal2_refine,
-            FCOMP kruskal1_refine,
-            FCOMP kruskal0_refine] 
+lemma k3: "(kruskal3,kruskal2) \<in> \<langle>Id\<rangle>nrest_rel"
+  apply(rule nrest_relI) by (rule kruskal3_refine) 
+lemma k2: "(kruskal2,kruskal1) \<in> \<langle>lst_graph_rel\<rangle>nrest_rel"
+  apply(rule nrest_relI) by (rule kruskal2_refine) 
+lemma k1: "(kruskal1,kruskal0) \<in> \<langle>Id\<rangle>nrest_rel"
+  apply(rule nrest_relI) by (rule kruskal1_refine) 
+lemma k0: "(kruskal0,minWeightBasis3) \<in> \<langle>Id\<rangle>nrest_rel"
+  apply(rule nrest_relI) by (rule kruskal0_refine) 
+lemma kmw: "(minWeightBasis3,SPECT (emb minBasis (enat minBasis_time))) \<in> \<langle>Id\<rangle>nrest_rel"
+  apply(rule nrest_relI)  
+  by (rule minWeightBasis3_refine)
+
+lemmas k_ref_spec = k3[FCOMP k2, FCOMP k1, FCOMP k0, FCOMP kmw]
+
 
   lemma [fcomp_norm_simps]: "list_assn (nat_assn \<times>\<^sub>a int_assn \<times>\<^sub>a nat_assn) = id_assn"
     by (auto simp: list_assn_pure_conv)
-lemmas kruskal_ref_spec = kruskal.refine[FCOMP kruskal3_ref_spec]
+lemmas kruskal_ref_spec = kruskal.refine[FCOMP k_ref_spec]
 
 
 lemma kruskal_correct_forest:
-  shows "<emp> kruskal <\<lambda>r. \<up>( MST (set (map \<alpha>' r)))>\<^sub>t"
+  shows "<$ minBasis_time> kruskal <\<lambda>r. (\<exists>\<^sub>Ara. hr_comp (da_assn id_assn) lst_graph_rel ra r * \<up> (MST ra))>\<^sub>t"
 proof -
-  show ?thesis
-    using kruskal_ref_spec[to_hnr]
-    unfolding hn_refine_def lst_graph_rel_alt
-    apply clarsimp
-    apply (erule cons_post_rule)
-    by (sep_auto simp: hn_ctxt_def pure_def list_set_rel_def in_br_conv
-              dest: list_relD)     
+  thm extract_cost_ub 
+  note l= hn_refine_ref[OF _  kruskal_ref_spec[to_hnr] ]
+  thm extract_cost_ub[OF l, where Cost_ub="minBasis_time", simplified in_ran_emb_special_case]
+  have ht: "<emp * $ minBasis_time> kruskal <\<lambda>r. emp * (\<exists>\<^sub>Ara. hr_comp (da_assn id_assn) lst_graph_rel ra r * \<up> (ra \<in> dom ((emb MST (enat minBasis_time)))))>\<^sub>t"
+    apply(rule extract_cost_ub[OF l, where Cost_ub="minBasis_time" ])
+    by (auto simp: in_ran_emb_special_case)  
+
+  from ht show ?thesis by auto        
 qed
-
- 
-
-
-
 
 end
 
