@@ -9,6 +9,9 @@ abbreviation "\<alpha>' == (\<lambda>(a,_,b). Upair a b)"
 definition "lst_graph_P' w l S \<equiv> distinct (map \<alpha>' l) \<and> (\<lambda>(a,_,b). Upair a b) ` set l = S 
                             \<and> (\<forall>(a,wv,b)\<in>set l.  w (Upair a b) = wv)"
 
+
+definition "lst_graph_rel' w \<equiv> {(l,S). lst_graph_P' w l S }"
+
 locale Kruskal_intermediate_defs =
   fixes  E :: "('a uprod) set"
    and forest :: "('a uprod) set \<Rightarrow> bool"

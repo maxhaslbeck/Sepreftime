@@ -81,10 +81,22 @@ per_compare_sepref_rule[sepref_fr_rules]:  "\<And>t R' R a' a b' b . uf_cmp_time
 
   and
 
-per_union_sepref_rule[sepref_fr_rules]:  "\<And>t R' R a' a b' b . a' \<in> Domain R' \<and> b' \<in> Domain R'
+per_union_sepref_rule[sepref_fr_rules]:  "\<And>t R' R a' a b' b . a' \<in> Domain R' \<Longrightarrow> b' \<in> Domain R'
   \<Longrightarrow> uf_union_time (card (Domain R')) \<le> t R' \<Longrightarrow> 
      hn_refine (hn_ctxt is_uf R' R * hn_ctxt nat_assn a' a * hn_ctxt nat_assn b' b) (uf_union R a b)
          (hn_invalid is_uf R' R * hn_ctxt nat_assn a' a * hn_ctxt nat_assn b' b) 
              uf_assn (PR_CONST (mop_per_union t) $  R' $ a' $ b' )" 
+
+begin
+
+
+thm per_init'_sepref_rule[to_hfref]
+thm per_compare_sepref_rule[to_hfref]
+thm per_union_sepref_rule[to_hfref]
+
+
+end
+
+
 
 end

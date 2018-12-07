@@ -269,7 +269,9 @@ lemmas lst_graph_P_def = lst_graph_P'_def
 lemma lst_graph_P_distinctD: "lst_graph_P l S \<Longrightarrow> distinct l"
   by(auto simp: lst_graph_P_def dest: distinct_mapI)
 
-definition "lst_graph_rel \<equiv> {(l,S). lst_graph_P l S }"
+abbreviation "lst_graph_rel \<equiv> lst_graph_rel' weight"
+lemmas lst_graph_rel_def = lst_graph_rel'_def
+
 
 lemma lst_graph_rel_empty[simp]: "([], {}) \<in> lst_graph_rel"
   by(simp add: lst_graph_rel_def lst_graph_P_def)
@@ -315,6 +317,7 @@ abbreviation (in -) obtain_sorted_carrier''_aux
   :: "('a uprod \<Rightarrow> 'w::{linorder, ordered_comm_monoid_add}) \<Rightarrow> 'a uprod set \<Rightarrow> enat \<Rightarrow> enat \<Rightarrow> ('a \<times> 'w \<times> 'a) list nrest"  where
   "obtain_sorted_carrier''_aux w c get st \<equiv> do {
     (l::('a \<times> 'w \<times> 'a) list) \<leftarrow> getEdges' w c get;
+  (*  ((ASSERT (length l = card c))::unit nrest); *)
     SPECT (emb (\<lambda>L. sorted_wrt edges_less_eq L \<and> distinct L \<and> set L = set l) st)
 }"                                                                          
 abbreviation "obtain_sorted_carrier'' \<equiv> obtain_sorted_carrier''_aux weight E getEdges_time sort_time "
