@@ -415,4 +415,10 @@ lemma WHILET_refine:
 
 
 
+
+lemma conc_fun_br: "\<Down> (br \<alpha> I1) (SPECT (emb I2 t))
+        = (SPECT (emb (\<lambda>x. I1 x \<and> I2 (\<alpha> x)) t))"
+  unfolding conc_fun_RES  apply auto apply(rule ext)    
+    using Sup_Some by (auto simp: emb'_def br_def bot_option_def Sup_option_def) 
+
 end
