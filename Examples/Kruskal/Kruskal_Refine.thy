@@ -2,31 +2,6 @@ theory Kruskal_Refine
 imports Kruskal   "../../Refine_Heuristics" UnionFind
 begin
  
-
-
-
-
-section "Setup refine_vcg"
-(* TODO: move *)
-
-lemma [refine0]: "\<And>S. S \<le> \<Down> Id S" by simp                                          
-lemma [refine0]: "\<Phi> \<Longrightarrow> (\<Phi> \<Longrightarrow> S \<le> \<Down> R S') \<Longrightarrow> ASSERT \<Phi> \<bind> (\<lambda>_. S) \<le> \<Down> R S'" sorry
-declare le_R_ASSERTI [refine0]
-
-thm refine0
-
-declare bindT_refine [refine]
-thm refine
-thm refine2
-thm refine_vcg
-
-lemma [refine_vcg_cons]: "m \<le> SPECT \<Phi> \<Longrightarrow> (\<And>x. \<Phi> x \<le> \<Psi> x) \<Longrightarrow> m \<le> SPECT \<Psi>"
-  by (metis dual_order.trans le_funI nres_order_simps(2)) 
-thm refine_vcg_cons
- 
-
-
-
 definition edges_less_eq :: "('a \<times> 'w::{linorder, ordered_comm_monoid_add} \<times> 'a) \<Rightarrow> ('a \<times> 'w \<times> 'a) \<Rightarrow> bool"
   where "edges_less_eq a b \<equiv> fst(snd a) \<le> fst(snd b)"
 
@@ -101,33 +76,11 @@ lemma "(xi, x) \<in> RR \<Longrightarrow>  xi = (x1, x2) \<Longrightarrow> x = U
 
 
  
-
+               
 declare RETURNT_refine [simp]
 
-lemma If_refine[refine]: "b = b' \<Longrightarrow>
-  (b \<Longrightarrow> b' \<Longrightarrow> S1 \<le> \<Down> R S1') \<Longrightarrow>
-  (\<not> b \<Longrightarrow> \<not> b' \<Longrightarrow> S2 \<le> \<Down> R S2') \<Longrightarrow> (if b then S1 else S2) \<le> \<Down> R (if b' then S1' else S2')"
-  by auto
-  
 
-lemma nfoldli_refine[refine]:
-  assumes "(li, l) \<in> \<langle>S\<rangle>list_rel"
-    and "(si, s) \<in> R"
-    and CR: "(ci, c) \<in> R \<rightarrow> bool_rel"
-    and [refine]: "\<And>xi x si s. \<lbrakk> (xi,x)\<in>S; (si,s)\<in>R; c s \<rbrakk> \<Longrightarrow> fi xi si \<le> \<Down>R (f x s)"
-  shows "nfoldli li ci fi si \<le> \<Down> R (nfoldli l c f s)"
-  using assms(1,2)
-proof (induction arbitrary: si s rule: list_rel_induct)
-  case Nil thus ?case by simp
-next
-  case (Cons xi x li l) 
-  note [refine] = Cons
 
-  show ?case
-    apply (simp split del: if_split)
-    apply refine_rcg
-    using CR Cons.prems by (auto dest: fun_relD)
-qed    
 
 lemma ff: "(sa, sa) \<in> Id" by auto
 
@@ -317,7 +270,7 @@ abbreviation (in -) obtain_sorted_carrier''_aux
   :: "('a uprod \<Rightarrow> 'w::{linorder, ordered_comm_monoid_add}) \<Rightarrow> 'a uprod set \<Rightarrow> enat \<Rightarrow> enat \<Rightarrow> ('a \<times> 'w \<times> 'a) list nrest"  where
   "obtain_sorted_carrier''_aux w c get st \<equiv> do {
     (l::('a \<times> 'w \<times> 'a) list) \<leftarrow> getEdges' w c get;
-  (*  ((ASSERT (length l = card c))::unit nrest); *)
+ (*  ((ASSERT (length l = card c))::unit nrest); *)
     SPECT (emb (\<lambda>L. sorted_wrt edges_less_eq L \<and> distinct L \<and> set L = set l) st)
 }"                                                                          
 abbreviation "obtain_sorted_carrier'' \<equiv> obtain_sorted_carrier''_aux weight E getEdges_time sort_time "

@@ -380,7 +380,12 @@ lemma pw_eqI:
 
 
  
+definition "consume M t \<equiv> case M of 
+          FAILi \<Rightarrow> FAILT |
+          REST X \<Rightarrow> REST (map_option ((+) t) o (X))"
 
+
+definition "SPEC P t = REST (\<lambda>v. if P v then Some (t v) else None)"
 
 section \<open> Monad Operators \<close>
 
@@ -390,6 +395,23 @@ definition bindT :: "'b nrest \<Rightarrow> ('b \<Rightarrow> 'a nrest) \<Righta
   REST X \<Rightarrow> Sup { (case f x of FAILi \<Rightarrow> FAILT 
                 | REST m2 \<Rightarrow> REST (map_option ((+) t1) o (m2) ))
                     |x t1. X x = Some t1}"
+
+
+lemma bindT_alt: "bindT M f = (case M of 
+  FAILi \<Rightarrow> FAILT | 
+  REST X \<Rightarrow> Sup { consume (f x) t1 |x t1. X x = Some t1})"
+  unfolding bindT_def consume_def by simp
+
+
+lemma "bindT (REST X) f = 
+  (SUP x:dom X. consume (f x) (the (X x)))"
+proof -
+  have *: "\<And>f X. { f x t |x t. X x = Some t}
+      = (\<lambda>x. f x (the (X x))) ` (dom X)"
+    by force
+  show ?thesis by (auto simp: bindT_alt *)
+qed
+
 
 adhoc_overloading
   Monad_Syntax.bind Sepreftime.bindT
@@ -551,6 +573,10 @@ lemma emb_eq_Some_conv: "\<And>T. emb' Q T x = Some t' \<longleftrightarrow> (t'
 
 lemma emb_le_Some_conv: "\<And>T. Some t' \<le> emb' Q T x \<longleftrightarrow> ( t'\<le>T x \<and> Q x)"
   by (auto simp: emb'_def)
+
+
+lemma SPEC_REST_emb'_conv: "SPEC P t = REST (emb' P t)"
+  unfolding SPEC_def emb'_def by auto
 
 
 text \<open>Select some value with given property, or \<open>None\<close> if there is none.\<close>  
@@ -865,6 +891,9 @@ subsection "T"
 definition T :: "('a \<Rightarrow> enat option) \<Rightarrow> 'a nrest \<Rightarrow> enat option" 
   where "T Qf M =  Inf { mii Qf M x | x. True}"
 
+lemma T_alt_: "T Qf M = Inf ( (mii Qf M) ` UNIV )"
+  unfolding T_def 
+  by (simp add: full_SetCompr_eq) 
 
 lemma T_pw: "T Q M \<ge> t \<longleftrightarrow> (\<forall>x. mii Q M x \<ge> t)"
   unfolding T_def mii_def apply(cases M) apply auto

@@ -412,6 +412,56 @@ lemma WHILET_refine:
      apply (fact R0)
     by(auto simp: COND_REF STEP_REF RETURNT_refine intro: bindT_refine[where R'=R])  
 
+lemma 
+  assumes a: "\<And>m n c a. c\<in>Domain R \<Longrightarrow> \<exists>a. SPECT (n c) \<le>  SPECT (m a)"
+  shows "(SPECT n) \<le> \<Down> R (SPECT m)"
+  using a  apply auto  
+    unfolding conc_fun_def apply (auto split: nrest.split) 
+      unfolding le_fun_def apply auto
+    proof -
+      fix c 
+      assume "(\<And>c n m. c \<in> Domain R \<Longrightarrow> \<exists>a. \<forall>x. n c x \<le> m a x)"
+      oops
+
+lemma SPECT_refines_conc_fun':
+  assumes a: "\<And>m c.  M = SPECT m
+          \<Longrightarrow> c \<in> dom n \<Longrightarrow> (\<exists>a. (c,a)\<in>R \<and> n c \<le> m a)"
+  shows "SPECT n \<le> \<Down> R M"
+proof - 
+  show ?thesis
+    unfolding conc_fun_def apply (auto split: nrest.split) 
+    subgoal for m unfolding le_fun_def apply auto
+    proof -
+      fix c
+      assume m: "M = SPECT m"
+      show "n c \<le> Sup {m a |a. (c, a) \<in> R} "
+      proof (cases "c \<in> dom n")
+        case True
+        with m a obtain a where k: "(c,a)\<in>R" "n c \<le> m a" by blast 
+        show ?thesis apply(rule  Sup_upper2) using k by auto
+      next
+        case False
+        then show ?thesis 
+          by (simp add: domIff)
+      qed 
+    qed
+    done
+qed
+
+lemma SPECT_refines_conc_fun:
+  assumes a: "\<And>m c. (\<exists>a. (c,a)\<in>R \<and> n c \<le> m a)"
+  shows "SPECT n \<le> \<Down> R (SPECT m)"
+  apply(rule SPECT_refines_conc_fun') using a by auto
+
+
+lemma SPECT_refines_conc_fun_sv:
+  assumes "single_valued R" 
+    and a: "dom n \<subseteq> Domain R"
+    and "\<And>c. c \<in> dom n \<Longrightarrow> n c \<le> (THE a. (c,a)\<in>R)"
+  shows "SPECT n \<le> \<Down> R (SPECT m)"
+  apply(rule SPECT_refines_conc_fun') using a
+  using indomD[OF assms(1) _ a] domIff
+  oops
 
 
 

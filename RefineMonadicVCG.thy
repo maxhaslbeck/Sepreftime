@@ -31,11 +31,30 @@ lemma T_RESTemb: "(\<And>x. P x \<Longrightarrow> Some (t' + t x) \<le> Q x)
     \<Longrightarrow>  Some t' \<le> TTT Q (REST (emb' P t))  "
   by (auto simp: T_RESTemb_iff)
 
+lemma  T_SPEC: "(\<And>x. P x \<Longrightarrow> Some (t' + t x) \<le> Q x)
+    \<Longrightarrow>  Some t' \<le> TTT Q (SPEC P t)  "
+  unfolding SPEC_REST_emb'_conv
+  by (auto simp: T_RESTemb_iff)
+
 lemma T_SPECT_I: "(Some (t' + t ) \<le> Q x)
     \<Longrightarrow>  Some t' \<le> TTT Q (SPECT [ x \<mapsto> t])  "
   by(auto simp:   T_pw mii_alt aux1)   
- 
 
+lemma mm2_map_option: "Some (t'+t) \<le> mm2 (Q x) (x2 x)
+  \<Longrightarrow> Some t' \<le> mm2 (Q x) (map_option ((+) t) (x2 x)) "
+  apply(cases "Q x")
+  apply (auto simp: mm2_def  split: option.splits if_splits)
+  subgoal by (metis add.assoc add.commute g leD le_iff_add less_le_trans linordered_field_class.sign_simps(2) linordered_field_class.sign_simps(3)) 
+  subgoal by (smt add.commute add.left_commute f g)  
+  done
+
+
+lemma  T_consume: "(Some (t' + t) \<le> TTT Q M)
+    \<Longrightarrow>  Some t' \<le> TTT Q (consume M t)  "
+  unfolding consume_def T_pw apply (auto split: nrest.splits simp: miiFailt)
+  by (auto intro!: mm2_map_option  simp: mii_alt    split: option.splits if_splits)
+    
+    
 
 definition "valid t Q M = (Some t \<le> TTT Q M)"
 
@@ -864,5 +883,40 @@ lemma "\<And>c. do {  c \<leftarrow> RETURNT None;
   apply(rule T_specifies_I)
   apply(vcg'\<open>-\<close>)  unfolding  option.case   oops
   thm option.case
+
+
+
+
+
+subsection "setup for refine_vcg"
+
+lemma If_refine[refine]: "b = b' \<Longrightarrow>
+  (b \<Longrightarrow> b' \<Longrightarrow> S1 \<le> \<Down> R S1') \<Longrightarrow>
+  (\<not> b \<Longrightarrow> \<not> b' \<Longrightarrow> S2 \<le> \<Down> R S2') \<Longrightarrow> (if b then S1 else S2) \<le> \<Down> R (if b' then S1' else S2')"
+  by auto
+  
+  
+
+lemma [refine0]: "\<And>S. S \<le> \<Down> Id S" by simp                                          
+lemma [refine0]: "\<Phi> \<Longrightarrow> (\<Phi> \<Longrightarrow> S \<le> \<Down> R S') \<Longrightarrow> ASSERT \<Phi> \<bind> (\<lambda>_. S) \<le> \<Down> R S'"
+     by auto 
+declare le_R_ASSERTI [refine0]
+
+thm refine0
+
+declare bindT_refine [refine]
+thm refine
+thm refine2
+thm refine_vcg
+
+lemma [refine_vcg_cons]: "m \<le> SPECT \<Phi> \<Longrightarrow> (\<And>x. \<Phi> x \<le> \<Psi> x) \<Longrightarrow> m \<le> SPECT \<Psi>"
+  by (metis dual_order.trans le_funI nres_order_simps(2)) 
+thm refine_vcg_cons
+ 
+
+
+
+
+
 
 end

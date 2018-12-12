@@ -187,6 +187,55 @@ proof -
 qed
 
 
+lemma nfoldli_refine[refine]:
+  assumes "(li, l) \<in> \<langle>S\<rangle>list_rel"
+    and "(si, s) \<in> R"
+    and CR: "(ci, c) \<in> R \<rightarrow> bool_rel"
+    and [refine]: "\<And>xi x si s. \<lbrakk> (xi,x)\<in>S; (si,s)\<in>R; c s \<rbrakk> \<Longrightarrow> fi xi si \<le> \<Down>R (f x s)"
+  shows "nfoldli li ci fi si \<le> \<Down> R (nfoldli l c f s)"
+  using assms(1,2)
+proof (induction arbitrary: si s rule: list_rel_induct)
+  case Nil thus ?case by (simp add: RETURNT_refine)
+next
+  case (Cons xi x li l) 
+  note [refine] = Cons
+
+  show ?case
+    apply (simp add: RETURNT_refine  split del: if_split)
+    apply refine_rcg
+    using CR Cons.prems by (auto simp: RETURNT_refine  dest: fun_relD)
+qed    
+
+
+thm nfoldliIE_rule[THEN T_specifies_rev, THEN T_conseq4,no_vars]
+
+
+definition "nfoldliIE' I bt l0 f s0 = nfoldliIE I bt l0 (\<lambda>_. True) f s0"
+
+lemma nfoldliIE'_rule:
+  assumes 
+"\<And>x l1 l2 \<sigma>.
+    l0 = l1 @ x # l2 \<Longrightarrow>
+    I l1 (x # l2) \<sigma> \<Longrightarrow> Some 0 \<le> TTT (emb (I (l1 @ [x]) l2) (enat body_time)) (f x \<sigma>)"
+"I [] l0 \<sigma>0"
+"(\<And>\<sigma>. I l0 [] \<sigma> \<Longrightarrow> Some (t + enat (body_time * length l0)) \<le> Q \<sigma>)"
+shows "Some t \<le> TTT Q (nfoldliIE' I body_time l0 f \<sigma>0)"
+  unfolding nfoldliIE'_def
+  apply(rule nfoldliIE_rule[where P="I l0 []" and c="\<lambda>_. True" and t="body_time * length l0", THEN T_specifies_rev, THEN T_conseq4])
+       apply fact
+  subgoal 
+    apply(rule T_specifies_I) using  assms(1) by auto 
+  subgoal by auto
+    apply simp
+   apply simp
+  subgoal  
+    unfolding Some_eq_emb'_conv 
+    using assms(3) by auto
+  done
+
+
+
+
 text {* We relate our fold-function to the while-loop that we used in
   the original definition of the foreach-loop *}
 lemma nfoldli_while: "nfoldli l c f \<sigma>

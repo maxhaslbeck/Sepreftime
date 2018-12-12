@@ -369,6 +369,17 @@ definition "minBasis_time = sorted_carrier_time +  empty_basis_time
 lemma le_Id: "M \<le> M' \<Longrightarrow> M \<le> \<Down> Id M'"
   by auto
 
+theorem minWeightBasis3_refine: "minWeightBasis3 \<le> \<Down> Id (SPECT (emb minBasis minBasis_time))"
+  unfolding minWeightBasis3_aux_def obtain_sorted_carrier_aux_def
+  unfolding nfoldliIE_def[where E="indep_test_time + insert_time" and I="\<lambda>l1 l2 s. I_minWeightBasis_fine (s,set l2)", symmetric]
+  apply(rule le_Id)
+  apply(rule T_specifies_I) 
+  unfolding nfoldliIE'_def[symmetric]                      
+  apply(vcg' \<open>-\<close> rules: nfoldliIE'_rule  )
+  unfolding Some_le_emb'_conv
+       apply (safe) 
+  oops
+
 lemmas f = nfoldliIE_rule[where  t="card carrier * (indep_test_time + insert_time)" and
                     P="\<lambda>T. I_minWeightBasis_fine (T, {})", THEN T_specifies_rev, THEN T_conseq4]
 theorem minWeightBasis3_refine: "minWeightBasis3 \<le> \<Down> Id (SPECT (emb minBasis minBasis_time))"
