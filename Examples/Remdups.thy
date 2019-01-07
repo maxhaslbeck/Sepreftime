@@ -36,12 +36,7 @@ definition rd_impl1 :: "nat list \<Rightarrow> (nat list) nrest" where
   RETURNT ys
   }"
 
-term emb
-
-
 definition "remdups_time (n::nat) = n * body_time n + 20"
-
-
 
 lemma enat_neq_Z_iff[simp]: "enat x \<noteq> 0 \<longleftrightarrow> x\<noteq>0"
   by (auto simp: zero_enat_def)
@@ -59,23 +54,11 @@ lemma rd_impl1_correct: "rd_impl1 as \<le> REST (emb (\<lambda>ys. set as = set 
           body_time_def remdups_time_def)
   done
  
-
-
-
-find_theorems "Some _ \<le> TTT _ (REST _)"
-
-
-thm whileT_rule''
-
 lemma "remdups_time \<in> \<Theta>(\<lambda>n. n * ln n)"
   unfolding remdups_time_def body_time_def
   by auto2 
 
-
-
-(* library *) 
- 
- 
+(* library *)  
 lemma hn_refine_Zero[sepref_fr_rules]: " hn_refine emp
            (ureturn (0::nat)) emp
        (pure Id) (RETURNT $ (0::nat))"
@@ -121,10 +104,7 @@ begin
 declare rbt_search_time_logN_mono [intro]
 declare rbt_insert_logN_mono [intro]
 
-
-
-
-sepref_definition remdups_impl is "uncurry0 (rd_impl1 as)" :: "unit_assn\<^sup>k \<rightarrow>\<^sub>a dyn_array"
+sepref_definition remdups_impl is "uncurry0 (rd_impl1 as)" :: "unit_assn\<^sup>k \<rightarrow>\<^sub>a da_assn nat_assn"
   unfolding rd_impl1_def whileIET_def
   apply sepref_dbg_keep 
   done
@@ -138,7 +118,7 @@ thm extract_cost_ub[OF hnr_refine[OF rd_impl1_correct  remdups_impl.refine[to_hn
 
 lemma "<$ (remdups_time (length as))> 
           remdups_impl 
-        <\<lambda>r. \<exists>\<^sub>Ara. dyn_array ra r * \<up> (set as = set ra \<and> distinct ra)>\<^sub>t"
+        <\<lambda>r. \<exists>\<^sub>Ara. da_assn nat_assn ra r * \<up> (set as = set ra \<and> distinct ra)>\<^sub>t"
   using  extract_cost_ub[OF hnr_refine[OF rd_impl1_correct  remdups_impl.refine[to_hnr]], where Cost_ub="remdups_time (length as)", simplified in_ran_emb_special_case,   simplified ]
   by auto
 (*
