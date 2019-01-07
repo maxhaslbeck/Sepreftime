@@ -145,48 +145,36 @@ begin
       ASSERT (RGraph c s t cf);
       f \<leftarrow> RETURNT (flow_of_cf cf);  
       RETURNT f
-    }"
-
+    }" 
 
     lemma  edka2_refine: "edka2 \<le> \<Down>Id Ed.edka"
     proof -
+      have [refine_dref_RELATES]: "RELATES cfi_rel" by (simp add: RELATES_def)
+
       show ?thesis
         unfolding edka2_def Ed.edka_def 
-        apply (rule bindT_refine[where R'=cfi_rel] ) 
-        subgoal unfolding cfi_rel_alt 
-          apply(rule SPECT_refine) by (auto simp add: residualGraph_zero_flow zero_flow split: if_splits)
-          apply(rule bindT_refine[where R'="cfi_rel \<times>\<^sub>r bool_rel"])
-         apply(rule WHILET_refine)     apply simp
-        subgoal by auto
-         apply auto  apply(rule ASSERT_leI)
-        subgoal unfolding cfi_rel_alt by (auto simp add: NFlow.is_RGraph)  
-         apply (rule bindT_refine[where R'=Id]) apply simp  
-        subgoal    
-          apply (frule find_shortest_augmenting_spec_cf_refine)  
-          apply (simp add: cfi_rel_def in_br_conv) done
-        subgoal apply (auto intro: RETURNT_refine split: option.splits) 
-          apply(rule le_R_ASSERTI)+
-          apply(rule ASSERT_leI) apply simp
-          apply(rule ASSERT_leI) apply (simp add: cfi_rel_alt)
-          apply(rule bindT_refine[where R'=cfi_rel]) apply simp
-          apply(rule SPECT_refine) apply (auto split: if_splits)[] 
-          subgoal apply (auto simp add: cfi_rel_def in_br_conv)
+        apply(refine_rcg find_shortest_augmenting_spec_cf_refine RETURNT_refine SPECT_refine)
+        apply refine_dref_type
+        apply simp_all
+
+        \<comment> \<open>Solve some left-over verification conditions one by one\<close>
+        subgoal by (auto simp add: cfi_rel_alt residualGraph_zero_flow zero_flow
+                       split: if_splits)
+        subgoal by (auto simp add: cfi_rel_alt NFlow.is_RGraph) 
+        subgoal by (auto dest!: find_shortest_augmenting_spec_cf_refine
+                      simp add: cfi_rel_def in_br_conv)
+        subgoal by (simp add: cfi_rel_alt)
+        subgoal apply (auto split: if_splits simp add: cfi_rel_def in_br_conv )
             subgoal by (metis augment_cf_refine cfi_rel_def in_br_conv)
             subgoal by (metis augment_cf_refine cfi_rel_def in_br_conv) 
             done
-          apply(rule ASSERT_leI) subgoal  
-            by (metis (full_types)  cfi_rel_def in_br_conv) 
-          apply(rule le_R_ASSERTI)
-          apply(rule RETURNT_refine)
-          by (auto simp: augment_cf_refine) 
-        subgoal 
-          apply(rule le_ASSERTI)
-          apply(rule ASSERT_leI)    
-          by(simp_all add: cfi_rel_def in_br_conv)
-        done  
-    qed    
+        subgoal by (metis (full_types)  cfi_rel_def in_br_conv) 
+        by (simp_all add: cfi_rel_def in_br_conv)
+    qed
+ 
 
-lemma  edka2_correct: "edka2 \<le> \<Down>Id  (SPECT (emb isMaxFlow (enat Ed.edka_time)))"
+
+  lemma  edka2_correct: "edka2 \<le> \<Down>Id  (SPECT (emb isMaxFlow (enat Ed.edka_time)))"
     apply(rule order.trans) apply(rule edka2_refine) using Ed.edka_correct by simp
  
 end
@@ -464,6 +452,10 @@ lemmas find_shortest_augmenting_spec_cf = Ed_Res.find_shortest_augmenting_spec_c
     abbreviation "augment_cf_impl' cf p bn \<equiv> RGraph_impl.augment_cf_impl c matrix_lookup_time matrix_set_time cf p bn"
     abbreviation "find_shortest_augmenting_spec_cf \<equiv> Ed_Res.find_shortest_augmenting_spec_cf"
 
+    definition "augment cf p =  do {
+                  bn \<leftarrow> resCap_cf_impl' cf p;
+                  augment_cf_impl' cf p bn }"
+
     text \<open>Finally, we arrive at the algorithm where augmentation is 
       implemented algorithmically: \<close>  
     definition "edka3 \<equiv> do {
@@ -478,9 +470,8 @@ lemmas find_shortest_augmenting_spec_cf = Ed_Res.find_shortest_augmenting_spec_c
             None \<Rightarrow> RETURNT (cf,True)
           | Some p \<Rightarrow> do {
               ASSERT (p\<noteq>[]);
-              ASSERT (Graph.isShortestPath cf s p t);
-              bn \<leftarrow> resCap_cf_impl' cf p;
-              cf \<leftarrow> augment_cf_impl' cf p bn;
+              ASSERT (Graph.isShortestPath cf s p t); 
+              cf \<leftarrow> augment cf p;
               ASSERT (RGraph c s t cf);
               RETURNT (cf, False)
             }  
@@ -491,28 +482,9 @@ lemmas find_shortest_augmenting_spec_cf = Ed_Res.find_shortest_augmenting_spec_c
       RETURNT f
     }"
 
-  
-
-    lemma edka3_refine: "edka3 \<le> \<Down>Id Ed_Res.edka2"
-      unfolding edka3_def Ed_Res.edka2_def
-      apply(rule bindT_refine)
-       apply(rule SPECT_refine[where R=Id]) apply (auto split: if_splits)[] 
-      apply(rule bindT_refine[where R'="Id \<times>\<^sub>r bool_rel"])
-       apply(rule WHILET_refine)
-         apply simp apply simp
-      apply(auto) []
-          apply(rule le_ASSERTI)+
-       apply(rule ASSERT_leI) apply simp
-      apply(auto) []
-       apply(rule bindT_mono) apply simp
-      apply(auto split: option.splits) []
-          apply(rule le_ASSERTI)+
-       apply(rule ASSERT_leI) apply simp
-       apply(rule ASSERT_leI) apply simp
-       apply safe 
-      apply(subst nres_bind_assoc[symmetric]) 
-       apply(rule bindT_mono)      
-      subgoal 
+  lemma augment_refine[refine]: "RGraph c s t x1  \<Longrightarrow> Graph.isShortestPath x1 s pc t \<Longrightarrow> 
+     augment x1 pc \<le> \<Down>Id (SPECT [Graph.augment_cf x1 (set pc) (resCap_cf x1 pc) \<mapsto> enat augment_with_path_time])"
+          unfolding augment_def apply simp
         apply(rule T_specifies_I)   
         apply(vcg'\<open>-\<close> rules: RGraph_impl.resCap_cf_impl_refine[THEN T_specifies_rev , THEN T_conseq4] 
              RGraph_impl.augment_cf_impl_refine[THEN T_specifies_rev , THEN T_conseq4]  )
@@ -521,22 +493,19 @@ lemmas find_shortest_augmenting_spec_cf = Ed_Res.find_shortest_augmenting_spec_c
         apply (simp add: RGraph_impl_axioms_def)
          apply(auto intro: Graph.shortestPath_is_simple)[] 
         apply (auto split: if_splits simp: RGraph_impl_axioms_def emb_eq_Some_conv)
-        apply(subst tTT ) by auto
-      apply simp apply simp done
-       (*
-      apply (rewrite in "let cf = Graph.augment_cf _ _ _ in _" Let_def)
+        apply(subst tTT )
+        by auto 
+ 
+
+   lemma edka3_refine: "edka3 \<le> \<Down>Id Ed_Res.edka2"
+      unfolding edka3_def Ed_Res.edka2_def
       apply refine_rcg
-      apply refine_dref_type
-      apply (vc_solve)
-      apply (drule Graph.shortestPath_is_simple)
-      apply (frule (1) RGraph.resCap_cf_impl_refine)
-      apply (frule (1) RGraph.augment_cf_impl_refine)
-      apply (auto simp: pw_le_iff refine_pw_simps)
-      done *) 
-                                                                         
-lemma  edka3_correct: "edka3 \<le> \<Down>Id (SPECT (emb isMaxFlow (enat (EdKa.edka_time c shortestpath_time augment_with_path_time init_graph))))"
-    apply(rule order.trans) apply(rule edka3_refine) 
-    using Ed_Res.edka2_correct by simp 
+      apply refine_dref_type   
+      by auto   
+
+  lemma  edka3_correct: "edka3 \<le> \<Down>Id (SPECT (emb isMaxFlow (enat (EdKa.edka_time c shortestpath_time augment_with_path_time init_graph))))"
+      apply(rule order.trans) apply(rule edka3_refine) 
+      using Ed_Res.edka2_correct by simp 
 end
  
 term Augmenting_Path_BFS.bfs
@@ -612,9 +581,9 @@ abbreviation "shortest_path_time == shortest_path_time_aux (card V) (2 * card E)
 
     text \<open>A shortest path can be obtained by BFS\<close>  
     lemma bfs_refines_shortest_augmenting_spec: fixes cf shows
-      "MYbfs cf s t \<le> edru.find_shortest_augmenting_spec_cf cf "
-      unfolding edru.find_shortest_augmenting_spec_cf
-    proof (rule le_ASSERTI, goal_cases)
+      "cf'=cf \<Longrightarrow> MYbfs cf s t \<le> \<Down>Id (edru.find_shortest_augmenting_spec_cf cf')"
+      unfolding edru.find_shortest_augmenting_spec_cf apply safe
+    proof (rule le_R_ASSERTI, goal_cases)
       case 1
       interpret BFS: Augmenting_Path_BFS cf "set_insert_time (card (Graph.V cf))" "map_dom_member_time (card (Graph.V cf))"
                  "set_delete_time (card (Graph.V cf))" get_succs_list_time "map_update_time (card (Graph.V cf))" set_pick_time  
@@ -632,42 +601,24 @@ abbreviation "shortest_path_time == shortest_path_time_aux (card V) (2 * card E)
       finally have "card BFS.E \<le> 2 * card E" . (* TODO: get rid of the factor 2 here *)
 
       thm BFS.bfs_correct
-      have *: "BFS.bfs_time s t \<le> shortest_path_time"       
-        apply(auto   simp add:  RPreGraph.resV_netV[OF RGraph.this_loc_rpg, OF 1])
+      have *: "BFS.bfs_time s t \<le> shortest_path_time"        
         apply(simp add: shortest_path_time_aux_def   Augmenting_Path_BFS.bfs_time_def - Augmenting_Path_BFS_def) 
         apply(rule pre_bfs_time_aux_mono) by fact
       show ?case
       apply (rule order_trans) unfolding MYbfs_def
-         apply (rule BFS.bfs_correct)          
-      apply (simp add: RPreGraph.resV_netV[OF RGraph.this_loc_rpg, OF 1])
-         apply (simp add: RPreGraph.resV_netV[OF RGraph.this_loc_rpg, OF 1]) 
-        apply(rule SPECT_ub) using * apply (auto simp: le_fun_def)
+         apply (rule BFS.bfs_correct)      
+        using  RPreGraph.resV_netV[OF RGraph.this_loc_rpg, OF 1(2)]
+      apply (simp add: RPreGraph.resV_netV[OF RGraph.this_loc_rpg, OF 1(2)])
+         apply (simp add: RPreGraph.resV_netV[OF RGraph.this_loc_rpg, OF 1(2)])
+          apply(rule SPECT_ub') using * apply (auto simp: le_fun_def)
         done
     qed
 
     lemma edka4_refine: "edka4 \<le> \<Down>Id edru.edka3"
-      unfolding edka4_def edru.edka3_def        
-      apply(rule bindT_refine)
-       apply(rule SPECT_refine[where R=Id]) subgoal by(auto split: if_splits)
-      apply(rule bindT_refine[where R'="Id \<times>\<^sub>r bool_rel"])
-       apply(rule WHILET_refine)
-         apply simp apply simp
-      apply(auto) []
-          apply(rule le_ASSERTI)+
-       apply(rule ASSERT_leI) apply simp
-       apply(rule ASSERT_leI) using RGraph.this_loc_rpg RPreGraph.resV_netV apply blast    
-      apply(auto) []
-       apply(rule bindT_mono)
-        apply(rule bfs_refines_shortest_augmenting_spec)
-        apply simp
-      apply(auto split: option.splits) 
-      done
-
- (*
-      apply refine_rcg
-      apply refine_dref_type
-      apply (vc_solve simp: bfs_refines_shortest_augmenting_spec)
-      done *)  
+      unfolding edka4_def edru.edka3_def  edru.augment_def nres_bind_assoc   
+      apply(refine_rcg bfs_refines_shortest_augmenting_spec)
+      apply refine_dref_type  
+      by (simp_all add:  RPreGraph.resV_netV[OF RGraph.this_loc_rpg] )  
  
   lemma  edka4_correct: "edka4 \<le> \<Down> Id (SPECT (emb isMaxFlow (enat (EdKa.edka_time c shortest_path_time edru.augment_with_path_time init_graph))))"
     apply(rule order.trans) apply(rule edka4_refine) 
@@ -1012,41 +963,46 @@ qed
     unfolding edka5_tabulate_def init_cf_def init_ps_def augment_conv
         apply(rule T_specifies_I)
         apply(vcg'\<open>-\<close>  )  by auto 
+ 
 
-  lemma edka5_refine: "\<lbrakk>is_adj_map am ; \<And>src. init_state src \<le> SPECT [ (False,[src\<mapsto>src],{src},{},0::nat) \<mapsto> init_state_time ]\<rbrakk> \<Longrightarrow> edka5 am init_state   \<le> \<Down>Id edka.edka4"
-      unfolding edka5_def   edka5_run_def
-        edka.edka4_def  compute_rflow_def 
-         Let_def   bfs2_op_aux_def
-      apply(rule bindT_refine) 
-       apply(rule edka_tab) apply simp
-      apply clarify
-      apply(rule bindT_refine) 
-      unfolding nres_bind_assoc nres_bind_left_identity prod.case 
-       apply(rule WHILET_refine[where R="Id \<times>\<^sub>r bool_rel"] ) apply simp
-      apply simp  apply safe
-      apply(rule le_R_ASSERTI)
-      apply(rule le_R_ASSERTI)
-       apply(rule ASSERT_leI)  apply simp
-       apply(rule ASSERT_leI) using pff  apply simp      
-       apply(rule bindT_refine[where R'=Id])
-      subgoal 
-        unfolding   edka.MYbfs_def  apply(frule k) apply simp  
-        apply(rule R_intro) 
-        apply(rule Augmenting_Path_BFS.bfs2_refine)
-         apply(simp add: Augmenting_Path_BFS_def)
-        unfolding  MYrg_succ2_def
-        apply(rule order.trans)
-         apply(rule Succ_Impl.rg_succ_ref') apply simp  
-          apply(simp add: RPreGraph.resV_netV[OF RGraph.this_loc_rpg])
-         apply simp
-        apply(rule nrest_Rel_mono)
-        apply (auto simp add: le_fun_def get_succs_list_time_aux_def Succ_Impl.rg_succ_time_def
-                RPreGraph.resV_netV[OF RGraph.this_loc_rpg] is_adj_map_app_le_V)
-        subgoal apply(subst Graph.hh) by auto 
-          done
-      apply (simp split: prod.split option.split)
-      apply(rule le_R_ASSERTI)
-      apply(rule ASSERT_leI) apply simp apply simp done
+lemma rg_succ2_impl: "is_adj_map am \<Longrightarrow>
+    RGraph c s t cf \<Longrightarrow>
+    (ui, u) \<in> nat_rel \<Longrightarrow>
+    u \<in> Graph.V cf \<Longrightarrow>
+    Succ_Impl.rg_succ2 c list_append_time matrix_lookup_time am cf ui
+    \<le> \<Down> (\<langle>nat_rel\<rangle>list_set_rel) (SPECT [Graph.E cf `` {u} \<mapsto> enat (2 + (card (Graph.E cf `` {u}) + card ((Graph.E cf)\<inverse> `` {u})) * get_succs_list_time)])"
+  unfolding  MYrg_succ2_def
+  apply(rule order.trans)
+   apply(rule Succ_Impl.rg_succ_ref') apply simp  
+    apply(simp add: RPreGraph.resV_netV[OF RGraph.this_loc_rpg])
+   apply simp
+  apply(rule nrest_Rel_mono)
+  apply (auto simp add: le_fun_def get_succs_list_time_aux_def Succ_Impl.rg_succ_time_def
+      RPreGraph.resV_netV[OF RGraph.this_loc_rpg] is_adj_map_app_le_V)
+  subgoal apply(subst Graph.hh) by auto 
+  done
+  
+
+lemma edka5_refine: 
+  assumes "is_adj_map am"
+    and init_state_impl:
+      "\<And>src. init_state src \<le> \<Down>Id (SPECT [ (False,[src\<mapsto>src],{src},{},0::nat) \<mapsto> init_state_time ])"
+  shows "is_adj_map am \<Longrightarrow> edka5 am init_state   \<le> \<Down>Id edka.edka4"
+  unfolding edka5_def   edka5_run_def
+    edka.edka4_def  compute_rflow_def 
+    Let_def bfs2_op_aux_def  edka.MYbfs_def    
+  apply(refine_rcg edka_tab Augmenting_Path_BFS.bfs2_refine )
+  apply refine_dref_type
+  apply simp_all 
+  apply(rule R_intro) 
+  apply(rule Augmenting_Path_BFS.bfs2_refine) 
+    apply(simp add: Augmenting_Path_BFS_def)
+  subgoal  
+    by (refine_rcg rg_succ2_impl) 
+  subgoal 
+    apply(rule R_intro) 
+    by (refine_rcg init_state_impl) 
+  done
  
        (*
       apply refine_rcg

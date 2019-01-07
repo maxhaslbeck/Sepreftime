@@ -8,6 +8,7 @@ imports
   "../../Refine_Imperative_HOL/IICF/Intf/IICF_Set"
   "../../Refine_Imperative_HOL/IICF/Intf/IICF_Map"
   "../../Refine_Imperative_HOL/IICF/Intf/IICF_List"
+  "../../Refine_Heuristics"
 begin
 
   text \<open>
@@ -1081,11 +1082,9 @@ interpretation pre: Pre_BFS_Impl c set_insert_time map_dom_member_time set_delet
       subgoal apply(subst (asm) GG) using ssuvV N by auto
       subgoal apply(rule card_mono) using ssuvV  by auto  
       subgoal apply(rule card_mono) using ssuvV  by auto 
-    subgoal  
-      by(auto split: bool.split simp add: domIff intro!: map_mmupd_update_less )  
+    subgoal by (auto split: bool.split simp add: domIff intro!: map_mmupd_update_less )  
     subgoal by (auto split: bool.split  simp add: domIff ) 
-    subgoal 
-      by(auto simp: hh_def add_succs_spec_time_aux_def distinct_card )
+    subgoal by (auto simp: hh_def add_succs_spec_time_aux_def distinct_card )
     done
 
  
@@ -1113,8 +1112,8 @@ interpretation pre: Pre_BFS_Impl c set_insert_time map_dom_member_time set_delet
                   b \<leftarrow> mop_set_isempty (\<lambda>_. set_isempty_time) C;
                   RETURNT (f=False \<and> ~b) }"
       
-      lemma loopguard_correct: "loopguard f C \<le> SPECT [\<not> f \<and> C \<noteq> {} \<mapsto> enat set_isempty_time]" 
-        unfolding loopguard_def
+      lemma loopguard_correct: "(f,f')\<in>Id \<Longrightarrow> (C,C')\<in>Id \<Longrightarrow> loopguard f C \<le> \<Down>Id ( SPECT [f' = False \<and> C' \<noteq> {} \<mapsto> enat set_isempty_time] )" 
+        unfolding loopguard_def apply simp
         apply(rule T_specifies_I) 
         by (vcg'\<open>simp\<close> rules: mop_set_isempty )   
       
@@ -1154,12 +1153,13 @@ interpretation pre: Pre_BFS_Impl c set_insert_time map_dom_member_time set_delet
         if f then RETURNT (Some (d, PRED)) else RETURNT None
         }"
  
-
+  lemma distinct_in_list_set_rel: "distinct l \<Longrightarrow> (l, set l) \<in> \<langle>Id\<rangle>list_set_rel"
+      by (auto simp add: list_set_rel_def br_def Some_eq_emb'_conv) 
 
   lemma pre_bfs2_refine: 
     assumes succ_impl: "\<And>ui u. \<lbrakk>(ui,u)\<in>Id; u\<in>V\<rbrakk> 
         \<Longrightarrow> succ ui \<le> \<Down> (\<langle>Id\<rangle>list_set_rel) (SPECT [E``{u} \<mapsto> enat (init_get_succs_list_time+ (card (E``{u}) + card (E\<inverse>``{u}))*get_succs_list_time )])"
-      and init_state_impl: "\<And>src. init_state src \<le> SPECT [ (False,[src\<mapsto>src],{src},{},0::nat) \<mapsto> init_state_time ]"
+      and init_state_impl: "\<And>src. init_state src \<le> \<Down>Id (SPECT [ (False,[src\<mapsto>src],{src},{},0::nat) \<mapsto> init_state_time ])"
     shows "pre_bfs2 src dst \<le>\<Down>Id (pre_bfs src dst)"
   proof -
     have i: "\<And>t x. SPECT (emb (\<lambda>l. distinct l \<and> set l = E `` {x}) (enat t)) \<le> \<Down> (\<langle>Id\<rangle>list_set_rel) (SPECT [E``{x} \<mapsto> enat t])"
@@ -1172,31 +1172,15 @@ interpretation pre: Pre_BFS_Impl c set_insert_time map_dom_member_time set_delet
     have rew: "\<And>tt x. SPECT (emb (\<lambda>l. distinct l \<and> set l = E `` {x}) (enat tt)) = \<Down> (\<langle>Id\<rangle>list_set_rel) (SPECT [E``{x} \<mapsto> enat tt])"
       apply(rule antisym) using i ii by auto
 
+    have succ_impl': "\<And>v va. (v,va)\<in>Id \<Longrightarrow> va\<in>V \<Longrightarrow> succ v \<le> \<Down> (\<langle>nat_rel\<rangle>list_rel) (SPECT (emb (\<lambda>l. distinct l \<and> set l = E `` {va}) (enat (init_get_succs_list_time + (card (E `` {va}) + card (E\<inverse> `` {va})) * get_succs_list_time))))"
+      unfolding rew apply simp apply(rule succ_impl) by auto  
+
     show ?thesis
     unfolding pre_bfs_def pre_bfs2_def monadic_WHILEIE_def
-    apply simp unfolding whileIET_def
-    apply(rule bindT_mono) apply fact
-    apply(rule bindT_mono)
-     apply(rule monadic_WHILE_mono')
-    subgoal 
-      apply(clarsimp split: prod.splits if_splits) by(rule loopguard_correct)   
-     apply(clarsimp simp: split: prod.splits if_splits)
-    unfolding mop_set_pick_def 
-     apply(rule bindT_mono) apply simp
-     apply simp 
-     apply(rule le_ASSERTI) apply(rule ASSERT_leI) apply simp
-     apply(rule bindT_mono) apply (simp add: le_fun_def mop_set_del_def )        
-     apply(rule le_ASSERTI) apply(rule ASSERT_leI) apply simp  unfolding rew 
-     apply(rule bindT_mono) 
-      apply(rule succ_impl) apply simp apply simp  
-     apply(rule le_ASSERTI)+ apply(rule ASSERT_leI) apply simp
-     apply(rule ASSERT_leI)  apply simp
-     apply(rule ASSERT_leI)  apply simp
-    apply(rule ASSERT_leI)  apply simp
-    subgoal 
-      apply(rule bindT_refine[OF inner_loop2_correct, where R=Id, simplified])   
-      by (auto simp add: list_set_rel_def br_def Some_eq_emb'_conv) 
-    by simp
+    apply (refine_rcg init_state_impl monadic_WHILE_refine loopguard_correct inner_loop2_correct succ_impl') 
+                        apply refine_dref_type   
+    by (auto split: if_splits  simp: distinct_in_list_set_rel)
+ 
   qed
 
 end    

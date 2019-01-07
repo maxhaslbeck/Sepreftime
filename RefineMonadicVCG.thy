@@ -217,6 +217,22 @@ lemma monadic_WHILE_mono':
   apply(rule bindT_mono) apply fact
   apply auto apply(rule bindT_mono)   using  assms(2)  by (auto dest:  z[OF _ assms(1)])
 
+lemma monadic_WHILE_refine: 
+  assumes 
+    "(x, x') \<in> R"
+    "\<And>x x'. (x, x') \<in> R \<Longrightarrow> bm x \<le> \<Down>Id (bm' x')"
+    and "\<And>x x' t. (x, x') \<in> R \<Longrightarrow> nofailT (bm' x') \<Longrightarrow> inresT (bm' x') True t \<Longrightarrow> c x \<le> \<Down>R (c' x')"
+  shows "(monadic_WHILE bm c x) \<le> \<Down>R (monadic_WHILE bm' c' x')"
+  unfolding monadic_WHILE_def apply(rule RECT_refine)
+  subgoal by(refine_mono) 
+  apply fact
+  apply(rule bindT_refine') apply (rule assms(2)) apply simp
+  apply auto
+  subgoal by (auto intro: assms(3) bindT_refine)        
+  subgoal apply(rule RETURNT_refine) by simp
+  done
+
+
 lemma monadic_WHILE_aux: "monadic_WHILE b f s = monadic_WHILEIT (\<lambda>_. True) b f s"
   unfolding monadic_WHILEIT_def monadic_WHILE_def 
   by simp
@@ -750,6 +766,9 @@ lemma RETURN_le_RETURN_iff[simp]: "RETURNT x \<le> RETURNT y \<longleftrightarro
 lemma SPECT_ub: "T\<le>T' \<Longrightarrow> SPECT (emb' M' T) \<le> SPECT (emb' M' T')"
   unfolding emb'_def by (auto simp: pw_le_iff le_funD order_trans refine_pw_simps)
 
+lemma SPECT_ub': "T\<le>T' \<Longrightarrow> SPECT (emb' M' T) \<le> \<Down>Id (SPECT (emb' M' T'))"
+  unfolding emb'_def by (auto simp: pw_le_iff le_funD order_trans refine_pw_simps)
+
 
 
 lemma REST_single_rule[vcg_simp_rules]: "Some t \<le> TTT Q (REST [x\<mapsto>t']) \<longleftrightarrow> Some (t+t') \<le> (Q x)"
@@ -894,8 +913,11 @@ lemma If_refine[refine]: "b = b' \<Longrightarrow>
   (b \<Longrightarrow> b' \<Longrightarrow> S1 \<le> \<Down> R S1') \<Longrightarrow>
   (\<not> b \<Longrightarrow> \<not> b' \<Longrightarrow> S2 \<le> \<Down> R S2') \<Longrightarrow> (if b then S1 else S2) \<le> \<Down> R (if b' then S1' else S2')"
   by auto
-  
-  
+
+lemma Case_option_refine[refine]: "(x,x')\<in> \<langle>S\<rangle>option_rel \<Longrightarrow>
+  (\<And>y y'. (y,y')\<in>S \<Longrightarrow> S2 y  \<le> \<Down> R (S2' y')) \<Longrightarrow> S1 \<le> \<Down> R S1'
+  \<Longrightarrow> (case x of None \<Rightarrow> S1 | Some y \<Rightarrow> S2 y) \<le> \<Down> R (case x' of None \<Rightarrow> S1' | Some y' \<Rightarrow> S2' y')"
+  by(auto split: option.split)
 
 lemma [refine0]: "\<And>S. S \<le> \<Down> Id S" by simp                                          
 lemma [refine0]: "\<Phi> \<Longrightarrow> (\<Phi> \<Longrightarrow> S \<le> \<Down> R S') \<Longrightarrow> ASSERT \<Phi> \<bind> (\<lambda>_. S) \<le> \<Down> R S'"
@@ -905,12 +927,13 @@ declare le_R_ASSERTI [refine0]
 thm refine0
 
 declare bindT_refine [refine]
+declare WHILET_refine [refine]
 thm refine
 thm refine2
 thm refine_vcg
 
 lemma [refine_vcg_cons]: "m \<le> SPECT \<Phi> \<Longrightarrow> (\<And>x. \<Phi> x \<le> \<Psi> x) \<Longrightarrow> m \<le> SPECT \<Psi>"
-  by (metis dual_order.trans le_funI nres_order_simps(2)) 
+  by (metis dual_order.trans le_funI nres_order_simps(2))  
 thm refine_vcg_cons
  
 
