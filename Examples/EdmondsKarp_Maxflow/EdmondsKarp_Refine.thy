@@ -482,8 +482,8 @@ lemmas find_shortest_augmenting_spec_cf = Ed_Res.find_shortest_augmenting_spec_c
       RETURNT f
     }"
 
-  lemma augment_refine[refine]: "RGraph c s t x1  \<Longrightarrow> Graph.isShortestPath x1 s pc t \<Longrightarrow> 
-     augment x1 pc \<le> \<Down>Id (SPECT [Graph.augment_cf x1 (set pc) (resCap_cf x1 pc) \<mapsto> enat augment_with_path_time])"
+  lemma augment_refine[refine]: "RGraph c s t x1  \<Longrightarrow> Graph.isShortestPath x1 s pc t \<Longrightarrow> x1'=x1 \<Longrightarrow> pc=pc' \<Longrightarrow> 
+     augment x1 pc \<le> \<Down>Id (SPECT [Graph.augment_cf x1' (set pc') (resCap_cf x1' pc') \<mapsto> enat augment_with_path_time])"
           unfolding augment_def apply simp
         apply(rule T_specifies_I)   
         apply(vcg'\<open>-\<close> rules: RGraph_impl.resCap_cf_impl_refine[THEN T_specifies_rev , THEN T_conseq4] 
@@ -499,8 +499,8 @@ lemmas find_shortest_augmenting_spec_cf = Ed_Res.find_shortest_augmenting_spec_c
 
    lemma edka3_refine: "edka3 \<le> \<Down>Id Ed_Res.edka2"
       unfolding edka3_def Ed_Res.edka2_def
-      apply refine_rcg
-      apply refine_dref_type   
+      apply (refine_rcg augment_refine)
+      apply refine_dref_type  
       by auto   
 
   lemma  edka3_correct: "edka3 \<le> \<Down>Id (SPECT (emb isMaxFlow (enat (EdKa.edka_time c shortestpath_time augment_with_path_time init_graph))))"
