@@ -270,9 +270,10 @@ abbreviation (in -) obtain_sorted_carrier''_aux
   :: "('a uprod \<Rightarrow> 'w::{linorder, ordered_comm_monoid_add}) \<Rightarrow> 'a uprod set \<Rightarrow> enat \<Rightarrow> enat \<Rightarrow> ('a \<times> 'w \<times> 'a) list nrest"  where
   "obtain_sorted_carrier''_aux w c get st \<equiv> do {
     (l::('a \<times> 'w \<times> 'a) list) \<leftarrow> getEdges' w c get;
- (*  ((ASSERT (length l = card c))::unit nrest); *)
-    SPECT (emb (\<lambda>L. sorted_wrt edges_less_eq L \<and> distinct L \<and> set L = set l) st)
-}"                                                                          
+  ( ((ASSERT (length l = card c))) \<then>
+    SPECT (emb (\<lambda>L. sorted_wrt edges_less_eq L \<and> distinct L \<and> set L = set l) st))
+}"               
+
 abbreviation "obtain_sorted_carrier'' \<equiv> obtain_sorted_carrier''_aux weight E getEdges_time sort_time "
 
 term "\<langle>edge_rel\<rangle>list_rel"
@@ -317,6 +318,8 @@ lemma obtain_sorted_carrier''_refine: "obtain_sorted_carrier'' \<le> \<Down> (\<
             \<alpha>_def \<alpha>'_conv distinct_map map_in_list_rel_conv) 
      using image_iff  
      by fastforce+  
+   subgoal unfolding lst_graph_P_def  
+     using distinct_card by fastforce  
   done 
 
 

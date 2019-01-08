@@ -151,7 +151,12 @@ lemma obtain_sorted_carrier'''_refine: "obtain_sorted_carrier''' \<le> \<Down>ad
    apply(rule getEdges_refine) apply safe
   apply(auto simp: emb_eq_Some_conv  dest!:  split: if_splits)
   unfolding conc_fun_br  mop_sortEdges_def 
-  apply(auto  simp: le_fun_def emb'_def dest: lst_graph_P_V split: if_splits)  sorry
+  apply(auto  simp: le_fun_def emb'_def dest: lst_graph_P_V split: if_splits)
+  apply(rule le_R_ASSERTI)
+  apply(rule ASSERT_leI) apply simp
+  apply(rule SPECT_refine) apply (auto split: if_splits)   
+  by (metis (mono_tags) fst_conv in_br_conv lst_graph_P_V prod_case_simp) 
+   
     
 
 definition (in -) initState''_aux where
