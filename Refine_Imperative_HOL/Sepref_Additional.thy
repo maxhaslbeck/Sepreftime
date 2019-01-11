@@ -70,6 +70,20 @@ proof -
 qed
 
 
+lemma extract_cost_otherway':
+  fixes R
+  assumes 
+    "\<Gamma> * timeCredit_assn Cost_lb \<Longrightarrow>\<^sub>A G * F"
+    "\<And>h. h\<Turnstile>\<Gamma> \<Longrightarrow> <G> c <\<lambda>r. Q r >"
+    "\<And>r h. h\<Turnstile>\<Gamma> \<Longrightarrow> Q r * F \<Longrightarrow>\<^sub>A \<Gamma>' * (\<exists>\<^sub>Ara. R ra r * \<up>(ra \<in> dom M)) * true"
+    "(\<And>c h. h\<Turnstile>\<Gamma> \<Longrightarrow> c\<in>ran M \<Longrightarrow> Cost_lb \<le> c)"
+  shows "hn_refine \<Gamma> c \<Gamma>' R (REST M)" 
+  apply(rule hn_refine_preI)
+  apply(rule extract_cost_otherway)
+  using assms by auto
+
+
+
 
 subsection "how to extract a hoare triple from hn_refine"
 

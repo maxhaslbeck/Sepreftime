@@ -575,6 +575,7 @@ struct
 
   fun mytac ctxt a b = let val _ = tracing (Syntax.string_of_term ctxt a);
               val _ = tracing (Syntax.string_of_term ctxt b)
+              val _ = tracing ("ole")
       val ths = map snd (SepTimeSteps.split_nat ctxt ([], (a, b))); 
       val _ = length ths
       val _ =  let fun print thm = tracing (Thm.string_of_thm ctxt thm)
@@ -607,6 +608,9 @@ struct
 
     (* time_frame inference *) 
     THEN'  TRY o (EqSubst.eqsubst_tac ctxt [0] @{thms One_nat_def[symmetric]} ) 
+    THEN'  TRY o (REPEAT_DETERM' (EqSubst.eqsubst_tac ctxt [0] @{thms Suc_eq_plus1} )) 
+
+
     THEN' (resolve_tac ctxt @{thms TI_QUERYD})
     THEN' SOLVED' (split_nat_tac ctxt)
  
@@ -699,10 +703,13 @@ struct
         ORELSE' (app_post_cons_tac ctxt THEN' 
           FIRST' [resolve_tac ctxt d_thms, heap_rule_tac])) 
     ]))
-  end;
-
-  fun vcg_tac ctxt = REPEAT_DETERM' (vcg_step_tac ctxt)
+  end; 
+  fun vcg_tac ctxt = REPEAT_DETERM' (print_tac ctxt THEN' vcg_step_tac ctxt)
                                           
+
+  fun print_tac2 s i st =
+    let val _ = tracing (s)
+    in all_tac st end
 
   (***********************************)
   (*        Automatic Solver         *)
@@ -710,14 +717,14 @@ struct
 
   fun sep_autosolve_tac do_pre do_post ctxt = let
     val pre_tacs = [
-      CHANGED o clarsimp_tac ctxt,
-      CHANGED o REPEAT_ALL_NEW (match_tac ctxt @{thms ballI allI impI conjI})
+      CHANGED o (print_tac2 "clarsimp" THEN' clarsimp_tac ctxt),
+      CHANGED o (print_tac2 "intros" THEN' REPEAT_ALL_NEW (match_tac ctxt @{thms ballI allI impI conjI}))
     ];                                
     val main_tacs = [
       match_tac ctxt @{thms is_hoare_triple} THEN' CHANGED o vcg_tac ctxt,
       match_tac ctxt @{thms is_entails} THEN' CHANGED o solve_entails_tac ctxt
     ];                                                       
-    val post_tacs = [SELECT_GOAL (auto_tac ctxt)];
+    val post_tacs = [print_tac2 "auto" THEN' SELECT_GOAL (auto_tac ctxt)];
     val tacs = (if do_pre then pre_tacs else [])
       @ main_tacs 
       @ (if do_post then post_tacs else []);
@@ -764,6 +771,8 @@ simproc_setup assn_simproc
   = {*K Seplogic_Auto.assn_simproc_fun*}
 
 
+lemma " P * $ 0 \<Longrightarrow>\<^sub>A P * true "
+  by (solve_entails)
 
 lemma " P * $ 1 \<Longrightarrow>\<^sub>A P * true * $ 1"
   by (solve_entails)

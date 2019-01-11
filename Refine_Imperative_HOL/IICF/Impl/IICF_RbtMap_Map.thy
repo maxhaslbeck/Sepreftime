@@ -3,18 +3,12 @@ theory IICF_RbtMap_Map
 begin
 
 (* inspired by Separation_Logic_Imperative_HOL/Examples/Array_Map_Impl *)
- 
-  
-thm rbt_delete_rule
 
-term Map.empty
-term rbt_map_assn
 definition rbt_map_map_assn where [rewrite_ent]: "rbt_map_map_assn MM p =
         (\<exists>\<^sub>AM. rbt_map_assn M p * \<up>(MM = meval M))"
 
 subsubsection "empty map init via rbtree"
  
-
 definition "map_empty = tree_empty"
 
 declare [[print_trace]] 
@@ -28,24 +22,13 @@ theorem map_empty_rule [hoare_triple]:
   unfolding map_empty_def by auto2
 
 lemma mop_map_empty_rule[sepref_fr_rules]:
-  "1\<le>n \<Longrightarrow> hn_refine (emp) map_empty emp rbt_map_map_assn (PR_CONST (mop_map_empty n))"
-
-  unfolding autoref_tag_defs mop_map_empty_def  
-  apply (rule extract_cost_otherway[OF _ map_empty_rule, where Cost_lb=1 and F=emp])
-  apply simp  
-  subgoal 
-    apply(rule ent_true_drop(2))
-    unfolding rbt_map_map_assn_def 
-    apply simp apply(rule ent_ex_preI) subgoal for M
-  apply(rule ent_ex_postI[where x="Map.empty"])
-      apply(rule ent_ex_postI[where x=M]) by simp
-    done       
-  by (auto intro: entails_triv simp: )
+  "1 \<le> n \<Longrightarrow> (uncurry0 map_empty, uncurry0 (PR_CONST (mop_map_empty n))) \<in> unit_assn\<^sup>k \<rightarrow>\<^sub>a rbt_map_map_assn"
+  apply sepref_to_hoare
+  unfolding mop_map_empty_def autoref_tag_defs
+  apply (rule extract_cost_otherway'[OF _ map_empty_rule  ])
+  by (auto simp: emb'_def | solve_entails; auto)+ 
 
 subsubsection "update map via rbtree insert"
-
-
-thm rbt_insert_rule
 
 definition "map_update p k x = rbt_insert k x p"
 
@@ -68,36 +51,18 @@ theorem map_update_rule [hoare_triple]:
   by auto2
 
 
-
-lemma mop_set_insert_rule[sepref_fr_rules]:
-  "rbt_insert_logN (sizeM1' M) \<le> t M \<Longrightarrow> 
-      hn_refine (hn_val Id k k' * hn_val Id x x' * hn_ctxt rbt_map_map_assn M p)
-       (map_update p k' x')
-       (hn_val Id k k'* hn_val Id x x' * hn_invalid rbt_map_map_assn M p) rbt_map_map_assn ( PR_CONST (mop_map_update t) $ M $ k $ x)"
-
+lemma mop_set_insert_rule[sepref_fr_rules]: "(uncurry2 map_update, uncurry2 (PR_CONST (mop_map_update t)))
+  \<in> [\<lambda>((a, b), x). rbt_insert_logN (sizeM1' a) \<le> t a]\<^sub>a rbt_map_map_assn\<^sup>d *\<^sub>a id_assn\<^sup>k *\<^sub>a id_assn\<^sup>k \<rightarrow> rbt_map_map_assn"
+  apply sepref_to_hoare
   unfolding mop_map_update_def autoref_tag_defs
-  apply (rule extract_cost_otherway[OF _  map_update_rule, where F="hn_val Id k k' * hn_val Id x x' * hn_invalid rbt_map_map_assn M p" ])
-  unfolding mult.assoc
-    apply(rotatel)  apply(rotatel)
-    apply rotater  apply rotater  apply rotater apply rotater   apply taker apply(rule isolate_first)
-  apply (simp add: gr_def hn_ctxt_def)  apply(rule invalidate_clone)
-  unfolding hn_ctxt_def
-    apply(rule match_first)  apply (rule entails_triv)
+  apply (rule extract_cost_otherway'[OF _ map_update_rule  ])
+    by (auto simp: emb'_def | solve_entails; auto)+ 
 
-   apply rotatel apply rotatel apply takel apply swapl apply takel
-                apply taker   apply swapr apply taker 
-   apply(rule isolate_first) 
-  unfolding gr_def apply(simp only: ex_distrib_star' pure_def)
-    apply(rule inst_ex_assn) apply simp apply safe prefer 2
-     apply(rule entails_triv) 
-  by (auto) 
-
+thm mop_set_insert_rule[to_hnr]
+thm sepref_fr_rules
 
 
 subsubsection "dom_member map via rbtree search"
-
-
-thm rbt_search
 
 definition "map_dom_member m k = do {
                   v \<leftarrow> rbt_search k m;
@@ -105,10 +70,7 @@ definition "map_dom_member m k = do {
 
 lemma M[rewrite]: "M\<langle>x\<rangle>\<noteq>None \<longleftrightarrow> x:dom (meval M)"
   unfolding keys_of_iff[symmetric] keys_of_dom_meval by simp
-
-
-thm return_rule
-thm SepAuto.return_rule
+ 
 theorem map_dom_member_rule [hoare_triple]:
   "<rbt_map_map_assn M m * $ (rbt_search_time_logN (sizeM1' M)+1)>
            map_dom_member m x  
@@ -116,28 +78,15 @@ theorem map_dom_member_rule [hoare_triple]:
   unfolding map_dom_member_def
   by auto2
 
-
-
 lemma mop_mem_set_rule[sepref_fr_rules]:
-  "rbt_search_time_logN (sizeM1' M) + 1 \<le> t M \<Longrightarrow>
-    hn_refine (hn_val Id x x' * hn_ctxt rbt_map_map_assn M p)
-     (map_dom_member p x')
-     (hn_ctxt (pure Id) x x' * hn_ctxt rbt_map_map_assn M p) id_assn ( PR_CONST (mop_map_dom_member t) $ M $ x)"
-
-  unfolding autoref_tag_defs mop_map_dom_member_def
-  apply (rule extract_cost_otherway[OF _  map_dom_member_rule]) unfolding mult.assoc
-  unfolding hn_ctxt_def
-    apply rotatel apply(rule match_first) apply(rule match_first)       
-   apply (rule entails_triv)
-  apply rotater
-   apply(rule match_first) apply (simp add: pure_def)   apply safe
-    apply(rule inst_ex_assn[where x="x \<in> dom M"])  by (auto simp: emb'_def) 
-
+  "(uncurry map_dom_member, uncurry (PR_CONST (mop_map_dom_member t)))
+   \<in> [\<lambda>(a, b). rbt_search_time_logN (sizeM1' a) + 1 \<le> t a]\<^sub>a rbt_map_map_assn\<^sup>k *\<^sub>a id_assn\<^sup>k \<rightarrow> bool_assn"
+    apply sepref_to_hoare
+  unfolding mop_map_dom_member_def autoref_tag_defs 
+  apply (rule extract_cost_otherway'[OF _ map_dom_member_rule  ])
+    by (auto simp: emb'_def | solve_entails; auto)+ 
 
 subsubsection "lookup map via rbtree search"
-
-
-thm rbt_search
 
 definition "map_lookup m k = do {
                   v \<leftarrow> rbt_search k m;
@@ -149,26 +98,16 @@ theorem map_lookup_rule [hoare_triple]:
    <\<lambda>r. rbt_map_map_assn M m * \<up>(r=the (M x))>\<^sub>t"
   unfolding map_lookup_def  rbt_map_map_assn_def  
   by (sep_auto simp del: One_nat_def heap: rbt_search simp: sizeM1'_sizeM1 zero_time)  
-
-
-
-
+ 
 lemma mop_map_lookup_rule[sepref_fr_rules]:
-  "rbt_search_time_logN (sizeM1' M) + 1 \<le> t M \<Longrightarrow>
-    hn_refine (hn_val Id x x' * hn_ctxt rbt_map_map_assn M p)
-     (map_lookup p x')
-     (hn_ctxt (pure Id) x x' * hn_ctxt rbt_map_map_assn M p) id_assn ( PR_CONST (mop_map_lookup t) $ M $ x)"
-
-  unfolding autoref_tag_defs mop_map_lookup_def 
-  apply(rule hnr_ASSERT) apply(rule hn_refine_preI)
-  apply (rule extract_cost_otherway[OF _ map_lookup_rule] ) unfolding mult.assoc
-  unfolding hn_ctxt_def
-    apply rotatel apply(rule match_first) apply(rule match_first)       
-     apply (rule entails_triv)
-  subgoal by (simp add: pure_def )
-  apply rotater
-   apply(rule match_first) apply (simp add: pure_def)   apply safe
-    apply(rule inst_ex_assn[where x="the (M x)"])  by (auto simp: emb'_def) 
+  "(uncurry map_lookup, uncurry (PR_CONST (mop_map_lookup t)))
+     \<in> [\<lambda>(a, b). rbt_search_time_logN (sizeM1' a) + 1 \<le> t a]\<^sub>a rbt_map_map_assn\<^sup>k *\<^sub>a id_assn\<^sup>k \<rightarrow> id_assn"
+  apply sepref_to_hoare 
+  unfolding mop_map_lookup_def autoref_tag_defs  
+  apply(rule hnr_ASSERT)
+  apply(rule extract_cost_otherway'[OF _ map_lookup_rule   ])
+    by (auto | solve_entails; auto)+ 
+   
 
 
 
