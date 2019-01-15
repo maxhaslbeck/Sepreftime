@@ -1569,7 +1569,7 @@ lemma entails_pure''': "(emp \<Longrightarrow>\<^sub>A \<up> B) = B"
             REPEAT_ALL_NEW (match_tac ctxt @{thms allI impI})
             THEN' simp_only ctxt @{thms Product_Type.split prod.inject})
     
-          THEN' TRY o REPEAT_ALL_NEW (ematch_tac ctxt @{thms conjE})
+          THEN' TRY o REPEAT_ALL_NEW (DETERM o ematch_tac ctxt @{thms conjE})
           THEN' TRY o hyp_subst_tac ctxt
           THEN' simp_only ctxt @{thms triv_forall_equality}
           THEN' (
