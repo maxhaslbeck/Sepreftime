@@ -94,10 +94,10 @@ begin
 end
 
 locale Pre_BFS_Impl = Graph + 
-  fixes  set_insert_time map_dom_member_time set_delete_time :: nat
-    and   get_succs_list_time :: nat and  map_update_time set_pick_time set_empty_time  :: nat
+  fixes  set_insert_time map_dom_member_time :: nat
+    and   get_succs_list_time :: nat and  map_update_time set_pick_extract_time set_empty_time  :: nat
     and set_isempty_time init_state_time init_get_succs_list_time :: nat
-  assumes [simp]: "set_pick_time > 0"
+  assumes [simp]: "set_pick_extract_time > 0"
 begin 
 
   definition (in -) "hh v1 v2 v3 == (v1 + ((v2 + v3) + (Suc 0)))"
@@ -148,7 +148,7 @@ begin
     finally show ?thesis .
   qed
 
-  abbreviation "bod \<equiv> (set_pick_time+set_delete_time+init_get_succs_list_time +2*set_isempty_time+ set_empty_time)"
+  abbreviation "bod \<equiv> (set_pick_extract_time+init_get_succs_list_time +2*set_isempty_time+ set_empty_time)"
 
 definition Te :: "node \<Rightarrow> bool \<times> (nat \<Rightarrow> nat option) \<times> nat set \<times> nat set \<times> nat
    \<Rightarrow> nat" where "Te src = (\<lambda>(f,PRED,C,N,d). if f then 0
@@ -157,15 +157,16 @@ definition Te :: "node \<Rightarrow> bool \<times> (nat \<Rightarrow> nat option
 
                  + (card N) * (bod) + card C * bod  )"
 
+
+
   definition pre_bfs :: "node \<Rightarrow> node \<Rightarrow> (nat \<times> (node\<rightharpoonup>node)) option nrest"
     where "pre_bfs src dst \<equiv> do {
         s \<leftarrow> SPECT [(False,[src\<mapsto>src],{src},{},0::nat) \<mapsto> init_state_time];
     (f,PRED,_,_,d) \<leftarrow> monadic_WHILEIE (outer_loop_invar src dst) (Te src)
       (\<lambda>(f,PRED,C,N,d). SPECT [ f=False \<and> C\<noteq>{} \<mapsto> set_isempty_time])
       (\<lambda>(f,PRED,C,N,d). do {
-        v \<leftarrow> mop_set_pick (\<lambda>_. set_pick_time) C;
         ASSERT (card C\<le>card V);
-        C \<leftarrow> mop_set_del (\<lambda>_. set_delete_time) C v;
+        (v,C) \<leftarrow> mop_set_pick_extract (\<lambda>_. set_pick_extract_time)  C;
         ASSERT (v\<in>V);
         succ \<leftarrow> SPECT (emb (\<lambda>l. distinct l \<and> set l = E``{v}) (enat ( init_get_succs_list_time + ((card (E``{v})) + (card (E\<inverse>``{v}))  )*get_succs_list_time))); 
         ASSERT (distinct succ);
@@ -441,7 +442,7 @@ definition Te :: "node \<Rightarrow> bool \<times> (nat \<Rightarrow> nat option
     shows
       "Te src(False, map_mmupd PRED (E `` {x} - dom PRED) x, N \<union> (E `` {x} - dom PRED), {}, Suc d)
       \<le> Te src (False, PRED, C, N, d)" (is "?L \<le> ?R")
-    and "set_isempty_time + set_pick_time + set_delete_time + (init_get_succs_list_time + (card (E `` {x}) + card (E\<inverse> `` {x})) * get_succs_list_time) + add_succs_spec_time (card (E `` {x}))  + set_isempty_time + set_empty_time
+    and "set_isempty_time + set_pick_extract_time +  (init_get_succs_list_time + (card (E `` {x}) + card (E\<inverse> `` {x})) * get_succs_list_time) + add_succs_spec_time (card (E `` {x}))  + set_isempty_time + set_empty_time
       \<le> Te src (False, PRED, C, N, d) -
          Te src
           (False, map_mmupd PRED (E `` {x} - dom PRED) x, N \<union> (E `` {x} - dom PRED), {}, Suc d)" (is "?P \<le> _")
@@ -525,7 +526,7 @@ definition Te :: "node \<Rightarrow> bool \<times> (nat \<Rightarrow> nat option
              (False, map_mmupd PRED (E `` {x} - dom PRED) x, C - {x},
               N \<union> (E `` {x} - dom PRED), d)
       \<le> Te src (False, PRED, C, N, d)" (is "?L \<le> ?R")
-    and "set_isempty_time + set_pick_time + set_delete_time + (init_get_succs_list_time+ (card (E `` {x}) + card (E\<inverse> `` {x})) * get_succs_list_time) + add_succs_spec_time (card (E `` {x}))  + set_isempty_time
+    and "set_isempty_time + set_pick_extract_time  + (init_get_succs_list_time+ (card (E `` {x}) + card (E\<inverse> `` {x})) * get_succs_list_time) + add_succs_spec_time (card (E `` {x}))  + set_isempty_time
          \<le> Te src (False, PRED, C, N, d) -
             Te src
              (False, map_mmupd PRED (E `` {x} - dom PRED) x, C - {x},
@@ -629,7 +630,7 @@ definition Te :: "node \<Rightarrow> bool \<times> (nat \<Rightarrow> nat option
 
   lemma   Te_pays_exit: assumes "nf_invar c src dst PRED C N d"
     "x \<in> C"
-       shows "set_isempty_time + set_pick_time + set_delete_time + (init_get_succs_list_time + (card (E `` {x}) + card (E\<inverse> `` {x})) * get_succs_list_time) + add_succs_spec_time (card (E `` {x}))
+       shows "set_isempty_time + set_pick_extract_time  + (init_get_succs_list_time + (card (E `` {x}) + card (E\<inverse> `` {x})) * get_succs_list_time) + add_succs_spec_time (card (E `` {x}))
          \<le> Te src (False, PRED, C, N, d) - Te src (True, PRED', C - {x}, N', Suc d)" (is "?P \<le> ?R - ?L")
   proof -
     from  assms(1) have fE: "finite E" unfolding nf_invar_def nf_invar'_def
@@ -823,7 +824,7 @@ qed
     unfolding pre_bfs_def add_succs_spec_def
     apply(rule T_specifies_I) 
 
-    apply(vcg' \<open>clarsimp\<close> rules: if_splitI GI HI  mop_set_pick mop_set_del  mop_set_empty mop_set_isempty)
+    apply(vcg' \<open>clarsimp\<close> rules: if_splitI GI HI  mop_set_pick_extract    mop_set_empty mop_set_isempty)
     apply (simp_all split: bool.splits add: Some_le_mm3_Some_conv Some_le_emb'_conv)
     apply safe 
 
@@ -924,6 +925,7 @@ proof -
       (d,p) \<leftarrow> whileT        
         (\<lambda>(v,p). v\<noteq>src) (\<lambda>(v,p). do {
         ASSERT (v\<in>dom PRED);
+        ASSERT (v\<in>V);
         ASSERT (card (dom PRED) \<le> card V);
         u \<leftarrow> mop_map_lookup (\<lambda>_. map_lookup_time) PRED v;
         p \<leftarrow> mop_append (\<lambda>_. list_append_time) (u,v) p;
@@ -958,7 +960,9 @@ proof -
       apply (auto simp: Some_le_mm3_Some_conv Some_le_emb'_conv
                           extract_rpath_time'_def extract_rpath_inv_def
                                PRED_closed[THEN domD] PRED_E PRED_dist Ter_def)
-      apply(rule card_mono) by (simp_all add: domPREDV)
+      subgoal apply(rule card_mono) by (simp_all add: domPREDV)
+      subgoal using domPREDV by auto 
+      done
 
     lemma extract_rpath_correct:
       assumes "dst\<in>dom PRED"
@@ -971,14 +975,14 @@ proof -
   end
 
 locale Augmenting_Path_BFS = Graph + 
-  fixes  set_insert_time map_dom_member_time set_delete_time get_succs_list_time map_update_time set_pick_time :: nat
+  fixes  set_insert_time map_dom_member_time  get_succs_list_time map_update_time set_pick_extract_time :: nat
     and list_append_time map_lookup_time set_empty_time set_isempty_time init_state_time init_get_succs_list_time :: nat
   assumes [simp]: "map_lookup_time > 0"
-  assumes [simp]: "set_pick_time > 0"
+  assumes [simp]: "set_pick_extract_time > 0"
 begin 
 
-interpretation pre: Pre_BFS_Impl c set_insert_time map_dom_member_time set_delete_time
-    get_succs_list_time map_update_time set_pick_time set_empty_time set_isempty_time init_state_time init_get_succs_list_time
+interpretation pre: Pre_BFS_Impl c set_insert_time map_dom_member_time 
+    get_succs_list_time map_update_time set_pick_extract_time set_empty_time set_isempty_time init_state_time init_get_succs_list_time
   apply standard by simp 
 
 
@@ -1042,6 +1046,7 @@ interpretation pre: Pre_BFS_Impl c set_insert_time map_dom_member_time set_delet
     (\<lambda>(f,PRED,N). \<not>f)
     (\<lambda>v (f,PRED,N). do {
       ASSERT (card (dom PRED) \<le> card V); 
+      ASSERT (v\<in>V);
       b \<leftarrow> mop_map_dom_member (%_. map_dom_member_time) PRED v;
       if b then RETURNT (f,PRED,N)
       else do {
@@ -1080,6 +1085,8 @@ interpretation pre: Pre_BFS_Impl c set_insert_time map_dom_member_time set_delet
         by(auto simp: map_mmupd_def)
       subgoal apply(subst (asm) GG) using ssuvV N by auto   
       subgoal apply(subst (asm) GG) using ssuvV N by auto
+      subgoal using ssuvV by auto 
+      subgoal using ssuvV by auto  
       subgoal apply(rule card_mono) using ssuvV  by auto  
       subgoal apply(rule card_mono) using ssuvV  by auto 
     subgoal by (auto split: bool.split simp add: domIff intro!: map_mmupd_update_less )  
@@ -1126,9 +1133,8 @@ interpretation pre: Pre_BFS_Impl c set_insert_time map_dom_member_time set_delet
         (f,PRED,ttt,tt,d) \<leftarrow> monadic_WHILE (\<lambda>(f,PRED,C,N,d). loopguard f C)
           (\<lambda>(f,PRED,C,N,d). do {
             ASSERT (C\<noteq>{});
-            v \<leftarrow> mop_set_pick (\<lambda>_. set_pick_time) C;
             ASSERT (card C\<le>card V);
-            C \<leftarrow> mop_set_del (\<lambda>_. set_delete_time) C v;
+            (v,C) \<leftarrow> mop_set_pick_extract (\<lambda>_. set_pick_extract_time) C;
             ASSERT (v\<in>V);
             sl \<leftarrow> succ v;
             ASSERT (finite V);
@@ -1191,7 +1197,7 @@ end \<comment> \<open>Pre_BFS_Impl\<close>
 context Augmenting_Path_BFS
 begin
 
-  interpretation pre: Pre_BFS_Impl c set_insert_time map_dom_member_time set_delete_time get_succs_list_time map_update_time set_pick_time
+  interpretation pre: Pre_BFS_Impl c set_insert_time map_dom_member_time  get_succs_list_time map_update_time set_pick_extract_time
     set_empty_time set_isempty_time init_state_time init_get_succs_list_time
     apply standard by simp 
      

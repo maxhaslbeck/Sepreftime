@@ -511,31 +511,30 @@ end
 term Augmenting_Path_BFS.bfs
 
 locale EdKa_Res_Bfs = Network c s t for c :: "'capacity::linordered_idom graph" and s t +
-  fixes  set_insert_time map_dom_member_time set_delete_time :: "nat \<Rightarrow> nat"
+  fixes  set_insert_time map_dom_member_time set_pick_extract_time :: "nat \<Rightarrow> nat"
     and get_succs_list_time :: nat
-    and map_update_time :: "nat \<Rightarrow> nat"
-    and set_pick_time :: nat
+    and map_update_time :: "nat \<Rightarrow> nat" 
     and list_append_time ::nat
     and map_lookup_time  :: "nat \<Rightarrow> nat"
     and set_empty_time set_isempty_time init_state_time :: nat 
     and matrix_lookup_time matrix_set_time init_get_succs_list_time :: nat 
      and init_graph :: "nat \<Rightarrow> nat"
   assumes [simp]: "\<And>c. map_lookup_time c > 0"
-  assumes [simp]: "set_pick_time > 0" 
+  assumes [simp]: "\<And>c. set_pick_extract_time c > 0" 
     assumes [simp]: "matrix_lookup_time > 0" 
 begin
 term Pre_BFS_Impl.pre_bfs_time
-  definition (in -)   "shortest_path_time_aux cV cE v1 v2 v3 v4 v5 v6 v7 v8 v9 v10 v11 v12 =
-     Pre_BFS_Impl.pre_bfs_time (v1 cV) (v2 cV) (v3 cV) v4 
-                  (v5 cV) v6 v7 v8 v9 v12 cE 
+  definition (in -)   "shortest_path_time_aux cV cE v1 v2 v3 v4 v5  v7 v8 v9 v10 v11 v12 =
+     Pre_BFS_Impl.pre_bfs_time (v1 cV) (v2 cV)  v4 
+                  (v5 cV) (v3 cV) v7 v8 v9 v12 cE 
           + valid_PRED_impl.extract_rpath_time v10 (v11 cV) cV"
   
-abbreviation "shortest_path_time == shortest_path_time_aux (card V) (2 * card E) set_insert_time map_dom_member_time set_delete_time
-        get_succs_list_time map_update_time set_pick_time set_empty_time set_isempty_time init_state_time list_append_time map_lookup_time init_get_succs_list_time"
+abbreviation "shortest_path_time == shortest_path_time_aux (card V) (2 * card E) set_insert_time map_dom_member_time set_pick_extract_time
+        get_succs_list_time map_update_time   set_empty_time set_isempty_time init_state_time list_append_time map_lookup_time init_get_succs_list_time"
 
 
   lemma [simp]:  "enat shortest_path_time \<noteq> 0"
-    unfolding  shortest_path_time_aux_def using Pre_BFS_Impl.pre_bfs_time_progress[unfolded Pre_BFS_Impl_def, of set_pick_time]
+    unfolding  shortest_path_time_aux_def using Pre_BFS_Impl.pre_bfs_time_progress[unfolded Pre_BFS_Impl_def, of "set_pick_extract_time (card V)"]
       apply(auto)
     by (metis add_is_0 enat_0_iff(1) not_gr_zero)
   
@@ -547,7 +546,7 @@ abbreviation "shortest_path_time == shortest_path_time_aux (card V) (2 * card E)
     abbreviation "augment_cf_impl'' cf p bn \<equiv> edru.augment_cf_impl' cf p bn"
 
     definition "MYbfs cf ss tt = Augmenting_Path_BFS.bfs cf (set_insert_time (card (Graph.V cf))) (map_dom_member_time (card (Graph.V cf)))
-                 (set_delete_time (card (Graph.V cf))) get_succs_list_time (map_update_time (card (Graph.V cf))) set_pick_time  
+                  get_succs_list_time (map_update_time (card (Graph.V cf))) (set_pick_extract_time (card (Graph.V cf)))  
               list_append_time (map_lookup_time (card (Graph.V cf))) set_empty_time set_isempty_time init_state_time init_get_succs_list_time ss tt "
 
     subsection \<open>Refinement to use BFS\<close>
@@ -586,7 +585,7 @@ abbreviation "shortest_path_time == shortest_path_time_aux (card V) (2 * card E)
     proof (rule le_R_ASSERTI, goal_cases)
       case 1
       interpret BFS: Augmenting_Path_BFS cf "set_insert_time (card (Graph.V cf))" "map_dom_member_time (card (Graph.V cf))"
-                 "set_delete_time (card (Graph.V cf))" get_succs_list_time "map_update_time (card (Graph.V cf))" set_pick_time  
+                  get_succs_list_time "map_update_time (card (Graph.V cf))" "set_pick_extract_time (card (Graph.V cf))"  
               list_append_time "map_lookup_time (card (Graph.V cf))" set_empty_time set_isempty_time init_state_time
         apply standard by auto
       have -: "BFS.V = V"  
@@ -781,8 +780,7 @@ begin
 end
 
 locale EdKa_Tab = Network c s t for c :: "'capacity::linordered_idom graph" and s t +
-  fixes  set_insert_time map_dom_member_time set_delete_time map_update_time :: "nat \<Rightarrow> nat"
-    and set_pick_time :: nat
+  fixes  set_insert_time map_dom_member_time set_pick_extract_time map_update_time :: "nat \<Rightarrow> nat" 
     and list_append_time ::nat
     and map_lookup_time  :: "nat \<Rightarrow> nat"
     and set_empty_time set_isempty_time init_state_time :: nat 
@@ -790,7 +788,7 @@ locale EdKa_Tab = Network c s t for c :: "'capacity::linordered_idom graph" and 
     and init_graph_time :: "nat \<Rightarrow> nat"
     and init_adjm_time :: nat
   assumes [simp]: "\<And>c. map_lookup_time c > 0"
-  assumes [simp]: "set_pick_time > 0" 
+  assumes [simp]: "\<And>c. set_pick_extract_time c > 0" 
     assumes [simp]: "matrix_lookup_time > 0" 
 begin
  
@@ -834,7 +832,7 @@ begin
 definition (in -) "bfs2_op_aux c s t
 set_insert_time 
   map_dom_member_time 
-  set_delete_time 
+    
   map_update_time   
   set_pick_time  
   list_append_time  
@@ -844,16 +842,15 @@ set_insert_time
   matrix_lookup_time 
       
 am cf init_state \<equiv> 
-Augmenting_Path_BFS.bfs2 cf set_insert_time map_dom_member_time set_delete_time map_update_time set_pick_time  
+Augmenting_Path_BFS.bfs2 cf set_insert_time map_dom_member_time   map_update_time set_pick_time  
           list_append_time map_lookup_time set_empty_time set_isempty_time   (Succ_Impl.rg_succ2  c list_append_time matrix_lookup_time am cf) init_state  s t  "
 
   
 
 abbreviation "bfs2_op am cf init_state \<equiv> bfs2_op_aux c s t (set_insert_time (card (Graph.V cf))) 
   (map_dom_member_time (card (Graph.V cf))) 
-  (set_delete_time (card (Graph.V cf))) 
-  (map_update_time (card (Graph.V cf)))   
-  set_pick_time  
+  (map_update_time (card (Graph.V cf)))     
+  (set_pick_extract_time (card (Graph.V cf)))   
   list_append_time  
   (map_lookup_time (card (Graph.V cf)))
   set_empty_time 
@@ -872,9 +869,9 @@ abbreviation "bfs2_op am cf init_state \<equiv> bfs2_op_aux c s t (set_insert_ti
 
 abbreviation "prepare_time == (\<lambda>n. init_graph_time n + init_adjm_time)"
 
-    sublocale edka: EdKa_Res_Bfs c s t set_insert_time map_dom_member_time set_delete_time
+    sublocale edka: EdKa_Res_Bfs c s t set_insert_time map_dom_member_time set_pick_extract_time
       get_succs_list_time  
-      map_update_time set_pick_time 
+      map_update_time   
       list_append_time map_lookup_time set_empty_time  set_isempty_time init_state_time
       matrix_lookup_time matrix_set_time 2 prepare_time
       apply(standard) by auto

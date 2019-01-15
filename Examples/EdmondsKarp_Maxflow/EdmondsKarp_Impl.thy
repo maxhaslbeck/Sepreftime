@@ -24,7 +24,7 @@ begin
     of our algorithm. \<close>
   locale Edka_Impl = Network_Impl +
     fixes N :: nat
-    assumes V_ss: "V\<subseteq>{0..<N}"
+    assumes V_ss: "V\<subseteq>{0..<N}" and stinbounds: "s < N" "t<N"
   begin  
     lemma this_loc: "Edka_Impl c s t N" by unfold_locales
 
@@ -338,6 +338,7 @@ begin
       "PR_CONST (\<lambda>(am,cf). rg_succ2 am cf)" 
       "prod_assn is_am (asmtx_assn N id_assn)" 
       "\<lambda>(am,cf). succ_imp N am cf"
+      "N"
       unfolding APP_def
       apply unfold_locales
       apply (simp add: fold_partial_uncurry)
@@ -345,30 +346,35 @@ begin
       by auto
       
     definition (in -) "bfsi' N s t psi cfi 
-      \<equiv> bfs_impl (\<lambda>(am, cf). succ_imp N am cf) (psi,cfi) s t"
+      \<equiv> bfs_impl (\<lambda>(am, cf). succ_imp N am cf) N (psi,cfi) s t"
  
     abbreviation "set_empty_time == 10"
     abbreviation "set_isempty_time == 10" 
     definition "bfs2_op am cf = EdKa_Tab.bfs2_op c s t
-       (bfs.set_insert_time) (bfs.map_dom_member_time )   (bfs.set_delete_time )
-       (bfs.map_update_time ) bfs.set_pick_time  bfs.list_append_time 
+       (bfs.set_insert_time) (bfs.map_dom_member_time )    bfs.set_pick_time 
+       (bfs.map_update_time )  bfs.list_append_time 
        (bfs.map_lookup_time ) bfs.set_empty_time bfs.set_isempty_time
        matrix_lookup_time am cf bfs.init_state"
- 
-    lemmas n = bfs.bfs_impl_fr_rule[unfolded hfref_def,  unfolded bfs.op_bfs_def, simplified, simplified all_to_meta]
- 
+
+
+declare [[show_abbrevs = false]]
+    thm bfs.op_bfs_def[abs_def]  bfs.bfs_impl_fr_rule
+    lemmas n = bfs.bfs_impl_fr_rule[of "N", unfolded hfref_def,  unfolded bfs.op_bfs_def, simplified, rule_format,  simplified all_to_meta]
+  
+    lemma "x \<in> V \<Longrightarrow> x < N" using V_ss by simp
 
     lemma [sepref_fr_rules]: 
       "(uncurry (bfsi' N s t),uncurry (PR_CONST bfs2_op)) 
-        \<in> is_am\<^sup>k *\<^sub>a (asmtx_assn N id_assn)\<^sup>k \<rightarrow>\<^sub>a option_assn is_path"
+        \<in> [\<lambda>(adjm,c). Graph.V c \<subseteq> V]\<^sub>a is_am\<^sup>k *\<^sub>a (asmtx_assn N id_assn)\<^sup>k \<rightarrow> option_assn is_path"
       unfolding bfsi'_def[abs_def]
       unfolding bfs2_op_def[abs_def]
       unfolding bfs2_op_aux_def
 
-      using n[of _ _ _ _ s s t t] unfolding rg_succ2_def bfs.list_append_time_def
+      using n[of s  _ _ _ _ s t t] unfolding rg_succ2_def bfs.list_append_time_def
       apply (clarsimp simp: hfref_def all_to_meta)
       apply (rule hn_refine_cons[rotated])
-      apply rprems
+         apply rprems 
+      using V_ss apply auto[]
       apply (sep_auto simp: pure_def intro!: enttI)
       apply (sep_auto simp: pure_def)
       apply (sep_auto simp: pure_def)
@@ -418,9 +424,8 @@ begin
     sublocale edkatab: EdKa_Tab  c s t
            "bfs.set_insert_time" 
      "bfs.map_dom_member_time"
-     " bfs.set_delete_time"
+     " bfs.set_pick_time "
      "bfs.map_update_time"
-     bfs.set_pick_time 
       list_append_time
       "bfs.map_lookup_time" 
       set_empty_time 
@@ -508,23 +513,27 @@ subsection \<open>Correctness Theorem for Implementation\<close>
 text \<open>We combine all refinement steps to derive a correctness 
   theorem for the implementation\<close>
 
+ 
 
 definition edka_cost :: "nat \<times> nat \<Rightarrow> nat" 
-  where "edka_cost = (\<lambda>(cV,cE). 3 * cV * cV + 3 + cV + 1 + (3 + rbt_insert_logN 1 + rbt_insert_logN 1 + 10 +
-   (2 * cE *
-    (rbt_search_time_logN (1 + cV) + 1 + (rbt_insert_logN (cV + 1) + rbt_insert_logN (1 + cV) + Suc 0) + (1 + 1) + (10 + rbt_delete_time_logN (cV + 1) + 2 + 2 * 10 + 10) + (1 + 1)) +
-    (10 + rbt_delete_time_logN (cV + 1) + 2 + 2 * 10 + 10)) +
-   cV * (rbt_search_time_logN (1 + cV) + 1 + 1) +
-   (1 + (1 + 10) * cV + (1 + cV * (2 * 1 + 2 * 1 + 3)))) *
-  (2 * cV * cE + cV + 1) )"
+  where "edka_cost = (\<lambda>(cV,cE). 3 * cV * cV + 3 + (cV + 1) +
+    (11 + cV + rbt_insert_logN 1 + 10 +
+     (2 * cE * (2 + (rbt_insert_logN (cV + 1) + 6 + Suc 0) + (1 + 1) + (10 + rbt_delete_time_logN (cV + 1) + 2 + 2 * 10 + 10) + (1 + 1)) +
+      (10 + rbt_delete_time_logN (cV + 1) + 2 + 2 * 10 + 10)) +
+     cV * (2 + 1) +
+     (1 + (1 + 10) * cV + (1 + cV * (2 * 1 + 2 * 1 + 3)))) *
+    (2 * cV * cE + cV + 1) )"
 
-lemma edka_cost_simp: "edka_cost (cV,cE) =  4 +
-  (3 * cV * cV + cV +  
-        (57 +
-         (20 * cV +
-          (2 * rbt_insert_logN (1 + 0) +
-           (2 * cE * (48 + (2 * rbt_insert_logN (1 + cV) + (rbt_search_time_logN (1 + cV) + rbt_delete_time_logN (1 + cV)))) + (rbt_delete_time_logN (1 + cV) + cV * rbt_search_time_logN (1 + cV)))))) *
-        (2 * cV * cE + cV + 1))" by (simp add: edka_cost_def)
+lemma edka_cost_simp: "edka_cost (cV,cE) = 69 +
+    (3 * cV * cV +
+     (23 * cV +
+      (rbt_insert_logN 1 +
+       (2 * cE * (55 + (rbt_insert_logN (cV + 1) + rbt_delete_time_logN (cV + 1))) +
+        (rbt_delete_time_logN (cV + 1) +
+         (65 + (22 * cV + (rbt_insert_logN 1 + (2 * cE * (55 + (rbt_insert_logN (cV + 1)
+           + rbt_delete_time_logN (cV + 1))) + rbt_delete_time_logN (cV + 1))))) * (2 * cV * cE + cV))))))" by (simp add: edka_cost_def)
+   
+
 
 context Network_Impl begin
  
@@ -532,7 +541,7 @@ context Network_Impl begin
 
 
     theorem edka_imp_correct: 
-      assumes VN: "Graph.V c = {0..<N}"
+      assumes VN: "Graph.V c = {0..<N}" and "s < N" and "t < N"
       assumes ABS_PS: "is_adj_map am"
       shows "<$( edka_cost (card V, card E))> 
           edka_imp c s t N am 
@@ -540,7 +549,7 @@ context Network_Impl begin
     proof -
       from VN have "Graph.V c \<subseteq> {0..<N}" by simp
       from VN have NN: "N = card (Graph.V c)" by simp
-      interpret Edka_Impl by unfold_locales fact
+      interpret Edka_Impl apply unfold_locales by fact+
 
       let ?t = "((edka_time_aux edkatab.edka.shortest_path_time edkatab.edka.edru.augment_with_path_time prepare_time (card E) (card V) ))"
 
