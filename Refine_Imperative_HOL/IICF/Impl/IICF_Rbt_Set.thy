@@ -1,6 +1,6 @@
 theory IICF_Rbt_Set
   imports "SepLogicTime_RBTreeBasic.RBTree_Impl" 
-      "../Intf/IICF_Set"  "../../../RefineMonadicVCG"
+      "../Intf/IICF_Set"  "../../../RefineMonadicVCG" "../../Sepref"
 begin
 
 hide_const R B
@@ -427,7 +427,50 @@ lemma mop_set_pick_rule[sepref_fr_rules]:
     apply(rule inst_ex_assn[where x="r"]) by (simp add: dom_emb'_eq)
   by (auto split: if_splits simp add: ran_def emb'_def)
 
+thm mop_set_pick_rule[to_hfref]
+
+lemma "(rbt_set_pick, PR_CONST (mop_set_pick t)) \<in> [\<lambda>S. 4 \<le> t S]\<^sub>a rbt_set_assn\<^sup>k \<rightarrow> id_assn"
+  apply sepref_to_hoare
+  unfolding autoref_tag_defs mop_set_pick_def
+  apply(rule hnr_ASSERT)
+  apply (rule extract_cost_otherway'[OF _ rbt_set_pick_rule])
+     apply solve_entails apply auto[]
+  oops
   
+
+
+definition "rbt_set_pick_extract S = do { v \<leftarrow> mop_set_pick (\<lambda>_. 4) S;
+                              C \<leftarrow> mop_set_del (\<lambda>S. rbt_delete_time_logN (card S + 1)) S v;
+                              RETURNT (v,C) }"
+
+lemma rbt_set_pick_extract_refines: "rbt_delete_time_logN (card S + 1) + 4 \<le> t S \<Longrightarrow> rbt_set_pick_extract S \<le> mop_set_pick_extract t S"
+  unfolding mop_set_pick_extract_def rbt_set_pick_extract_def mop_set_pick_def mop_set_del_def
+  apply(rule le_ASSERTI)
+  apply(rule T_specifies_I)
+  by (vcg' \<open>simp add: Some_le_emb'_conv\<close>)
+
+lemma rbt_set_pick_extract_refines': "(rbt_set_pick_extract, PR_CONST (mop_set_pick_extract t)) \<in> [\<lambda>S. rbt_delete_time_logN (card S + 1) + 4 \<le> t S]\<^sub>f Id \<rightarrow> \<langle>Id\<rangle>nrest_rel"
+  apply(rule frefI)
+  apply(rule nrest_relI) using rbt_set_pick_extract_refines by auto
+
+schematic_goal mop_set_pick_extract_rule':
+      notes [id_rules] = 
+        itypeI[Pure.of S "TYPE('a set)"] 
+      shows
+  "hn_refine (hn_ctxt rbt_set_assn S p) (?c::?'c Heap) ?\<Gamma>' ?R (rbt_set_pick_extract S)"
+  unfolding rbt_set_pick_extract_def
+  apply sepref done
+
+concrete_definition (in -) set_pick_extract uses mop_set_pick_extract_rule'
+print_theorems
+
+    sepref_register "set_pick_extract " 
+ 
+
+lemmas kruskal_ref_spec[sepref_fr_rules] = set_pick_extract.refine[FCOMP rbt_set_pick_extract_refines']
+ 
+
+
 
 
 end

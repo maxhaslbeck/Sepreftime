@@ -59,6 +59,24 @@ begin
   print_theorems 
 end
 
+context
+  fixes t ::  "'c set \<Rightarrow> nat"
+begin
+  definition "mop_set_pick_extract S = do { ASSERT (S\<noteq>{}); SPECT (emb (\<lambda>(x,C). x\<in>S \<and> C=S-{x}) (t S)) }"
+
+  lemma  mop_set_pick_extract: "tt \<le> TTT Q (SPECT (emb (\<lambda>(x,C). x\<in>S \<and> C=S-{x}) (t S))) 
+        \<Longrightarrow> S \<noteq> {} \<Longrightarrow> tt \<le> TTT Q (mop_set_pick_extract S)" unfolding mop_set_pick_extract_def by simp
+
+  thm progress_rules
+
+  lemma progress_mop_set_pick_extract[progress_rules]: "t S > 0 \<Longrightarrow> progress (mop_set_pick_extract S)"
+    unfolding mop_set_pick_extract_def by (auto intro!: progress_rules simp add:   zero_enat_def) 
+
+  sepref_register "mop_set_pick_extract" 
+  print_theorems 
+end
+ 
+
 
 context
   fixes t:: "'a set \<Rightarrow> nat" 
