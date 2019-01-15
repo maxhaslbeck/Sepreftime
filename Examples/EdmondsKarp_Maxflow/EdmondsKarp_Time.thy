@@ -17,14 +17,14 @@ lemma "(\<lambda>x. real ((32 ))) \<in> \<Theta>\<^sub>2(\<lambda>(V::nat,E::nat
 lemma "(\<lambda>x. real ((rbt_insert_logN 1 ))) \<in> \<Theta>\<^sub>2(\<lambda>(V::nat,E::nat). 1)" 
   apply (subst surjective_pairing) by auto2
 
-lemma edka_runt: "edka_cost \<in> \<Theta>\<^sub>2(\<lambda>(V::nat,E::nat). (real V * E) * V + (V * E) * E * ln V )"
+lemma edka_runt: "edka_cost \<in> \<Theta>\<^sub>2(\<lambda>(V::nat,E::nat). V * E * V + V * E * E  )"
   apply (subst surjective_pairing)
   unfolding edka_cost_simp by auto2
 
 
-lemma final_running_time: "edka_cost \<in> \<Theta>\<^sub>2(\<lambda>(V::nat,E::nat). (V * E) * (V + E * ln V) )"
+lemma final_running_time: "edka_cost \<in> \<Theta>\<^sub>2(\<lambda>(V::nat,E::nat). (V * E) * (V + E) )"
 proof -
-  have *:  "\<And>E V::nat. (V * E) * (V + E * ln V) = (real V * E) * V + (V * E) * E * ln V "  
+  have *:  "\<And>E V::nat. (V * E) * (V + E) = V * E * V + V * E * E"  
     by (simp add: distrib_left)  
   show ?thesis unfolding * using edka_runt  
     by simp

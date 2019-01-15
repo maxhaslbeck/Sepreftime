@@ -517,21 +517,13 @@ text \<open>We combine all refinement steps to derive a correctness
 
 definition edka_cost :: "nat \<times> nat \<Rightarrow> nat" 
   where "edka_cost = (\<lambda>(cV,cE). 3 * cV * cV + 3 + (cV + 1) +
-    (11 + cV + rbt_insert_logN 1 + 10 +
-     (2 * cE * (2 + (rbt_insert_logN (cV + 1) + 6 + Suc 0) + (1 + 1) + (10 + rbt_delete_time_logN (cV + 1) + 2 + 2 * 10 + 10) + (1 + 1)) +
-      (10 + rbt_delete_time_logN (cV + 1) + 2 + 2 * 10 + 10)) +
-     cV * (2 + 1) +
+    (13 + cV + 10 + (2 * cE * (2 + (2 + 6 + 1) + (1 + 1) + (2 + 2 + 2 * 10 + 10) + (1 + 1)) + (2 + 2 + 2 * 10 + 10)) + cV * (2 + 1) +
      (1 + (1 + 10) * cV + (1 + cV * (2 * 1 + 2 * 1 + 3)))) *
-    (2 * cV * cE + cV + 1) )"
+    (2 * cV *cE + cV + 1) )"
 
-lemma edka_cost_simp: "edka_cost (cV,cE) = 69 +
-    (3 * cV * cV +
-     (23 * cV +
-      (rbt_insert_logN 1 +
-       (2 * cE * (55 + (rbt_insert_logN (cV + 1) + rbt_delete_time_logN (cV + 1))) +
-        (rbt_delete_time_logN (cV + 1) +
-         (65 + (22 * cV + (rbt_insert_logN 1 + (2 * cE * (55 + (rbt_insert_logN (cV + 1)
-           + rbt_delete_time_logN (cV + 1))) + rbt_delete_time_logN (cV + 1))))) * (2 * cV * cE + cV))))))" by (simp add: edka_cost_def)
+lemma edka_cost_simp: "edka_cost (cV,cE) = 63 + 
+          (3 * cV * cV + (23 * cV + (98 * cE + (59 + (22 * cV + 98 * cE)) * (2 * cV * cE + cV))))"
+    by (simp add: edka_cost_def)
    
 
 
@@ -572,7 +564,7 @@ context Network_Impl begin
     unfolding   add_succs_spec_time_aux_def
     unfolding augment_cf_impl_time_aux_def extract_rpath_time_aux_def
 
-    unfolding bfs.set_pick_time_def bfs.set_delete_time_def bfs.map_dom_member_time_def bfs.set_insert_time_def
+    unfolding bfs.set_pick_time_def  bfs.map_dom_member_time_def bfs.set_insert_time_def
         bfs.map_update_time_def bfs.map_lookup_time_def   hh_def
     unfolding edka_cost_def  by auto
 

@@ -31,11 +31,10 @@ term Augmenting_Path_BFS.bfs2
                
 context Impl_Succ begin
 
-    abbreviation "init_state_time == 11 + N + rbt_insert_logN 1"
+    abbreviation "init_state_time == 13 + N"
 
-
-    definition "set_delete_time vcf = rbt_delete_time_logN (vcf + 1)"
-    definition "set_pick_time vcf = (4::nat)+ (set_delete_time vcf)"
+ 
+    definition "set_pick_time vcf = (2::nat)"
 
     lemma [simp]: "set_pick_time cf > (0::nat)" unfolding set_pick_time_def by auto
 
@@ -51,13 +50,14 @@ definition init_state :: "nat \<Rightarrow> (bool \<times> (nat \<Rightarrow> na
         m \<leftarrow> mop_map_empty (N+3);
         m \<leftarrow> mop_map_update (\<lambda>M. 6) m src src;
         C \<leftarrow> mop_set_empty (1::nat);
-        C \<leftarrow> mop_set_insert (\<lambda>_. rbt_insert_logN (card C + 1)) src C;
+        ASSERT (C={});
+        C \<leftarrow> mop_set_insert (\<lambda>_. 2) src C;
         N \<leftarrow> mop_set_empty (1::nat);
         RETURNT (False, m, C, N, 0::nat)
       }"
     
     term mop_set_insert
-    definition "set_insert_time vcf = rbt_insert_logN (vcf + 1)"
+    definition "set_insert_time vcf = 2"
     definition "map_dom_member_time vcf = (2::nat)"
     definition "map_update_time vcf = (6::nat)" 
     definition "set_isempty_time = (10::nat)"
@@ -107,7 +107,7 @@ definition init_state :: "nat \<Rightarrow> (bool \<times> (nat \<Rightarrow> na
         (?c::?'c Heap) ?\<Gamma>' ?R (PR_CONST (init_state) src)"
       using [[id_debug, goals_limit = 3]]
       unfolding init_state_def PR_CONST_def   using src_inbounds
-      unfolding mop_map_empty_add_mn[where s="N"] (*
+      unfolding mop_map_empty_add_mn[where s="N"]  (*
   apply sepref_dbg_preproc 
   apply sepref_dbg_cons_init
   apply sepref_dbg_id 
@@ -115,7 +115,7 @@ definition init_state :: "nat \<Rightarrow> (bool \<times> (nat \<Rightarrow> na
 
      apply sepref_dbg_opt_init
                                         
-  apply sepref_dbg_trans_keep
+  apply sepref_dbg_trans_keep    
 
   apply sepref_dbg_opt
   apply sepref_dbg_cons_solve \<comment> \<open>Frame rule, recovering the invalidated list 
@@ -181,7 +181,7 @@ declare rbt_delete_time_logN_mono [intro]
       unfolding Pre_BFS_Impl.inner_loop_def[OF PP[of "(card (Graph.V (absG c)))"]]  unfolding  extract_rpath_def nfoldliIE_def nfoldli_def 
       using [[id_debug, goals_limit = 3]]
       unfolding monadic_WHILE_aux unfolding Pre_BFS_Impl.loopguard_def[OF PP[of "(card (Graph.V (absG c)))"]] 
-      unfolding set_pick_time_def set_isempty_time_def set_delete_time_def map_dom_member_time_def
+      unfolding set_pick_time_def set_isempty_time_def map_dom_member_time_def
           map_update_time_def set_insert_time_def set_empty_time_def map_lookup_time_def list_append_time_def
       using inbounds  inboundsAll 
   apply sepref_dbg_preproc
@@ -191,7 +191,7 @@ declare rbt_delete_time_logN_mono [intro]
 
      apply sepref_dbg_opt_init
                                        
-  apply sepref_dbg_trans_keep                
+  apply sepref_dbg_trans_keep            
 
   apply sepref_dbg_opt
   apply sepref_dbg_cons_solve \<comment> \<open>Frame rule, recovering the invalidated list 
