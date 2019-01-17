@@ -387,6 +387,16 @@ definition "consume M t \<equiv> case M of
 
 definition "SPEC P t = REST (\<lambda>v. if P v then Some (t v) else None)"
 
+
+
+lemma nofailT_SPEC[refine_pw_simps]: "nofailT (SPEC a b)"
+  unfolding SPEC_def by auto
+ 
+
+lemma inresT_SPEC[refine_pw_simps]: "inresT (SPEC a b) = (\<lambda>x t. a x \<and>  b x \<ge> t)"
+    unfolding SPEC_def inresT_REST apply(rule ext) by(auto split: if_splits)
+
+
 section \<open> Monad Operators \<close>
 
 definition bindT :: "'b nrest \<Rightarrow> ('b \<Rightarrow> 'a nrest) \<Rightarrow> 'a nrest" where

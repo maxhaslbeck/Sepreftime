@@ -3,6 +3,30 @@ imports "../Sepref"
 begin
 
 
+
+
+
+context
+  fixes t ::  "nat"
+begin
+  definition "mop_plus a b =SPECT [a +  b \<mapsto> t]"
+
+  lemma mop_plus: "\<And>tt. tt \<le> TTT Q (SPECT [ a +  b \<mapsto> t]) \<Longrightarrow> tt
+           \<le> TTT Q (mop_plus a b)" unfolding mop_plus_def by simp 
+ 
+  sepref_register "mop_plus" 
+  print_theorems 
+end 
+ 
+
+ 
+ 
+lemma hn_refine_plus[sepref_fr_rules]: " hn_refine (hn_val Id a' a * hn_val Id b' b)
+           (ureturn (a +  b))
+       (hn_val Id a' a * hn_val Id b' b)
+       (pure Id) (((PR_CONST (mop_plus t)) $ a' $ b'))"
+  unfolding hn_refine_def apply (auto simp:   mult.assoc  execute_ureturn pure_def hn_ctxt_def)
+  by (auto simp: top_assn_rule zero_enat_def relH_def  mop_plus_def elim: pureD ) 
  
 context
   fixes t ::  "nat"

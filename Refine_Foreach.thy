@@ -1,5 +1,5 @@
 theory Refine_Foreach
-imports Sepreftime RefineMonadicVCG
+imports Sepreftime RefineMonadicVCG SepLogic_Misc
 begin
 
 
@@ -141,6 +141,33 @@ lemma nfoldli_simps[simp]:
     (if c s then do { s\<leftarrow>f x s; nfoldli ls c f s} else RETURNT s)"
   unfolding nfoldli_def by (subst RECT_unfold, refine_mono, auto split: nat.split)+
 
+lemma param_nfoldli[param]:
+  shows "(nfoldli,nfoldli) \<in> 
+    \<langle>Ra\<rangle>list_rel \<rightarrow> (Rb\<rightarrow>Id) \<rightarrow> (Ra\<rightarrow>Rb\<rightarrow>\<langle>Rb\<rangle>nrest_rel) \<rightarrow> Rb \<rightarrow> \<langle>Rb\<rangle>nrest_rel"
+  apply (intro fun_relI)
+proof goal_cases
+  case (1 l l' c c' f f' s s')
+  thus ?case
+    apply (induct arbitrary: s s')
+    apply (simp only: nfoldli_simps True_implies_equals)
+    apply parametricity
+    apply (simp only: nfoldli_simps True_implies_equals)
+    apply (parametricity)
+    done
+qed
+
+lemma nfoldli_no_ctd[simp]: "\<not>ctd s \<Longrightarrow> nfoldli l ctd f s = RETURNT s"
+  by (cases l) auto
+
+lemma nfoldli_append: "nfoldli (l1@l2) ctd f s = nfoldli l1 ctd f s \<bind> nfoldli l2 ctd f"
+  by (induction l1 arbitrary: s) simp_all
+
+lemma nfoldli_assert:
+  assumes "set l \<subseteq> S"
+  shows "nfoldli l c (\<lambda> x s. ASSERT (x \<in> S) \<then> f x s) s = nfoldli l c f s"
+  using assms by (induction l arbitrary: s) (auto simp: pw_eq_iff refine_pw_simps)
+
+lemmas nfoldli_assert' = nfoldli_assert[OF order.refl]
 
 definition nfoldliIE :: "('d list \<Rightarrow> 'd list \<Rightarrow> 'a \<Rightarrow>  bool) \<Rightarrow> nat \<Rightarrow> 'd list \<Rightarrow> ('a \<Rightarrow> bool) \<Rightarrow> ('d \<Rightarrow> 'a \<Rightarrow> 'a nrest) \<Rightarrow> 'a \<Rightarrow> 'a nrest" where
   "nfoldliIE I E l c f s = nfoldli l c f s"

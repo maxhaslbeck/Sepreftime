@@ -167,10 +167,31 @@ proof (goal_cases)
 qed 
 
 
+
+lemma r: "ran (\<lambda>v. if M v then Some (t v) else None) = {t v |v. M v}"
+  by (auto simp: ran_is_image domIff split: if_splits)  
+
+lemma d: "ra \<in> dom (\<lambda>v. if M v then Some (t v) else None) \<longleftrightarrow> M ra" 
+  unfolding domIff by (auto)  
+ 
+lemma extract_cost_ub_SPEC: "hn_refine \<Gamma> c \<Gamma>' R (SPEC M t) \<Longrightarrow> (\<And>c. M c \<Longrightarrow> t c \<le> enat Cost_ub) \<Longrightarrow> <\<Gamma> * timeCredit_assn Cost_ub> c <\<lambda>r. \<Gamma>' * (\<exists>\<^sub>Ara. R ra r * \<up> (M ra))>\<^sub>t"
+  unfolding SPEC_def
+  apply(drule extract_cost_ub[where Cost_ub=Cost_ub])
+    by (auto simp: r d)
+
+
 lemma post_rulet:
   "<P> f <Q>\<^sub>t \<Longrightarrow> \<forall>x. Q x \<Longrightarrow>\<^sub>A R x * true \<Longrightarrow> <P> f <R>\<^sub>t"
   apply(rule post_rule[where Q="\<lambda>x. Q x * true"])
   apply auto apply(rule ent_true_drop(1)) by simp
+
+ lemma ht_cons_rule:
+  assumes CPRE: "P \<Longrightarrow>\<^sub>A P'"
+  assumes CPOST: "\<And>x. Q x \<Longrightarrow>\<^sub>A Q' x"
+  assumes R: "<P'> c <Q>"
+  shows "<P> c <Q'>" apply(rule cons_post_rule[OF _ CPOST])
+   by(rule pre_rule[OF CPRE R]) 
+
 
 lemma extract_cost_ub':
   assumes "hn_refine \<Gamma> c \<Gamma>' R (REST M)" "(\<And>c. c\<in>ran M \<Longrightarrow> c \<le> Cost_ub)"

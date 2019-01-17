@@ -3,7 +3,7 @@ theory IICF
 imports        
   (* Sets *)
   "Intf/IICF_Set"
-  "Impl/IICF_List_SetO"
+ (* "Impl/IICF_List_SetO" *)
 (*
   (* Multisets *)
   "Intf/IICF_Multiset"
@@ -23,7 +23,7 @@ imports
   (* Lists *)
   "Intf/IICF_List"
 
-  "Impl/IICF_Array"
+ (* "Impl/IICF_Array" *)
 (*
   "Impl/IICF_HOL_List"
   "Impl/IICF_Array_List"
