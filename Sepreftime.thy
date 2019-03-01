@@ -388,6 +388,14 @@ definition "consume M t \<equiv> case M of
 definition "SPEC P t = REST (\<lambda>v. if P v then Some (t v) else None)"
 
 
+lemma consume_mono: "t\<le>t' \<Longrightarrow> M \<le> M' \<Longrightarrow> consume M t \<le> consume M' t'"
+  unfolding consume_def apply (auto split: nrest.splits )
+  unfolding le_fun_def apply auto
+  subgoal for m m' x apply(cases "m' x";cases "m x" ) apply auto
+     apply (metis less_eq_option_Some_None)   
+    by (metis add_mono less_eq_option_Some)  
+  done
+
 
 lemma nofailT_SPEC[refine_pw_simps]: "nofailT (SPEC a b)"
   unfolding SPEC_def by auto
