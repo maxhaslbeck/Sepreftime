@@ -149,7 +149,7 @@ theorem rbt_search_abs [hoare_triple]:
   by auto2
 *)
 
-definition rbt_mem :: "nat \<Rightarrow> (nat, unit) rbt_node ref option \<Rightarrow> bool Heap" where [rewrite]:
+definition rbt_mem :: "'a::{heap,linorder} \<Rightarrow> ('a, unit) rbt_node ref option \<Rightarrow> bool Heap" where [rewrite]:
   "rbt_mem x p = do {
       f \<leftarrow> rbt_search x p;
       return (f = Some ()) }"
@@ -376,7 +376,7 @@ lemma mop_set_delete_rule[sepref_fr_rules]:
 lemma mop_mem_set_rule[sepref_fr_rules]:
   "rbt_search_time_logN (card S + 1) + 1 \<le> t S \<Longrightarrow>
     hn_refine (hn_val Id x x' * hn_ctxt rbt_set_assn S p)
-     (rbt_mem (x'::nat) p)
+     (rbt_mem (x') p)
      (hn_ctxt (pure Id) x x' * hn_ctxt rbt_set_assn S p) id_assn ( PR_CONST (mop_set_member t) $  x $ S)"
 
   unfolding autoref_tag_defs mop_set_member_def
