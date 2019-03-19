@@ -7,7 +7,7 @@ context
   fixes t ::  "nat \<Rightarrow> nat"
 begin
   definition mop_sortEdges   where
-    "mop_sortEdges l = (SPECT (emb (\<lambda>(L,n). n= Max (set (map fst L) \<union> set (map (snd o snd) L)) \<and> sorted_wrt edges_less_eq L \<and> distinct L \<and> set L = set l) (enat (t (length l)))))"
+    "mop_sortEdges l = (SPECT (emb (\<lambda>(L,n). n= Max (insert 0 (set (map fst L) \<union> set (map (snd o snd) L))) \<and> sorted_wrt edges_less_eq L \<and> distinct L \<and> set L = set l) (enat (t (length l)))))"
   
     sepref_register "mop_sortEdges"  
 end
@@ -22,24 +22,9 @@ locale sortMaxnode =
 
 
 
+ 
 
-definition "sort_edges \<equiv> quicksort_by_rel edges_less_eq []"
-
-
-definition "max_node l \<equiv> Max (insert 0 (fst`set l \<union> (snd o snd)`set l))"
-
-lemma max_node_impl[code]: "max_node l = fold (\<lambda>(u,_,w) x. max u (max w x)) l 0"
-proof -
-  have "fold (\<lambda>(u,_,w) x. max u (max w x)) l a = Max (insert a (fst`set l \<union> (snd o snd)`set l))" for a
-    apply (induction l arbitrary: a)
-    apply (auto simp:  )
-    subgoal for a b l aa
-      apply (cases l)
-      by (auto simp: ac_simps)
-    done
-  thus ?thesis unfolding max_node_def by auto
-qed
-
+  
 lemma set_uprod_nonempty[simp]: "set_uprod x \<noteq> {}"
   apply(cases x) by auto
 
@@ -106,15 +91,7 @@ definition (in -) obtain_sorted_carrier'''_aux  where
 }" 
 
 abbreviation "obtain_sorted_carrier''' \<equiv> obtain_sorted_carrier'''_aux getEdges sortEdges E"
-
-
-definition "is_linorder_rel R \<equiv> (\<forall>x y. R x y \<or> R y x) \<and> (\<forall>x y z. R x y \<longrightarrow> R y z \<longrightarrow> R x z)"
-lemma edges_less_eq_linorder: "is_linorder_rel edges_less_eq"
-  unfolding edges_less_eq_def is_linorder_rel_def
-  by (metis linear order_trans)
-lemma sort_edges_correct: "sorted_wrt edges_less_eq (quicksort_by_rel edges_less_eq [] l)"
-  by (metis (no_types, hide_lams) edges_less_eq_linorder is_linorder_rel_def sorted_wrt_quicksort_by_rel)
-
+ 
 lemma distinct_mset_eq:"distinct a \<Longrightarrow> mset a = mset b \<Longrightarrow> distinct b"
   by (metis card_distinct distinct_card set_mset_mset size_mset)
 
@@ -131,7 +108,7 @@ proof -
   have pff: "fst ` set la \<union> (snd \<circ> snd) ` set la = (\<Union>x\<in>set la. case x of (x1, x1a, x2a) \<Rightarrow> {x1, x2a})"
     apply auto by (metis image_comp img_snd)
   have "V \<noteq> {}" using E_nonempty V_def by auto
-  then have Mo: "Max V = Max (insert 0 V)" by auto
+  then have Mo: "Max V = Max (insert 0 V)" by auto 
   show ?thesis unfolding Mo unfolding V_def
   unfolding E apply simp 
   by (auto simp add:  max_node_def prod.case_distrib pff ) 
@@ -144,7 +121,19 @@ lemma lst_graph_P_V: "lst_graph_P la E \<Longrightarrow> V = (fst ` set la \<uni
   subgoal  
     by (metis image_comp img_snd) 
   done
+
  
+
+lemma  k: "\<And>V::nat set. finite V \<Longrightarrow> V \<noteq> {} \<Longrightarrow> Max V = Max (insert 0 V)" by auto
+
+lemma *: "(la::((nat*int*nat) list)) \<noteq> [] \<Longrightarrow> Max (insert 0 (fst ` set la \<union> (snd \<circ> snd) ` set la)) = Max (fst ` set la \<union> (snd \<circ> snd) ` set la)"
+proof -
+  assume "la \<noteq> []"
+  then have "fst ` set la \<union> (snd \<circ> snd) ` set la \<noteq> {}" by auto
+  then show ?thesis apply(intro k[symmetric])  apply simp by simp
+qed
+
+
 lemma obtain_sorted_carrier'''_refine: "obtain_sorted_carrier''' \<le> \<Down>add_size_rel obtain_sorted_carrier''"
   unfolding obtain_sorted_carrier'''_aux_def  add_size_rel_def
   apply(rule bindT_refine')      
@@ -154,7 +143,8 @@ lemma obtain_sorted_carrier'''_refine: "obtain_sorted_carrier''' \<le> \<Down>ad
   apply(auto  simp: le_fun_def emb'_def dest: lst_graph_P_V split: if_splits)
   apply(rule le_R_ASSERTI)
   apply(rule ASSERT_leI) apply simp
-  apply(rule SPECT_refine) apply (auto split: if_splits)   
+  apply(rule SPECT_refine) apply (auto split: if_splits)    
+  apply(subst *) subgoal apply auto using E_nonempty by auto
   by (metis (mono_tags) fst_conv in_br_conv lst_graph_P_V prod_case_simp) 
    
     
@@ -403,7 +393,7 @@ proof -
 
   from ht show ?thesis by auto        
 qed
-
+thm minBasis_time_def 
 end
 
 

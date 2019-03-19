@@ -1,5 +1,5 @@
 theory Kruskal
-imports "../../../Kruskal/Equivalence_Relation_Misc" MinWeightBasis "HOL-Library.Uprod"   
+imports Kruskal_Misc  MinWeightBasis "HOL-Library.Uprod"   
 begin
 
 
