@@ -455,6 +455,10 @@ definition limitF :: "'b \<Rightarrow> ('b\<Rightarrow>enat) \<Rightarrow> enat"
 lemma limitF: "limitF b (Sup A)  = Sup (limitF b ` A)"
   unfolding limitF_def by simp
 
+
+lemma limitF_Inf: "limitF b (Inf A)  = Inf (limitF b ` A)"
+  unfolding limitF_def by simp
+
 definition limitO :: "'b \<Rightarrow> ( ('b \<Rightarrow> enat) option) \<Rightarrow> enat option" where
   "limitO b F = (case F of None \<Rightarrow> None | Some f \<Rightarrow> Some (limitF b f) )"
 
@@ -506,7 +510,13 @@ proof -
   finally show "Some (limitF b a) = (SUP x:A. case x of None \<Rightarrow> None | Some f \<Rightarrow> Some (limitF b f))"  by simp
 qed  
 
-
+lemma limitO_Inf: "limitO b (Inf A) = Inf (limitO b ` A)"
+  unfolding limitO_def apply(auto split: option.splits)
+  subgoal unfolding Inf_option_def apply (auto split: if_splits)  
+    by force  
+  subgoal using limitF_Inf  
+    by (smt Inf_option_def ffF image_cong image_iff option.case_eq_if option.discI option.sel) 
+  done
 
 
 
@@ -520,7 +530,11 @@ definition limitOF where "limitOF b X = (\<lambda>x. (limitO b (X x)))"
 
 lemma limitOF: "limitOF b (Sup A) = Sup (limitOF b ` A)"
   unfolding limitOF_def Sup_fun_def apply(rule ext) 
-  apply simp using limitO by (metis SUP_cong image_image)
+  apply simp using limitO by (metis image_image)
+
+lemma limitOF_Inf: "limitOF b (Inf A) = Inf (limitOF b ` A)"
+  unfolding limitOF_def Inf_fun_def apply(rule ext) 
+  apply simp using limitO_Inf by (metis image_image)
 
 lemma limit_limitOF: "limit b S =  (case S of FAILi \<Rightarrow> FAILi | REST X \<Rightarrow> REST (limitOF b X))"
   unfolding limit_limitO limitOF_def by simp
@@ -531,6 +545,14 @@ lemma limit_Sup: "limit b (Sup A) = Sup (limit b ` A)"
   unfolding limit_limitOF Sup_nrest_def apply (auto split: nrest.splits)
   apply(subst limitOF)
   apply(rule arg_cong[where f=Sup]) 
+  apply  (auto split: nrest.splits simp: )    
+    using image_iff by fastforce   
+
+lemma limit_Inf: "limit b (Inf A) = Inf (limit b ` A)"
+  unfolding limit_limitOF Inf_nrest_def apply (auto split: nrest.splits)
+  subgoal by force
+  apply(subst limitOF_Inf)
+  apply(rule arg_cong[where f=Inf]) 
   apply  (auto split: nrest.splits simp: )    
     using image_iff by fastforce   
 
@@ -1538,8 +1560,6 @@ lemma "limitT b (mm Q M) \<ge> mm (limitT b Q) (limitT b M)"
     subgoal by (simp add: infinity_fun_def limitT_def) 
     unfolding limitT_def apply (auto split: option.split simp: le_fun_def)
   oops
- 
-
   
 
 lemma "mm Q M = R \<longleftrightarrow> (\<forall>b. mm (limitT b Q) (limitT b M) = limitT b R)"
@@ -1613,12 +1633,12 @@ lemma mm_continous_f:
       apply(rule exI[where x=y]) unfolding mm_def z ..
   qed
   done
-
+*)
 
 definition mm2 :: "(  enat option) \<Rightarrow> (   enat option) \<Rightarrow> (   enat option)" where
   "mm2 r m = (case m  of None \<Rightarrow> Some \<infinity>
                                 | Some mt \<Rightarrow>
-                                  (case r of None \<Rightarrow> None | Some rt \<Rightarrow> (if rt < mt then None else Some (rt - mt))))"
+                                  (case r of None \<Rightarrow> None | Some rt \<Rightarrow> (if mt \<le> rt then Some (rt - mt) else None)))"
 
 
 lemma mm_alt: "mm R m x = mm2 (R x) (m x)" unfolding mm_def mm2_def ..
@@ -1626,30 +1646,39 @@ lemma mm_alt: "mm R m x = mm2 (R x) (m x)" unfolding mm_def mm2_def ..
 lemma mm2_None[simp]: "mm2 q None = Some \<infinity>" unfolding mm2_def by auto
 
 lemma mm2_Some0[simp]: "mm2 q (Some 0) = q" unfolding mm2_def by (auto split: option.splits)
-
+thm mm_antimono
 lemma mm2_antimono: "x \<le> y \<Longrightarrow> mm2 q x \<ge> mm2 q y"
-  unfolding mm2_def apply (auto split: option.splits)
-  using helper2 by blast 
+  unfolding mm2_def apply (auto split: option.splits)  
+  using helper2_r by blast 
 
-lemma mm2_contiuous2: "\<forall>x\<in>X. t \<le> mm2 q x \<Longrightarrow> t \<le> mm2 q (Sup X)"
+lemma mm2_contiuous2: "\<forall>x\<in>X. t \<le> mm2 q x \<Longrightarrow> t \<le> mm2 q (Sup X)"  
   unfolding mm2_def apply(auto simp: everywhereNone bot_option_def less_eq_option_None_is_None' split: option.splits if_splits)
-  subgoal by (metis (no_types, lifting) Sup_option_def in_these_eq less_Sup_iff option.distinct(1) option.sel) 
-  subgoal for tx tq by(cases tq; cases tx; fastforce dest!: Sup_finite_enat)
+  subgoal  
+    by (metis Sup_bot_conv(2) Sup_empty Sup_finite_enat antisym empty_Sup enat.exhaust enat_ord_simps(3) idiff_infinity option.distinct(1) option.exhaust)  
+  subgoal for tx tq apply (cases tq; cases tx)
+    subgoal using Sup_finite_enat by blast
+    subgoal by (metis Sup_least Sup_option_def in_these_eq option.distinct(1) option.sel)
+    subgoal by simp
+    subgoal by blast    
+    done
   done
  
 lemma fl: "(a::enat) - b = \<infinity> \<Longrightarrow> a = \<infinity>"
   apply(cases b; cases a) by auto
 
-lemma mm_inf1: "mm R m x = Some \<infinity> \<Longrightarrow> m x = None \<or> R x = Some \<infinity>"
+lemma mm_inf1: fixes m:: "'b \<Rightarrow> enat option" shows
+  "mm R m x = Some \<infinity> \<Longrightarrow> m x = None \<or> R x = Some \<infinity>"
   apply(auto simp: mm_def split: option.splits if_splits) using fl by metis
 
 lemma mm_inf2: "m x = None \<Longrightarrow> mm R m x = Some \<infinity>" 
   by(auto simp: mm_def split: option.splits if_splits)  
 
-lemma mm_inf3: " R x = Some \<infinity> \<Longrightarrow> mm R m x = Some \<infinity>" 
-  by(auto simp: mm_def split: option.splits if_splits)  
+lemma mm_inf3: fixes m:: "'b \<Rightarrow> enat option" shows " R x = Some \<infinity> \<Longrightarrow> mm R m x = Some \<infinity>" 
+  by (auto simp: mm_def split: option.splits if_splits)  
+ 
 
-lemma mm_inf: "mm R m x = Some \<infinity> \<longleftrightarrow> m x = None \<or> R x = Some \<infinity>"
+lemma mm_inf: fixes m:: "'b \<Rightarrow> enat option" shows
+  "mm R m x = Some \<infinity> \<longleftrightarrow> m x = None \<or> R x = Some \<infinity>"
   using mm_inf1 mm_inf2 mm_inf3  by metis
 
 lemma "REST Map.empty \<le> SPECT Q"
@@ -1662,17 +1691,14 @@ lemma InfQ_iff: "(\<exists>t'\<ge>enat t. Inf Q = Some t') \<longleftrightarrow>
   unfolding Inf_option_def 
   by auto
  
-
- *)
+ 
 subsection "mii"
 
 definition mii :: "('a \<Rightarrow> enat option) \<Rightarrow> ('a,enat) nrest \<Rightarrow> 'a \<Rightarrow> enat option" where 
-  "mii Qf M x =  (case M of FAILi \<Rightarrow> None 
-                                             | REST Mf \<Rightarrow> (mm Qf Mf) x)"
+  "mii Qf M x =  (case M of FAILi \<Rightarrow> None | REST Mf \<Rightarrow> (mm Qf Mf) x)"
 
 definition mii_f :: "('a \<Rightarrow> (_\<Rightarrow>enat) option) \<Rightarrow> ('a,(_\<Rightarrow>enat)) nrest \<Rightarrow> 'a \<Rightarrow> (_\<Rightarrow>enat) option" where 
-  "mii_f Qf M x =  (case M of FAILi \<Rightarrow> None 
-                                             | REST Mf \<Rightarrow> (mm Qf Mf) x)"
+  "mii_f Qf M x =  (case M of FAILi \<Rightarrow> None | REST Mf \<Rightarrow> (mm Qf Mf) x)"
 
 term "limitT b (Q::('a \<Rightarrow> (_\<Rightarrow>enat) option))"
 term limitO
@@ -1682,20 +1708,37 @@ lemma mm_M_None: "M x = None \<Longrightarrow> mm Q M x = Some \<infinity>"
   unfolding mm_def by auto
  
 
-lemma "mii_f Q M x \<ge> t \<longleftrightarrow> (\<forall>b. mii (limitT b Q) (limit b M) x \<ge> limitO b t)" 
+lemma leq_SomeInf:
+  fixes t :: "('a \<Rightarrow> enat) option" shows "t \<le> Some \<infinity>"
+  by (metis enat_ord_code(3) infinity_fun_def le_funI less_eq_option_None 
+        less_eq_option_Some order_mono_setup.refl order_trans split_option_ex)
+
+
+
+lemma mii_f_componentwise: 
+  "mii_f Q M x \<ge> t \<longleftrightarrow> (\<forall>b. mii (limitT b Q) (limit b M) x \<ge> limitO b t)" 
   unfolding mii_f_def mii_def 
   apply(cases M)
   subgoal apply (simp add: less_eq_option_None_is_None')  
     apply(cases t)   by(auto simp: limitO_def)
   subgoal for m
+    apply simp unfolding limit_def  apply simp
+    unfolding mm_def 
     apply(cases "m x")
-    apply(auto simp: mm_M_None   split: nrest.splits)
-    subgoal   sorry
-    subgoal   sorry
-    sorry
-  oops
+    subgoal by (auto simp: leq_SomeInf)    
+    subgoal 
+      apply(cases "Q x") 
+      subgoal
+        apply(cases t) by (auto simp: limitO_def limitT_def)   
+      subgoal
+        apply(cases t) by (auto simp: limitO_def limitT_def limitF_def
+            split: option.split simp: le_fun_def ) 
+      done
+    done
+  done
 
-(*
+
+
 
 lemma mii_alt: "mii Qf M x = (case M of FAILi \<Rightarrow> None 
                                              | REST Mf \<Rightarrow> (mm2 (Qf x) (Mf x)) )"
@@ -1726,13 +1769,13 @@ lemma mii_inf: "mii Qf M x = Some \<infinity> \<longleftrightarrow> (\<exists>Mf
 
 
 lemma miiFailt: "mii Q FAILT x = None" unfolding mii_def by auto
-*)
+
 
 subsection "T"
 
 definition T :: "('a \<Rightarrow> enat option) \<Rightarrow> ('a,enat) nrest \<Rightarrow> enat option" 
   where "T Qf M =  Inf { mii Qf M x | x. True}"
-
+ 
 definition T_f :: "('a \<Rightarrow> (_\<Rightarrow>enat) option) \<Rightarrow> ('a,(_\<Rightarrow>enat)) nrest \<Rightarrow> (_\<Rightarrow>enat) option" 
   where "T_f Qf M =  Inf { mii_f Qf M x | x. True}"
 
@@ -1740,7 +1783,7 @@ lemma T_alt_: "T Qf M = Inf ( (mii Qf M) ` UNIV )"
   unfolding T_def 
   by (simp add: full_SetCompr_eq) 
 
-lemma T_pw: "T Q M \<ge> t \<longleftrightarrow> (\<forall>x. mii Q M x \<ge> t)"
+lemma T_pw: "T Q M \<ge> t  \<longleftrightarrow> (\<forall>x. mii  Q M x \<ge> t)"
   unfolding T_def mii_def apply(cases M) apply auto
   unfolding Inf_option_def apply (auto split: if_splits)
   using less_eq_option_None_is_None less_option_None not_less apply blast
@@ -1756,6 +1799,17 @@ lemma T_f_pw: "T_f Q M \<ge> t \<longleftrightarrow> (\<forall>x. mii_f Q M x \<
    apply metis
   using in_these_eq le_Inf_iff le_cases le_some_optE less_eq_option_Some mem_Collect_eq 
   by (smt Some_Inf Some_image_these_eq) 
+
+
+thm T_f_pw mii_f_componentwise
+lemma T_f_componentwise: "(t \<le> T_f Q M) = (\<forall>b x. limitO b t \<le> mii (limitT b Q) (limit b M) x)"
+  using T_f_pw mii_f_componentwise by metis
+
+lemma T_f_by_T: "(t \<le> T_f Q M) = (\<forall>b. limitO b t \<le> T (limitT b Q) (limit b M) )"
+  using T_f_componentwise T_pw by metis
+
+
+
 
 lemma z: "(\<forall>t. T Q M \<ge> t \<longrightarrow> T Q' M' \<ge> t) \<Longrightarrow> T Q M \<le> T Q' M'"
   by simp
@@ -1946,24 +2000,24 @@ lemma lem: "\<forall>t1. M y = Some t1 \<longrightarrow> t \<le> mii Q (SPECT (m
   apply simp apply(cases "x2 x") subgoal by simp
   apply simp apply(cases "Q x") subgoal by simp
   apply simp apply(auto split: if_splits)
-  subgoal for a b c apply(cases a; cases b; cases c) by auto
-  subgoal for a b c apply(cases a; cases b; cases c) by auto
-  subgoal for a b c apply(cases a; cases b; cases c) by auto
   subgoal for a b c apply(cases a; cases b; cases c) by (auto simp add: add.commute) 
+  subgoal for a b c apply(cases a; cases b; cases c) by auto
+  subgoal for a b c apply(cases a; cases b; cases c) by auto
+  subgoal for a b c apply(cases a; cases b; cases c) by auto
   done
 
 lemma lem2: "t \<le> mii (\<lambda>y. mii Q (f y) x) (SPECT M) y \<Longrightarrow> M y = Some t1 \<Longrightarrow> f y = SPECT fF \<Longrightarrow> t \<le> mii Q (SPECT (map_option ((+) t1) \<circ> fF)) x"
-  apply (simp add: mii_def mm_def) apply(cases "fF x") apply auto
-  apply(cases "Q x") apply (auto split: if_splits)
-  subgoal using less_eq_option_None_is_None less_option_None not_less by blast
-  subgoal using less_eq_option_None_is_None less_option_None not_less by blast
-  subgoal  for a b apply(cases a; cases b; cases t) apply auto
-    by (metis add_right_mono leD le_add_diff_inverse2 le_less_linear plus_enat_simps(1))
+  apply (simp add: mii_def mm_def) apply(cases "fF x") apply auto 
+  apply(cases "Q x") apply (auto split: if_splits) 
   subgoal for a b  apply(cases a; cases b; cases t) apply auto
     by (smt add.commute add_diff_cancel_left enat_ile idiff_enat_enat le_add_diff_inverse le_less_linear plus_enat_simps(1))
+  subgoal  for a b apply(cases a; cases b; cases t) apply auto
+    by (metis add_right_mono le_add_diff_inverse2 plus_enat_simps(1))
+  subgoal using less_eq_option_None_is_None less_option_None not_less by blast
+  subgoal using less_eq_option_None_is_None less_option_None not_less by blast
   done
 
-lemma fixes m :: "'b nrest"
+lemma
   shows mii_bindT: "(t \<le> mii Q (bindT m f) x) \<longleftrightarrow> (\<forall>y. t \<le> mii (\<lambda>y. mii Q (f y) x) m y)"
 proof -
   { fix M
@@ -2121,6 +2175,79 @@ next
   then show ?thesis 
     unfolding SELECT_def apply (auto simp: emb'_def split: if_splits) using assms by auto
 qed 
+
+subsection "rules for T_f"
+
+thm T_bindT
+
+lemma "limitO b (T_f Qf M) = T (limitT b Q) (limit b M)"
+  oops
+(* not correct, as left hand side all slices have to be valid,
+    as on right hand side only the b-slice must be valid (i.e. non- None).*)
+
+lemma ooo: "limitO b (T_f Q M) \<le> T (limitT b Q) (limit b M)"
+  unfolding limitO_def limitT_def limit_def T_f_def T_def
+  apply auto apply(cases M) apply auto oops
+
+lemma limit_mii_f: "mii_f Q M x \<noteq> None \<Longrightarrow> limitO b (mii_f Q M x) = mii (limitT b Q) (limit b M) x"
+  unfolding mii_f_def mii_def
+  apply(cases M) apply auto
+  apply(simp add: limitO_def limit_def limitT_def limitF_def mm_def)
+  subgoal for m y apply(cases "m x") apply (auto simp: infinity_fun_def)
+    apply(cases "Q x") by (auto split: if_splits simp: le_fun_def)
+  done
+
+
+lemma "T_f Q M \<noteq> None
+     \<Longrightarrow> limitO b (T_f Q M) = T (limitT b Q) (limit b M)"
+  unfolding T_f_def T_def 
+  unfolding limitO_Inf
+  apply(rule arg_cong[where f=Inf]) 
+proof -
+  assume "Inf {mii_f Q M x |x. True} \<noteq> None"
+  then have "None \<notin> {mii_f Q M x |x. True}" unfolding Inf_option_def by (auto split: if_splits)
+  then have "\<And>x. mii_f Q M x \<noteq> None"  
+    by (metis (mono_tags, lifting) mem_Collect_eq)  
+  note l = limit_mii_f[OF this]
+
+  then show "limitO b ` {mii_f Q M x |x. True} = {mii (limitT b Q) (limit b M) x |x. True}"
+    by (smt Collect_cong setcompr_eq_image)
+qed
+
+
+
+
+lemma fa: "(a::enat option)\<le>b \<longleftrightarrow> (\<forall>t. t\<le>a \<longrightarrow> t\<le>b)"
+  using dual_order.trans by blast
+
+lemma faa: "(a::('a\<Rightarrow>enat) option)\<le>b \<longleftrightarrow> (\<forall>t. t\<le>a \<longrightarrow> t\<le>b)"
+  using dual_order.trans by blast
+
+lemma T_f_bindT: "T_f Q (bindT M f) = T_f (\<lambda>y. T_f Q (f y)) M"
+  apply(rule antisym)
+  subgoal apply(subst faa)
+    unfolding T_f_componentwise apply safe
+    subgoal for t b x apply(cases t) apply (simp add: limitO_def)
+      oops
+
+
+
+
+
+lemma T_f_bindT: "T_f Q (bindT M f) = T_f (\<lambda>y. T_f Q (f y)) M"
+  apply(rule antisym)
+  subgoal apply(subst faa)
+    apply(subst T_f_by_T) apply(subst T_f_by_T)
+    apply safe
+    apply (simp add: limit_bindT)
+    unfolding T_bindT oops
+  subgoal apply(subst T_f_by_T)
+    apply safe apply(rule order.trans) apply(rule ooo)
+    apply (simp add: limit_bindT)
+    
+  using T_f_by_T
+
+
 
 
               
