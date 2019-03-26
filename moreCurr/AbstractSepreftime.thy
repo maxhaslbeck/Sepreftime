@@ -2,7 +2,12 @@ theory AbstractSepreftime
   imports "HOL-Library.Extended_Nat" "Refine_Monadic.RefineG_Domain"  Refine_Monadic.Refine_Misc  
   "HOL-Library.Monad_Syntax"   "HOL-Library.Groups_Big_Fun"
   Complex_Main
+  Coinductive.CCPO_Topology
+
 begin
+
+
+
 
 
 section "Auxiliaries"
@@ -1221,48 +1226,104 @@ lemma pw_bindT_nofailTf' : "nofailT (bindT M f) \<longleftrightarrow> (nofailT M
 lemma pff: "n\<noteq>0 \<Longrightarrow> xa * enat n = y * enat n \<Longrightarrow> xa = y"
   apply(cases xa; cases y) by auto
  
+lemma enat_add_cont: "A\<noteq>{} \<Longrightarrow> Sup A + (c::enat) = Sup ((\<lambda>x. x+c)`A)"
+  using Sup_image_eadd2  
+  by auto  
+
+
+lemma mult_Max_commute:
+  fixes k :: enat
+  assumes "finite N" and "N \<noteq> {}"
+  shows "k * Max N = Max {k * m | m. m \<in> N}"
+proof -
+  have "\<And>x y. k * max x y = max (k * x) (k * y)"
+    apply (simp add: max_def not_le)
+    apply(cases k) apply auto
+    subgoal  
+      by (metis distrib_left leD le_iff_add)  
+    subgoal  
+      using \<open>\<And>y x nat. \<lbrakk>k = enat nat; x \<le> y; enat nat * y < enat nat * x\<rbrakk> \<Longrightarrow> enat nat * y = enat nat * x\<close> le_less by blast  
+    subgoal  
+      by (simp add: leD mult_left_mono)  
+    subgoal  
+      by (metis antisym enat_ord_code(3) imult_is_infinity not_le zero_le)  
+    done
+  with assms show ?thesis
+    using hom_Max_commute [of "times k" N]
+    by simp (blast intro: arg_cong [where f = Max])
+qed
+
+(* inspired by Sup_image_eadd1 *)
+lemma Sup_image_emult1:
+  assumes "Y \<noteq> {}"
+  shows "Sup ((\<lambda>y :: enat. x * y) ` Y) = x * Sup Y"
+proof(cases "finite Y")
+  case True
+  have "( * ) x ` Y = {x * m |m. m \<in> Y}" by auto
+  thus ?thesis using True by(simp add: Sup_enat_def mult_Max_commute assms)
+next
+  case False
+  thus ?thesis
+  proof(cases x)
+    case (enat x')
+    show ?thesis
+      proof (cases "x'=0")
+        case True
+        then show ?thesis using enat apply (auto simp add: zero_enat_def[symmetric] )  
+          by (metis SUP_bot bot_enat_def)  
+      next
+        case f: False
+        with enat have "\<not> finite (( * ) x ` Y)" using False
+            apply(auto dest!: finite_imageD intro!: inj_onI)  
+            by (simp add: mult.commute pff)  
+        with False f enat show ?thesis by(simp add: Sup_enat_def assms) 
+      qed       
+  next
+    case infinity
+    from False have i: "Sup Y \<noteq> 0"  
+      by (simp add: Sup_enat_def assms) 
+    from infinity False have "( * ) x ` Y = {\<infinity>} \<or> ( * ) x ` Y = {\<infinity>,0}" using assms  
+      by (smt aux11 finite.simps image_insert imult_is_infinity insert_commute mk_disjoint_insert mult_zero_right)  
+    thus ?thesis using i infinity assms
+      apply auto
+      subgoal by (metis ccpo_Sup_singleton imult_is_infinity) 
+      subgoal by (metis Sup_insert bot_enat_def ccSup_empty ccpo_Sup_singleton imult_is_infinity)  
+      done
+  qed
+qed
+ 
+
 lemma enat_mult_cont: "Sup A * (c::enat) = Sup ((\<lambda>x. x*c)`A)"
   apply(cases "A={}")
   subgoal unfolding Sup_enat_def by simp
-  apply(cases c)
-  subgoal for n
-    apply(cases "n=0")
-    subgoal by (auto simp: zero_enat_def[symmetric])
-    subgoal  
-      unfolding Sup_enat_def apply simp apply auto 
-    subgoal  sorry
-    subgoal  apply(frule finite_imageD) subgoal  unfolding inj_on_def apply auto
-      apply(rule pff[where n=n]) by auto 
-    subgoal by simp  
-    done
-  done
-  done
-  subgoal   unfolding Sup_enat_def apply auto
-      subgoal  
-        by (smt Max_Sup Max_in Sup_bot_conv(2) bot_enat_def empty_iff finite_imageI image_iff imult_is_infinity mult.commute times_enat_simps(3) zero_enat_def)  
-      subgoal 
-        by (smt Max_Sup SUP_cong Sup_enat_def Sup_upper antisym bot_enat_def enat_ord_code(3) image_eqI image_ident image_is_empty imult_is_infinity mult_eq_0_iff)
-      done
-  done
+  using Sup_image_emult1  
+  by (metis mult_commute_abs) 
 
 lemma enat_mult_cont':
   fixes f :: "'a \<Rightarrow> enat"
   shows 
   "(SUPREMUM A f) * c = SUPREMUM A (\<lambda>x. f x * c)"
   using enat_mult_cont by simp
+ 
+
 
 lemma enat_add_cont':
   fixes f g :: "'a \<Rightarrow> enat"
-  shows "(SUP b:B. f b) + (SUP b:B. g b) = (SUP b:B. f b + g b)"
-  unfolding Sup_enat_def apply auto
-  sorry
+  shows "(SUP b:B. f b) + (SUP b:B. g b) \<ge> (SUP b:B. f b + g b)"  
+  by (auto intro: Sup_least add_mono Sup_upper) 
 
+
+lemma enat_add_cont:
+  fixes f g :: "'a \<Rightarrow> enat"
+  shows "(SUP b:B. f b) + (SUP b:B. g b) \<le> (SUP b:B. f b + g b)" 
+  unfolding Sup_enat_def (* let B = {1,10} and f=%x.x and g=%x.10-x, dann links 10+9, rechts MAX{10,10} *)
+  apply simp oops
 
 lemma enat_Sum_any_cont:
   fixes f :: "'a \<Rightarrow> 'b \<Rightarrow> enat"
   assumes f: "finite {x. \<exists>y. f x y \<noteq> 0}"
   shows 
-  "Sum_any (\<lambda>x. (SUPREMUM B (f x))) = SUPREMUM B (\<lambda>y. Sum_any (\<lambda>x. f x y))"
+  "SUPREMUM B (\<lambda>y. Sum_any (\<lambda>x. f x y)) \<le> Sum_any (\<lambda>x. (SUPREMUM B (f x)))"
 proof - 
   have "{a. SUPREMUM B (f a) \<noteq> 0} \<subseteq> {x. \<exists>y. f x y \<noteq> 0}"
     apply auto by (metis SUP_eqI i0_lb le_zero_eq) 
@@ -1270,27 +1331,27 @@ proof -
 
   { fix S :: "'a set"
     assume "finite S"
-    then have "(\<Sum>x\<in>S. SUPREMUM B (f x)) = (SUP y:B. \<Sum>x\<in>S. f x y)"
+    then have "(SUP y:B. \<Sum>x\<in>S. f x y) \<le> (\<Sum>x\<in>S. SUPREMUM B (f x))"
     proof (induct rule: finite_induct)
       case empty
       then show ?case apply auto  
       by (metis SUP_bot_conv(2) bot_enat_def) 
     next
       case (insert a A) 
-      have "(\<Sum>x\<in>insert a A. SUP a:B. f x a)
-            =  (SUP b:B. f a b) + (\<Sum>x\<in>A. SUP b:B. f x b)" 
-        using sum.insert insert by auto 
-      also have "\<dots> = (SUP b:B. f a b) + (SUP y:B. \<Sum>x\<in>A. f x y)" using insert by auto
-      also have "\<dots> = (SUP y:B. f a y + (\<Sum>x\<in>A. f x y))"  apply(subst enat_add_cont') by simp
-      also have "\<dots> = (SUP y:B. (\<Sum>x\<in>insert a A. f x y))"    
-        using sum.insert insert by auto                            
+      have "(SUP y:B. (\<Sum>x\<in>insert a A. f x y)) =  (SUP y:B. f a y + (\<Sum>x\<in>A. f x y))"
+        using sum.insert insert by auto   
+      also have "\<dots> \<le> (SUP b:B. f a b) + (SUP y:B. \<Sum>x\<in>A. f x y)"
+        apply(subst enat_add_cont') by simp
+      also have "\<dots> \<le> (SUP b:B. f a b) + (\<Sum>x\<in>A. SUP b:B. f x b)" using insert by auto
+      also have "\<dots> = (\<Sum>x\<in>insert a A. SUP a:B. f x a)" 
+        using sum.insert insert by auto                          
       finally show ?case .
     qed
   } note finite_SUP_sum = this
 
   thm Sum_any.expand_set
   show ?thesis
-    apply(subst (2) Sum_any.expand_superset[of "{x. \<exists>y. f x y \<noteq> 0}"])
+    apply(subst (1) Sum_any.expand_superset[of "{x. \<exists>y. f x y \<noteq> 0}"])
     subgoal by fact subgoal apply auto done
     apply(subst (1) Sum_any.expand_superset[of "{x. \<exists>y. f x y \<noteq> 0}"])
     subgoal by fact subgoal apply fact done
@@ -1303,7 +1364,7 @@ proof -
 lemma pl:
   fixes R ::"'a \<Rightarrow> 'a \<Rightarrow> enat"
   assumes "Ra \<noteq> {}" and "wfR R"
-shows  "Some (Sum_any (\<lambda>ac. (SUP f:Ra. f ac) * R ac b)) = Sup { Some (Sum_any (\<lambda>ac. x ac * R ac b)) |x. x \<in> Ra}"
+shows  " Sup { Some (Sum_any (\<lambda>ac. x ac * R ac b)) |x. x \<in> Ra} \<le> Some (Sum_any (\<lambda>ac. (SUP f:Ra. f ac) * R ac b))"
 proof -
   have *: "{ Some (Sum_any (\<lambda>ac. x ac * R ac b)) |x. x \<in> Ra} =
 Some ` {  (Sum_any (\<lambda>ac. x ac * R ac b)) |x. x \<in> Ra}" by blast
@@ -1319,9 +1380,10 @@ Some ` {  (Sum_any (\<lambda>ac. x ac * R ac b)) |x. x \<in> Ra}" by blast
   show ?thesis unfolding *
     apply(subst Some_Sup[symmetric]) using assms apply simp
     apply simp  
-    unfolding a apply(subst enat_Sum_any_cont) 
-    subgoal apply(rule finite_subset[OF _ e]) by auto      
-    by (simp add: setcompr_eq_image)
+    unfolding a apply(rule order.trans[OF _ enat_Sum_any_cont]) 
+    subgoal by (simp add: setcompr_eq_image)
+    subgoal apply(rule finite_subset[OF _ e]) by auto    
+    done
 qed
 
 lemma oo: "Option.these (Ra - {None}) = Option.these (Ra)" 
@@ -1330,15 +1392,15 @@ lemma oo: "Option.these (Ra - {None}) = Option.these (Ra)"
 lemma Sup_wo_None: "Ra \<noteq> {} \<and> Ra \<noteq> {None} \<Longrightarrow> Sup Ra = Sup (Ra-{None})"
   unfolding Sup_option_def apply auto unfolding oo by simp
 
-lemma kk:
+lemma kkk:
   fixes R ::"'a \<Rightarrow> 'a \<Rightarrow> enat"
   assumes "wfR R"
 shows 
 " (case SUP x:Ra. x of None \<Rightarrow> None | Some cm \<Rightarrow> Some (Sum_any (\<lambda>ac. cm ac * R ac b)))
-   = Sup {case x of None \<Rightarrow> None | Some cm \<Rightarrow> Some (Sum_any (\<lambda>ac. cm ac * R ac b)) |x. x \<in>  Ra}"
+   \<ge> Sup {case x of None \<Rightarrow> None | Some cm \<Rightarrow> Some (Sum_any (\<lambda>ac. cm ac * R ac b)) |x. x \<in>  Ra}"
   apply(cases "Ra={} \<or> Ra = {None}")
   subgoal by (auto split: option.splits simp: bot_option_def)
-  subgoal apply(subst Sup_option_def) apply simp
+  subgoal apply(subst (2) Sup_option_def) apply simp
     
 
   proof -
@@ -1360,7 +1422,7 @@ shows
       = Sup ({  Some (\<Sum>ac. x ac * R ac b) |x. x\<in>Option.these Ra})" .
 
 
-    show "Some (\<Sum>ac. (SUP f:Option.these Ra. f ac) * R ac b) = Sup {case x of None \<Rightarrow> None | Some cm \<Rightarrow> Some (\<Sum>ac. cm ac * R ac b) |x. x \<in> Ra}"
+    show "Sup {case x of None \<Rightarrow> None | Some cm \<Rightarrow> Some (\<Sum>ac. cm ac * R ac b) |x. x \<in> Ra} \<le> Some (\<Sum>ac. (SUP f:Option.these Ra. f ac) * R ac b)"
       unfolding rrr apply(subst pl)
       subgoal using x unfolding Option.these_def by auto
       subgoal by fact
@@ -1375,7 +1437,7 @@ lemma
 assumes "wfR R"
 shows 
 "(case SUP x:Ra. x r of None \<Rightarrow> None | Some cm \<Rightarrow> Some (Sum_any (\<lambda>ac. cm ac * R ac b)))
-    = Sup {case x r of None \<Rightarrow> None | Some cm \<Rightarrow> Some (Sum_any (\<lambda>ac. cm ac * R ac b)) |x. x\<in>Ra}"
+    \<ge> Sup {case x r of None \<Rightarrow> None | Some cm \<Rightarrow> Some (Sum_any (\<lambda>ac. cm ac * R ac b)) |x. x\<in>Ra}"
 proof -
   have *: "{case x r of None \<Rightarrow> None | Some cm \<Rightarrow> Some (\<Sum>ac. cm ac * R ac b) |x. x \<in> Ra}
       = {case x  of None \<Rightarrow> None | Some cm \<Rightarrow> Some (\<Sum>ac. cm ac * R ac b) |x. x \<in> (\<lambda>f. f r) ` Ra}"
@@ -1384,7 +1446,7 @@ proof -
       = (case SUP x:(\<lambda>f. f r) ` Ra. x of None \<Rightarrow> None | Some cm \<Rightarrow> f cm)"    
     by auto       
 
-  show ?thesis unfolding * ** apply(rule kk) by fact
+  show ?thesis unfolding * ** apply(rule kkk) by fact
 qed
 
 
@@ -1395,15 +1457,56 @@ lemma nofail'': "x \<noteq> FAILT  \<longleftrightarrow> (\<exists>m. x=SPECT m)
 lemma rr: "b \<noteq> None \<Longrightarrow> (\<forall>b'. b = Some b' \<longrightarrow> a\<le>b') \<Longrightarrow> Some a \<le> b"
   apply(cases b; auto) done
 
+lemma limRef_bindT_le:
+fixes R ::"'a \<Rightarrow> 'a \<Rightarrow> enat" assumes "wfR R"
+shows "limRef b R (bindT m f) \<ge> (case m of FAILi \<Rightarrow> FAILT | REST X \<Rightarrow> Sup {case f x of FAILi \<Rightarrow> FAILT | REST m2 \<Rightarrow> SPECT (\<lambda>r. case (map_option ((+) t1) \<circ> m2) r of None \<Rightarrow> None | Some cm \<Rightarrow> Some (Sum_any (\<lambda>ac. cm ac * R ac b))) |x t1. X x = Some t1})"
+  unfolding limRef_def bindT_def apply(cases m) apply auto
+  unfolding Sup_nrest_def apply (auto split: nrest.splits)
+  apply(rule le_funI)   apply simp unfolding Sup_fun_def     
+  subgoal 
+  apply(rule order.trans) defer
+    apply(subst ***[OF assms]) apply simp   
+    apply(rule Sup_least)
+    apply auto
+      apply(subst (asm) nofail'') apply (auto split: option.splits)
+    apply(rule Sup_upper)
+    apply auto
+    subgoal for xa t1 ma x2
+    apply(rule exI[where x="map_option ((+) t1) \<circ> ma"])
+      apply safe subgoal apply simp done
+      subgoal by auto   
+      apply(rule exI[where x=xa])
+      by simp 
+    done
+  done
+
+
+
 lemma limRef_bindT:
 fixes R ::"'a \<Rightarrow> 'a \<Rightarrow> enat" assumes "wfR R"
 shows "limRef b R (bindT m f) = (case m of FAILi \<Rightarrow> FAILT | REST X \<Rightarrow> Sup {case f x of FAILi \<Rightarrow> FAILT | REST m2 \<Rightarrow> SPECT (\<lambda>r. case (map_option ((+) t1) \<circ> m2) r of None \<Rightarrow> None | Some cm \<Rightarrow> Some (Sum_any (\<lambda>ac. cm ac * R ac b))) |x t1. X x = Some t1})"
   unfolding limRef_def bindT_def apply(cases m) apply auto
   unfolding Sup_nrest_def apply (auto split: nrest.splits)
   apply(rule ext) apply simp unfolding Sup_fun_def 
-    apply(subst ***[OF assms]) 
-  apply(rule antisym)
-  subgoal for M b'
+  apply(rule antisym) defer
+  subgoal 
+  apply(rule order.trans) defer
+    apply(subst ***[OF assms]) apply simp
+   
+    apply(rule Sup_least)
+    apply auto
+      apply(subst (asm) nofail'') apply (auto split: option.splits)
+    apply(rule Sup_upper)
+    apply auto
+    subgoal for xa t1 ma x2
+    apply(rule exI[where x="map_option ((+) t1) \<circ> ma"])
+      apply safe subgoal apply simp done
+      subgoal by auto   
+      apply(rule exI[where x=xa])
+      by simp 
+    done
+  subgoal oops (*
+subgoal for M b'
     apply(rule Sup_least) apply (auto split: option.splits) 
     subgoal for sumMap t12 x t1 
       apply(simp add: nofail'') apply auto
@@ -1425,20 +1528,7 @@ shows "limRef b R (bindT m f) = (case m of FAILi \<Rightarrow> FAILT | REST X \<
             by simp 
     done
   done 
-  subgoal for M b'
-    apply(rule Sup_least)
-    apply auto
-      apply(subst (asm) nofail'') apply (auto split: option.splits)
-    apply(rule Sup_upper)
-    apply auto
-    subgoal for xa t1 ma x2
-    apply(rule exI[where x="map_option ((+) t1) \<circ> ma"])
-      apply safe subgoal apply simp done
-      subgoal by auto   
-      apply(rule exI[where x=xa])
-      by simp 
-    done
-  done
+*) 
 
 lemma inresTf'_timerefine: "inresTf' (timerefine R m) x t \<Longrightarrow> \<exists>t'. inresTf' m x t'"
   unfolding inresTf'_def timerefine_def by (auto split: nrest.splits option.splits)
@@ -1470,18 +1560,57 @@ lemma inresT_limRef_D: "inresT (limRef b R (SPECT x2)) r' t' \<Longrightarrow> (
   unfolding limRef_def apply simp
    by (auto split: option.splits)
   
-   
 
+lemma ff: "c\<le>a \<Longrightarrow> inresT c  x t \<Longrightarrow> inresT a x t"
+  unfolding inresT_def apply (auto split: nrest.splits)  
+  by (metis dual_order.trans le_fun_def le_some_optE)   
+
+                                                                
 lemma assumes wfR: "wfR R"
-  shows "timerefine R (bindT m f) = bindT (timerefine R m) (\<lambda>x. timerefine R (f x))"
-  apply(rule pw_f_eqI')
+  shows timerefine_bindT_ge: "timerefine R (bindT m f) \<ge> bindT (timerefine R m) (\<lambda>x. timerefine R (f x))"
+  unfolding  pw_f_le_iff'
+  apply safe
   subgoal apply (simp add: nofailT_timerefine nofailT_limit pw_bindT_nofailTf')
-          apply auto apply(frule inresTf'_timerefine) apply simp
-    apply(frule inresTf'_timerefine') by blast 
+          apply auto apply(frule inresTf'_timerefine) by simp 
   subgoal for b x t
     unfolding limit_bindT 
     unfolding pw_inresT_bindT
     unfolding limRef_limit_timerefine
+    apply(rule ff[OF limRef_bindT_le]) using assms apply simp
+  apply(simp add: nofailT_limRef)
+      apply(cases m) subgoal by auto
+      apply simp 
+      unfolding pw_inresT_Sup apply auto
+      apply(drule inresT_limRef_D) apply auto
+      subgoal for x2 r' t' t'' x2a
+      apply(rule exI[where x="(case f r' of FAILi \<Rightarrow> FAILT | REST m2 \<Rightarrow> SPECT (\<lambda>r. case (map_option ((+) x2a) \<circ> m2) r of None \<Rightarrow> None | Some cm \<Rightarrow> Some (Sum_any (\<lambda>ac. cm ac * R ac b))))"])
+      apply safe
+       apply(rule exI[where x=r'])
+       apply(rule exI[where x=x2a])
+         apply simp
+        apply (cases "f r'") subgoal by auto
+        apply simp
+        apply(drule inresT_limRef_D) apply auto
+        apply(rule exI[where x="t' + t''"]) apply (simp add: comm_semiring_class.distrib) 
+        apply(subst Sum_any.distrib)
+        subgoal apply(rule wfR_finite_mult_left) using wfR by simp
+        subgoal apply(rule wfR_finite_mult_left) using wfR by simp
+        subgoal  
+          using add_mono by fastforce  
+        done
+    done
+  done
+ 
+(*
+lemma assumes wfR: "wfR R"
+  shows "timerefine R (bindT m f) = bindT (timerefine R m) (\<lambda>x. timerefine R (f x))"
+  apply(rule pw_f_eqI')
+  subgoal for b x t
+    unfolding limit_bindT 
+    unfolding pw_inresT_bindT
+    unfolding limRef_limit_timerefine
+  apply(rule order.trans)
+    using limRef_bindT_le
     unfolding limRef_bindT[OF assms]
     apply safe
     subgoal apply(simp add: nofailT_limRef)
@@ -1544,7 +1673,7 @@ lemma assumes wfR: "wfR R"
     done
   done
   done
-
+*)
 
 lemma "timerefine R (bindT m f) \<ge> bindT (timerefine R m) (\<lambda>x. timerefine R (f x))"
   unfolding timerefine_def bindT_def
@@ -1568,8 +1697,6 @@ lemma "timerefine R (bindT m f) \<ge> bindT (timerefine R m) (\<lambda>x. timere
     then show ?thesis sorry
   qed   
   oops
-
-
 
 
 section \<open>Monad Rules\<close>
@@ -1669,6 +1796,9 @@ proof -
 qed
 
 
+
+
+
 lemma bindT_mono_f: 
   "m \<le> m' \<Longrightarrow> (\<And>x. (\<exists>b t. inresT (limit b m) x t) \<Longrightarrow> nofailT m' \<Longrightarrow>  f x \<le> f' x)
  \<Longrightarrow> bindT m f \<le> bindT  m' f'"
@@ -1692,6 +1822,14 @@ proof -
     apply fact
     using assms(2)[unfolded *[symmetric]] by blast
 qed
+
+ 
+
+lemma bindT_mono_under_timerefine:
+  assumes wfR: "wfR R"
+  shows "m \<le> timerefine R m' \<Longrightarrow> (\<And>x. f x \<le> timerefine R (f' x)) \<Longrightarrow> bindT m f \<le> timerefine R (bindT m' f')"
+  apply(rule order.trans) defer apply(subst timerefine_bindT_ge) using assms apply simp apply simp
+  apply(rule bindT_mono_f2) by simp_all
 
 
 lemma bindT_mono'[refine_mono]: 
@@ -2827,7 +2965,7 @@ lemma T_f_bindT: "T_f Q (bindT M f) = T_f (\<lambda>y. T_f Q (f y)) M"
 
 
 
-
+(*
 
 lemma T_f_bindT: "T_f Q (bindT M f) = T_f (\<lambda>y. T_f Q (f y)) M"
   apply(rule antisym)
@@ -2994,14 +3132,13 @@ named_theorems vcg_rules
 
 method vcg uses rls = ((rule rls vcg_rules[THEN T_conseq4] | clarsimp simp: emb_eq_Some_conv emb_le_Some_conv T_bindT T_RETURNT)+)
 
-
-
+ 
 
 lemma assumes
-  f_spec[vcg_rules]: "T ( emb' (\<lambda>x. x > 2) (enat o (( *) 2)) ) f \<ge> Some 0"
+  f_spec[vcg_rules]: "T ( emb' (\<lambda>x. x > 2) (enat o (( * ) 2)) ) f \<ge> Some 0"
 and 
   g_spec[vcg_rules]: "T ( emb' (\<lambda>x. x > 2) (enat) ) g \<ge> Some 0"
-shows "T ( emb' (\<lambda>x. x > 5) (enat o ( *) 3) ) (P f g) \<ge> Some 0"
+shows "T ( emb' (\<lambda>x. x > 5) (enat o ( * ) 3) ) (P f g) \<ge> Some 0"
 proof -
   have ?thesis
     unfolding P_def
@@ -3979,7 +4116,7 @@ method_setup refine_vcg =
 
 hide_const T
 
-
+*)
 
 
 end
