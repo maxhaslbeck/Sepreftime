@@ -38,11 +38,14 @@ definition rd_impl1 :: "('a::{heap,linorder}) list \<Rightarrow> ('a list) nrest
 
 definition "remdups_time (n::nat) = n * body_time n + 20"
 
+definition "remdups_spec as = REST (emb (\<lambda>ys. set as = set ys \<and> distinct ys)
+                   ( remdups_time (length as) ))"
+
 lemma enat_neq_Z_iff[simp]: "enat x \<noteq> 0 \<longleftrightarrow> x\<noteq>0"
   by (auto simp: zero_enat_def)
 
-lemma rd_impl1_correct: "rd_impl1 as \<le> REST (emb (\<lambda>ys. set as = set ys \<and> distinct ys)
-                   ( remdups_time (length as) ))"
+lemma rd_impl1_correct: "rd_impl1 as \<le> remdups_spec as"
+  unfolding remdups_spec_def
   unfolding rd_impl1_def mop_empty_list_def mop_set_empty_def mop_set_member_def mop_set_insert_def mop_push_list_def
       rd_ta_def rd_inv_def
   apply(rule T_specifies_I)
@@ -54,7 +57,7 @@ lemma rd_impl1_correct: "rd_impl1 as \<le> REST (emb (\<lambda>ys. set as = set 
           body_time_def remdups_time_def)
   done
  
-lemma "remdups_time \<in> \<Theta>(\<lambda>n. n * ln n)"
+lemma remdups_time_nln: "remdups_time \<in> \<Theta>(\<lambda>n. n * ln n)"
   unfolding remdups_time_def body_time_def
   by auto2 
 
@@ -113,13 +116,13 @@ term remdups_impl
 thm remdups_impl_def 
 thm remdups_impl.refine[to_hnr]
 thm  hnr_refine[OF rd_impl1_correct  remdups_impl.refine[to_hnr],to_hfref] 
-thm extract_cost_ub[OF hnr_refine[OF rd_impl1_correct  remdups_impl.refine[to_hnr]], where Cost_ub="remdups_time (length as)", simplified in_ran_emb_special_case,   simplified ]
+thm extract_cost_ub[OF hnr_refine[OF rd_impl1_correct[unfolded remdups_spec_def]  remdups_impl.refine[to_hnr]], where Cost_ub="remdups_time (length as)", simplified in_ran_emb_special_case,   simplified ]
 
 
 lemma remdups_rule: "<$ (remdups_time (length as))> 
           remdups_impl 
         <\<lambda>r. \<exists>\<^sub>Ara. da_assn id_assn ra r * \<up> (set as = set ra \<and> distinct ra)>\<^sub>t"
-  using  extract_cost_ub[OF hnr_refine[OF rd_impl1_correct  remdups_impl.refine[to_hnr]], where Cost_ub="remdups_time (length as)", simplified in_ran_emb_special_case,   simplified ]
+  using  extract_cost_ub[OF hnr_refine[OF rd_impl1_correct[unfolded remdups_spec_def]  remdups_impl.refine[to_hnr]], where Cost_ub="remdups_time (length as)", simplified in_ran_emb_special_case,   simplified ]
   by auto
 (*
 

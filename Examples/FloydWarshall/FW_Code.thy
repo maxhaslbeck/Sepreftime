@@ -254,7 +254,7 @@ theorem fw_impl_correct:
 using fw_impl.refine[FCOMP fw_impl'_correct[THEN fun_relD, OF IdI]] .
 
 text \<open>An alternative version: a Hoare triple for total correctness.\<close>
-corollary
+corollary fw_correct:
   "<mtx_curry_assn n M Mi * $(fw_time n)> fw_impl n Mi <\<lambda> Mi'. \<exists>\<^sub>A M'. mtx_curry_assn n M' Mi' * \<up>
     (if (\<exists> i \<le> n. M' i i < 0)
     then \<not> cyc_free M n
@@ -264,7 +264,7 @@ unfolding cycle_free_diag_equiv
   apply (rule ht_cons_rule[OF _ _ extract_cost_ub_SPEC[OF fw_impl_correct[THEN hfrefD, unfolded fw_spec_def[unfolded cycle_free_diag_equiv]] ]])
   by sep_auto+ 
 
-lemma "fw_time \<in> \<Theta>(\<lambda>n. n*n*n)"
+lemma fw_time_n_cube: "fw_time \<in> \<Theta>(\<lambda>n. n*n*n)"
   unfolding fw_time_def by auto2
 
 subsection \<open>Alternative Versions for Uncurried Matrices.\<close>

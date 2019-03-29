@@ -124,7 +124,7 @@ lemma binary_search_impl_correct:
   using assms hnr_refine[OF binarysearch_correct, OF _ _ _ binarysearch_impl.refine[to_hnr, unfolded autoref_tag_defs]] by metis
 
 thm extract_cost_ub'[OF binary_search_impl_correct[unfolded  binarysearch_SPEC_def], where Cost_ub="binarysearch_time (r - l)" ]
-lemma "sorted xs \<Longrightarrow> r \<le> length xs \<Longrightarrow> l \<le> r \<Longrightarrow> 
+lemma binary_search_correct': "sorted xs \<Longrightarrow> r \<le> length xs \<Longrightarrow> l \<le> r \<Longrightarrow> 
      <hn_ctxt array_assn xs p * hn_val Id x bia * hn_val nat_rel r bib * hn_val nat_rel l ai * timeCredit_assn (binarysearch_time (r - l))> 
         binarysearch_impl ai bib bia p
        <\<lambda>ra. hn_ctxt array_assn xs p * \<up> (ra \<longleftrightarrow> (\<exists>i\<ge>l. i < r \<and> xs ! i = x))>\<^sub>t"
@@ -134,11 +134,16 @@ lemma "sorted xs \<Longrightarrow> r \<le> length xs \<Longrightarrow> l \<le> r
    by (metis (no_types, lifting) ent_true_drop(1) entails_ex entt_refl') 
 
 
-lemma "binarysearch_time \<in> \<Theta>(\<lambda>n. ln (real n))"
+subsection \<open>Final Hoare triple and run-time claim.\<close>
+
+lemma binary_search_correct: "sorted xs \<Longrightarrow> r \<le> length xs \<Longrightarrow> l \<le> r \<Longrightarrow> 
+     <array_assn xs p * timeCredit_assn (binarysearch_time (r - l))> 
+        binarysearch_impl l r x p
+       <\<lambda>ra.   array_assn xs p * \<up> (ra \<longleftrightarrow> (\<exists>i\<ge>l. i < r \<and> xs ! i = x))>\<^sub>t"
+  apply(rule ht_cons_rule[OF _ _ binary_search_correct'[ unfolded hn_ctxt_def pure_def ]])
+  by (sep_auto )+
+
+lemma binary_search_time_ln: "binarysearch_time \<in> \<Theta>(\<lambda>n. ln (real n))"
   using binarysearch_time'_Theta unfolding binarysearch_time'_def by auto
-
-
-
-
 
 end
