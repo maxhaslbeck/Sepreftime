@@ -1,4 +1,4 @@
-theory Kruskal_Final
+theory MaxNode_Impl
   imports Union_Find_Time Kruskal_Impl "SepLogicTime_RBTreeBasic.MergeSort_Impl"
   "../Remdups"
 begin  
