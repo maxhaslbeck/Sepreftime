@@ -93,6 +93,14 @@ definition sortEdges'  :: "(nat \<times> int \<times> nat) list \<Rightarrow> ((
 
 definition sortEdges'_time :: "nat \<Rightarrow> nat" where
   "sortEdges'_time n = remdups_time n + 3 + merge_sort_time n + (n*2+2) +  (n+1) + 1"
+ 
+lemma merge_sort_time_O[asym_bound]:
+  " merge_sort_time \<in> \<Theta>(\<lambda>n. n * ln n)"
+  using merge_sort_time_O by auto
+
+lemma sortEdges'_time_bound[asym_bound]: "sortEdges'_time \<in> \<Theta>(\<lambda>n. n * ln n)"
+  unfolding sortEdges'_time_def
+  by(auto2)
 
 
 definition sortEdges  :: "(nat \<times> int \<times> nat) list \<Rightarrow> ((nat \<times> int \<times> nat) list * nat) Heap"  where
@@ -276,7 +284,7 @@ lemma ll: "list_assn id_assn   = pure Id"
   by (simp add: list_assn_pure_conv)  
 
 interpretation sortMaxnode sortEdges' sortEdges'_time
-  apply(unfold_locales)
+  apply(unfold_locales)                       
   apply (auto simp add: hfref_def mop_sortEdges_def)
   subgoal for t c a
     apply(rule extract_cost_otherway'[OF _ sortEdges'_rule, where Cost_lb="sortEdges'_time (length c)"])
