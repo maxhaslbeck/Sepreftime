@@ -84,13 +84,27 @@ proof -
       by simp
     done
 
+  { fix x y :: nat and c
+    assume t: "y\<ge>1 " " x\<ge>1 " " 1 \<le> c * ln (real x)" "c>0"
+    then have t': "real y + real x * ln (real y) \<ge> 0"  
+      by simp  
+    from t have "real x \<le> c * real x * ln (real x)" by auto
+    also have "\<dots> \<le> c * (real x * ln (real x) + real y + real x * ln (real y)) " 
+      using t' t by auto 
+    finally
+    have "real x \<le> c * (real x * ln (real x) + real y + real x * ln (real y)) " .
+  } note blub = this
+
+
+
   have 2: "?T = \<Theta>\<^sub>2 ((\<lambda>x. case x of (n, m) \<Rightarrow> real n) + (\<lambda>x. case x of (E, M) \<Rightarrow> real E * ln (real E) + real M + real E * ln (real M)))"
     apply(subst plus_absorb1')
     subgoal apply(rule landau_o.smallI) apply(subst eventually_prod_same) 
-      subgoal for c apply(rule exI[where x="\<lambda>x::nat. real x \<le> c * \<bar>real x * ln (real x)\<bar>"])
-        apply safe subgoal apply(simp add: eventually_sequentially) apply (rule exI[where x="nat (ceiling (1/c))"])
-            sorry
-          apply auto   sorry 
+      subgoal for c apply(rule exI[where x="\<lambda>x::nat. real x \<le> c * \<bar>real x * ln (real x)\<bar> \<and> x\<ge>1"])
+        apply safe subgoal apply(simp add: eventually_sequentially) apply (rule exI[where x="max (max 1 (nat (ceiling (exp (1/c))))) (nat (ceiling (1/c)))"])
+          apply auto  
+          by (metis exp_gt_zero exp_le_cancel_iff exp_ln less_le_trans mult.commute pos_divide_le_eq)    
+          apply auto  apply(rule blub) by auto       
         done
     by simp
 
