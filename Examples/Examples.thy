@@ -68,12 +68,54 @@ lemma "fw_time \<in> \<Theta>(\<lambda>n. n*n*n)"
   by (fact fw_time_n_cube)
 
 
+
+section \<open>Kruskal\<close>
+
+definition "kruskal getEdges_impl = Kruskal_intermediate_Impl.kruskal getEdges_impl uf_init uf_cmp uf_union sortEdges'"
+
+lemma "kruskal getedges = Gr"
+  unfolding kruskal_def apply(subst Kruskal_intermediate_Impl.kruskal_def) oops
+
+
+lemma
+  fixes connected path and E :: "nat uprod set"
+  assumes "Kruskal_intermediate E forest connected path"
+    \<comment> \<open>If we have a set of edges E for a Graph representation that provides
+        predicates for forest, connected and path,...\<close>
+    and  "E \<noteq>{}" 
+    and getEdges_impl_refines: 
+    "(uncurry0 getEdges_impl, uncurry0 (getEdges' weight E (enat (getEdges_time (card E))))) \<in> unit_assn\<^sup>k
+                   \<rightarrow>\<^sub>a list_assn (nat_assn \<times>\<^sub>a int_assn \<times>\<^sub>a nat_assn)"
+    \<comment> \<open>... and an implementation @{term getEdges_impl}, that gives a list of the edges of the Graph
+          in time @{term getEdges_time}, ...  \<close>
+    and getEdges_linear: "getEdges_time \<in> \<Theta>(\<lambda>n. n)"
+    \<comment> \<open>... and the time bound @{term getEdges_time} is linear, then we can show ...  \<close>
+  shows 
+    \<comment> \<open>... that kruskal (using the @{term getEdges_impl} subprogram) calculates
+          a minimum spanning forest for the graph and ...  \<close>
+    kruskal_correct:
+      "<timeCredit_assn (kruskal_time getEdges_time (card E, Max (Kruskal_intermediate_defs.V E)))>
+        kruskal getEdges_impl 
+       <\<lambda>r. \<exists>\<^sub>Ara. hr_comp (da_assn id_assn) (lst_graph_rel' weight) ra r * \<up> (minWeightBasis.minBasis E forest weight ra)>\<^sub>t"
+  and
+    \<comment> \<open> ... takes time in O( E * ln E + M + E * ln M ), where cE is the cardinality
+          of the set of edges E, and M is the maximal node in the graph. \<close>
+    kruska_time_bound:
+      "kruskal_time getEdges_time \<in> \<Theta>\<^sub>2(\<lambda>(cE::nat,M::nat). cE * ln cE + M + cE * ln M )"
+  subgoal 
+    unfolding kruskal_def
+    apply(rule Pff.k_c)
+    using assms unfolding Pff_def Pff_axioms_def by auto
+  subgoal  
+    apply(rule kruskal_time_plus_linear) by fact
+  done
+
+
 section \<open>Edmonds Karp\<close>
 
 context Network_Impl \<comment> \<open>given a Network c s t\<close>
 begin
 
-term fw_spec                  \<comment> \<open>The specification for FloydWarshall\<close>
 term Edka_Impl.edka5          \<comment> \<open>The abstract algorithm in the NREST monad\<close>
 thm Edka_Impl.edka5_correct'  \<comment> \<open>The correctness theorem\<close>
 

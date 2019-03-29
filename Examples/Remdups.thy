@@ -57,7 +57,7 @@ lemma rd_impl1_correct: "rd_impl1 as \<le> remdups_spec as"
           body_time_def remdups_time_def)
   done
  
-lemma remdups_time_nln: "remdups_time \<in> \<Theta>(\<lambda>n. n * ln n)"
+lemma remdups_time_nln[asym_bound]: "remdups_time \<in> \<Theta>(\<lambda>n. n * ln n)"
   unfolding remdups_time_def body_time_def
   by auto2 
 
