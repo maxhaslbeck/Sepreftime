@@ -406,6 +406,25 @@ qed
 
 end
 
+thm extract_cost_ub[where M= "(emb Pr t)", no_vars]
+
+lemma "hn_refine \<Gamma> c \<Gamma>' R (SPECT (emb Pr t))  \<Longrightarrow>
+<\<Gamma> * $ t> c <\<lambda>r. \<Gamma>' * (\<exists>\<^sub>Ara. R ra r * \<up> (Pr ra))>\<^sub>t"
+proof -
+  assume "hn_refine \<Gamma> c \<Gamma>' R (SPECT (emb Pr t))"
+  from extract_cost_ub[OF this, of t]
+  show ?thesis by (simp add: ran_emb')
+qed
+
+lemma extract_cost_ub':
+  assumes "hn_refine \<Gamma> c \<Gamma>' R (REST (emb Pr t))" 
+   and pre: "P \<Longrightarrow>\<^sub>A \<Gamma> * timeCredit_assn t"
+   and post: "\<forall>r. \<Gamma>' * (\<exists>\<^sub>Ara. R ra r * \<up>(Pr ra)) \<Longrightarrow>\<^sub>A Q r * true"
+ shows "<P> c <Q>\<^sub>t"
+  apply(rule pre_rule[OF pre])
+  apply(rule post_rulet[OF _ post]) 
+  using 
+  apply(rule extract_cost_ub) by fact+
 
 
 end

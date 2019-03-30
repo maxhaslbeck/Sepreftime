@@ -23,7 +23,7 @@ lemma "d>0 \<Longrightarrow> ddivide' n d \<le> divide_SPEC n d"
   apply(rule T_specifies_I)
   apply (vcg' \<open>-\<close>)
   subgoal by simp
-  subgoal for s a b 
+  subgoal for s a b   
     apply (auto simp: mm3_def)
     subgoal  
       using div_le_mono by auto   
