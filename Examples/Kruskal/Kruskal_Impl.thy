@@ -406,15 +406,60 @@ proof -
   show ?thesis by (simp add: ran_emb')
 qed
 
-lemma extract_cost_ub':
-  assumes "hn_refine \<Gamma> c \<Gamma>' R (REST (emb Pr t))" 
-   and pre: "P \<Longrightarrow>\<^sub>A \<Gamma> * timeCredit_assn t"
-   and post: "\<forall>r. \<Gamma>' * (\<exists>\<^sub>Ara. R ra r * \<up>(Pr ra)) \<Longrightarrow>\<^sub>A Q r * true"
- shows "<P> c <Q>\<^sub>t"
-  apply(rule pre_rule[OF pre])
-  apply(rule post_rulet[OF _ post]) 
-  using 
-  apply(rule extract_cost_ub) by fact+
+
+lemma array_length_rule_raw [hoare_triple]:
+  "<dyn_array_raw (xs, n) p * $1>
+   array_length p
+   <\<lambda>r. dyn_array_raw (xs, n) p * \<up>(r = n)>"
+  unfolding dyn_array'_def array_length_def 
+  apply(cases p)
+  by (sep_auto simp: zero_time)  
+ 
+
+lemma array_max_rule_raw [hoare_triple]:
+  "<dyn_array_raw (xs, n) p * $1>
+   array_max p
+   <\<lambda>r. dyn_array_raw (xs, n) p * \<up>(r = length xs)>"
+  unfolding array_max_def 
+  apply (cases p)
+  by (sep_auto heap: length_rule simp: zero_time)  
+
+
+lemma double_length_raw_rule2 [hoare_triple]:
+  "length xs = n \<Longrightarrow>
+   <dyn_array_raw (xs, length xs) p * $(length xs * 5 + 5)>
+   double_length p
+   <dyn_array_raw (double_length_fun (xs, n))>\<^sub>t" 
+  using double_length_raw_rule by blast
+
+lemma push_array_raw_rule [hoare_triple]:
+  "n \<le> length xs \<Longrightarrow>
+   <dyn_array_raw (xs, n) p * $( length xs *5+9)>
+   push_array x p
+   <dyn_array_raw (push_array_fun x (xs, n))>\<^sub>t" 
+  unfolding  
+    push_array_def  
+  apply(sep_auto heap: array_max_rule_raw push_array_basic_raw_rule
+          array_length_rule_raw  double_length_raw_rule2)
+  subgoal apply(subst array_copy_length) by simp_all
+  by sep_auto
+
+lemma push_array_rule''' [hoare_triple]:
+  "n \<le> length xs \<Longrightarrow>
+   <dyn_array' (xs, n) p * $( n *0+100)>
+   push_array x p
+   <dyn_array' (push_array_fun x (xs, n))>\<^sub>t" 
+  unfolding  
+    push_array_def
+  apply(sep_auto heap: array_max_rule' array_length_rule' push_array_basic_rule')
+   apply(sep_auto heap: double_length_rule' )
+  using push_array_basic_rule'
+  unfolding double_length_fun.simps
+  apply(sep_auto simp only: heap: push_array_basic_rule')
+  subgoal apply(subst array_copy_length) by simp_all
+  by sep_auto
+  
+
 
 
 end
