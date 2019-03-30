@@ -430,7 +430,7 @@ lemma double_length_raw_rule2 [hoare_triple]:
    <dyn_array_raw (xs, length xs) p * $(length xs * 5 + 5)>
    double_length p
    <dyn_array_raw (double_length_fun (xs, n))>\<^sub>t" 
-  using double_length_raw_rule by blast
+  using double_length_raw_rule[of xs n p] by(simp add: mult.commute) 
 
 lemma push_array_raw_rule [hoare_triple]:
   "n \<le> length xs \<Longrightarrow>
