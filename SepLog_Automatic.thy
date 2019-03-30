@@ -1,6 +1,7 @@
 theory SepLog_Automatic
 imports "SepLogicTime_RBTreeBasic.SepAuto" 
-  "HOL-Eisbach.Eisbach" "SepLogic_Misc"
+  "HOL-Eisbach.Eisbach" "SepLog_Misc"   Automatic_Refinement.Automatic_Refinement
+ 
 begin
 
  

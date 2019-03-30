@@ -176,7 +176,8 @@ proof (rule ccontr)
   have "x\<in>carrier"  using indepX indep_subset_carrier by blast     
   from x have xs: "x\<in>set (take (Suc i) BL)" and xnX: "x \<notin> set ?X" by auto
   from xs have "w x \<le> w (BL ! i)" using wB
-    by (smt i in_set_conv_nth l length_take less_Suc_eq_le min_Suc_gt(2) nth_take wsorted_nth_mono)    (* FIXME *)
+    by (metis List.length_take Lists_Thms.nth_take Suc_leI Suc_le_mono dB distinct_Ex1 distinct_take i local.l min_Suc_gt(2) wsorted_nth_mono)
+      (* FIXME *)
   then have k: "w x < w (FL ! i)" using gr by auto
 
   \<comment> \<open>... and that adding x to X gives us an independent set\<close>

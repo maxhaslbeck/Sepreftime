@@ -177,7 +177,20 @@ lemma d: "ra \<in> dom (\<lambda>v. if M v then Some (t v) else None) \<longleft
 lemma extract_cost_ub_SPEC: "hn_refine \<Gamma> c \<Gamma>' R (SPEC M t) \<Longrightarrow> (\<And>c. M c \<Longrightarrow> t c \<le> enat Cost_ub) \<Longrightarrow> <\<Gamma> * timeCredit_assn Cost_ub> c <\<lambda>r. \<Gamma>' * (\<exists>\<^sub>Ara. R ra r * \<up> (M ra))>\<^sub>t"
   unfolding SPEC_def
   apply(drule extract_cost_ub[where Cost_ub=Cost_ub])
-    by (auto simp: r d)
+  by (auto simp: r d)
+
+
+lemma hnr_hoare_triple_SPEC_conv: "hn_refine \<Gamma> c \<Gamma>' R (SPEC P (\<lambda>_. t)) =  <\<Gamma> * timeCredit_assn t> c <\<lambda>r. \<Gamma>' * (\<exists>\<^sub>Ara. R ra r * \<up> (P ra))>\<^sub>t"
+  apply(rule)
+  subgoal apply(rule extract_cost_ub_SPEC) by auto 
+  subgoal unfolding SPEC_def apply(rule extract_cost_otherway[where Cost_lb="t" and F="emp"])
+       defer apply assumption apply (auto split:  if_splits simp: domIff)[]
+    apply solve_entails
+apply (auto split:  if_splits simp: domIff)[]
+    by(auto split: if_splits simp: ran_def)    
+  done
+
+
 
 
 lemma post_rulet:

@@ -1,5 +1,6 @@
 theory UnionFind
-imports "../../../Kruskal/Equivalence_Relation_Misc"
+imports Main
+    "Collections.Partial_Equivalence_Relation"
 begin
 
 

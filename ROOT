@@ -13,14 +13,14 @@ session SeprefTime_HNR_Base = SeprefTime_Base +
 		"SepLogicTime_RBTreeBasic.SepAuto"
 		Sepreftime
 
-
+(*
 session SeprefTime_RB = HOL +
 	sessions 
 		SepLogicTime_RBTreeBasic
 	theories
 		"Sepreftime"
 		"SepLogicTime_RBTreeBasic.RBTree_Impl"
-
+*)                                              
 
 session EdmondsKarp_Time = SepLogicTime_RBTreeBasic +
   sessions
