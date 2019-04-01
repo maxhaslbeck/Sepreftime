@@ -1,0 +1,19 @@
+Setup:
+
+0) Get Isabelle2018 (https://isabelle.in.tum.de/)
+1) Extract the zip file to /path/to/folder (e.g. /home/user/stuff)
+2) add `/home/user/stuff` to ~/.isabelle/Isabelle2018/etc/ROOTS
+   NOTE: this submission comes with an specific version of the AFP. If the AFP is registered in the $ISABELLE_USER_HOME/etc/ROOTS please uncomment it in order to use this version.
+
+Check theories:
+
+0) navigate to /path/to/folder/Sepreftime
+1) /path/to/Isabelle2018/bin/isabelle build -D .
+
+
+Browse theories:
+
+0) navigate to /path/to/folder/Sepreftime
+1) /path/to/Isabelle2018/bin isabelle jedit -l SepLogicTime_RBTreeBasic Examples/Examples.thy
+
+
