@@ -106,7 +106,7 @@ lemma
   subgoal 
     unfolding kruskal_def
     apply(rule Kruskal_final.k_c)
-    using assms unfolding Pff_def Kruskal_final_axioms_def by auto
+    using assms unfolding Kruskal_final_def Kruskal_final_axioms_def by auto
   subgoal  
     apply(rule kruskal_time_plus_linear) by fact
   done

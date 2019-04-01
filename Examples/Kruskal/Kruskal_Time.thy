@@ -7,7 +7,7 @@ begin
 
 
 
-locale Pff = Kruskal_intermediate  E forest connected path weight 
+locale Kruskal_final = Kruskal_intermediate  E forest connected path weight 
   for E :: "nat uprod set" and forest connected path
       and weight :: "nat uprod \<Rightarrow> int"
     + fixes getEdges getEdges_time getEdges_impl
