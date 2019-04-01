@@ -8,7 +8,7 @@ imports
   UnionFind_Impl
 begin
 
-abbreviation tc ("$") where "tc n \<equiv> timeCredit_assn n" 
+notation timeCredit_assn  ("$") 
 
 text {*
   We implement a simple union-find data-structure based on an array.

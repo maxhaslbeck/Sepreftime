@@ -1,6 +1,7 @@
 theory
   Examples
   imports 
+  "Kruskal/Kruskal_Time"
   "BinarySearch"
   "FloydWarshall/FW_Code"
   "Remdups"
