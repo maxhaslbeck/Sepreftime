@@ -1,0 +1,58 @@
+<html>
+<head>
+<title>Refinement with Time - Refining the Run-time of Algorithms in Isabelle/HOL</title>
+</head>
+<body>
+
+<h1>Refinement with Time - Refining the Run-time of Algorithms in Isabelle/HOL</h1>
+
+<h2>Browse Theories online</h2>
+
+<p>Good entry points are the following theories:</p>
+
+ <dl>
+  <dt><a href="https://www21.in.tum.de/~haslbema/Sepreftime/SeprefTime/Sepreftime.html">Sepreftime</a></dt>
+  <dd>This theory defines NREST and develops the lst calculus.</dd>
+
+  <dt><a href="https://www21.in.tum.de/~haslbema/Sepreftime/SeprefTime/Sepref_Basic.html">Sepref_Basic</a></dt>
+  <dd>This theory establishes the connection between NREST and Imperative/HOL with time by defining hn_refine and proving synthesis rules.</dd>
+
+  <dt><a href="https://www21.in.tum.de/~haslbema/Sepreftime/SeprefTime/Examples.html">Examples</a></dt>
+  <dd>This theory collects the examples Remdups, Binary Search, Floyd Warshall, Kruskal and Edmonds-Kapr. It can be used to further explore these examples.</dd>
+
+</dl> 
+
+<p>
+All theories can be browsed <a href="SeprefTime/index.html">here</a>.
+Also see the <a href="SeprefTime/session_graph.pdf">theory dependency graph</a>.
+</p>
+
+<h2>Use Theories</h2>
+<h3>Get:</h3>
+
+Download archive <a href="Sepreftime.tar.gz">here</a>. 
+
+<h3>Setup:</h3>
+
+<ol>
+<li>Get Isabelle2018 (<a href="https://isabelle.in.tum.de/">https://isabelle.in.tum.de/</a>)</li>
+<li>Extract the zip file to /path/to/folder</li>
+<li>add `/path/to/folder` to ~/.isabelle/Isabelle2018/ROOTS<br>
+   NOTE: this submission comes with an specific version of the AFP. If the AFP is registered in the $ISABELLE_USER_HOME/ROOTS please uncomment it in order to use this version.</li>
+</ol>
+
+<h3>Check theories:</h3>
+<ol>
+<li>navigate to /path/to/folder/Sepreftime</li>
+<li>/path/to/Isabelle2018/bin/isabelle build -D .</li>
+</ol>
+
+<h3>Browse theories:</h3>
+
+<ol>
+<li>navigate to /path/to/folder/Sepreftime</li>
+<li>/path/to/Isabelle2018/bin isabelle jedit -l SeprefTime_Base Examples/Examples.thy</li>
+</ol>
+
+</body>
+</html>
