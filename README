@@ -14,6 +14,6 @@ Check theories:
 Browse theories:
 
 0) navigate to /path/to/folder/Sepreftime
-1) /path/to/Isabelle2018/bin isabelle jedit -l SepLogicTime_RBTreeBasic Examples/Examples.thy
+1) /path/to/Isabelle2018/bin isabelle jedit -l SeprefTime_Base Examples/Examples.thy
 
 
