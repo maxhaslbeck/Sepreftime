@@ -396,13 +396,13 @@ lemma Tea: "Someplus A B = Some t \<longleftrightarrow> (\<exists>a b. A = Some 
 term TTT
 
 lemma TTT_Some_nofailT: "TTT Q c = Some l \<Longrightarrow> c \<noteq> FAILT"
-  unfolding T_def mii_alt   by auto 
+  unfolding lst_def mii_alt   by auto 
 
 lemma GRR: assumes "TTT Q (SPECT Mf) = Some l"
   shows "Mf x = None \<or> (Q x\<noteq> None \<and> (Q x) \<ge> Mf x) "
 proof - 
   from assms have "None \<notin> {mii Q (SPECT Mf) x |x. True}" 
-  unfolding T_def    
+  unfolding lst_def    
   unfolding Inf_option_def by (auto split: if_splits)   
   then have "None \<noteq> (case Mf x of None \<Rightarrow> Some \<infinity> | Some mt \<Rightarrow> case Q x of None \<Rightarrow> None | Some rt \<Rightarrow> if rt < mt then None else Some (rt - mt))"
   unfolding mii_alt mm2_def
@@ -412,7 +412,7 @@ qed
 
 
 lemma "TTT Q c = Some l \<Longrightarrow> Someplus (Some t) (TTT Q c) = TTT (\<lambda>a. Someplus (Some t) (Q a)) c"
-  unfolding T_def mii_alt
+  unfolding lst_def mii_alt
   oops
 
 lemma Someplus_None: "Someplus A B = None \<longleftrightarrow> (A = None \<or> B = None)" apply(cases A; cases B) by auto
@@ -450,7 +450,7 @@ proof -
       case (1 b t'')
       from 1(3) TTT_Some_nofailT obtain M where cs: "c s = SPECT M" by force
       { assume A: "\<And>x. M x = None"
-        with A have "?case" apply auto unfolding cs T_def mii_alt using A by simp
+        with A have "?case" apply auto unfolding cs lst_def mii_alt using A by simp
       }
       moreover 
       { assume "\<exists>x. M x \<noteq> None"
@@ -469,7 +469,7 @@ proof -
 
         have "Some t'' = ?T" using 1(3) by simp
         also have oo: "?T  \<le>  mm2 (Some (enat (E s - E x))) (M x)"
-          unfolding T_def apply(rule Inf_lower) apply (simp add: mii_alt cs) apply(rule exI[where x=x])
+          unfolding lst_def apply(rule Inf_lower) apply (simp add: mii_alt cs) apply(rule exI[where x=x])
           using pf by simp
   
         also from i have o: "\<dots> < Some \<infinity>"  unfolding mm2_def 
@@ -478,7 +478,7 @@ proof -
         finally  have tni: "t'' < \<infinity>" by auto
         then have tt: "t' + t'' - t'' = t'" apply(cases t''; cases t') by auto  
   
-      have ka: "\<And>x. mii (\<lambda>s'. if I s' \<and> E s' \<le> E s then Some (enat (E s - E s')) else None) (c s) x \<ge> Some t''" unfolding T_def 
+      have ka: "\<And>x. mii (\<lambda>s'. if I s' \<and> E s' \<le> E s then Some (enat (E s - E s')) else None) (c s) x \<ge> Some t''" unfolding lst_def 
         using "1"(3) T_pw by fastforce
 
       { fix x assume nN: "M x \<noteq> None"
