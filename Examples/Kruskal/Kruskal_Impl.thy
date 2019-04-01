@@ -144,7 +144,7 @@ lemma obtain_sorted_carrier'''_refine: "obtain_sorted_carrier''' \<le> \<Down>ad
   apply(rule le_R_ASSERTI)
   apply(rule ASSERT_leI) apply simp
   apply(rule SPECT_refine) apply (auto split: if_splits)    
-  apply(subst *) subgoal apply auto using E_nonempty by auto
+  apply(subst * ) subgoal apply auto using E_nonempty by auto
   by (metis (mono_tags) fst_conv in_br_conv lst_graph_P_V prod_case_simp) 
    
     
@@ -395,7 +395,7 @@ proof -
 qed
 thm minBasis_time_def 
 end
-
+(*
 thm extract_cost_ub[where M= "(emb Pr t)", no_vars]
 
 lemma "hn_refine \<Gamma> c \<Gamma>' R (SPECT (emb Pr t))  \<Longrightarrow>
@@ -461,5 +461,5 @@ lemma push_array_rule''' [hoare_triple]:
    
 thm array_max_rule'
 
-
+*)
 end

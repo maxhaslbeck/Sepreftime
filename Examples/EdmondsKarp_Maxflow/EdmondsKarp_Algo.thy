@@ -1,5 +1,5 @@
 theory EdmondsKarp_Algo
-imports EdmondsKarp_Termination_Abstract FordFulkerson_Algo
+imports EdmondsKarp_Maxflow.EdmondsKarp_Termination_Abstract FordFulkerson_Algo
 begin
 text \<open>
   In this theory, we formalize an abstract version of

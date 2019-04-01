@@ -1,7 +1,7 @@
 section \<open>The Ford-Fulkerson Method\<close>
 theory FordFulkerson_Algo
 imports 
-  Flow_Networks.Ford_Fulkerson EdmondsKarp_Termination_Abstract
+  Flow_Networks.Ford_Fulkerson EdmondsKarp_Maxflow.EdmondsKarp_Termination_Abstract
  (*  Maxflow_Lib.Refine_Add_Fofu *)
   "../../Refine_Imperative_HOL/Sepref"
   "../../RefineMonadicVCG"

@@ -1,6 +1,5 @@
 theory EdmondsKarp_Impl
-  imports EdmondsKarp_Refine  
- (* "../../Refine_Imperative_HOL/IICF" *)                      
+  imports EdmondsKarp_Refine                    
     Augmenting_Path_BFS_Impl
     "../../Refine_Imperative_HOL/IICF/Impl/IICF_Array_Matrix"
 begin

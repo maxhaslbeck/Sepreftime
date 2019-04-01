@@ -1,8 +1,5 @@
 theory EdmondsKarp_Time
   imports EdmondsKarp_Impl 
- (*    "SepLogicTime_RBTreeBasic.Asymptotics_2D" 
-      \<longrightarrow> Cannot join unrelated theory certificates SepLogicTime_RBTreeBasic.Asymptotics_2D:321 and SepLogicTime_RBTreeBasic.RBTree_Impl:4570
-  *)
 begin
  
 lemma "(\<lambda>x::nat. real ((3 ))) \<in> \<Theta>(\<lambda>(x). real 1)" 

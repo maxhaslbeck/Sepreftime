@@ -1,6 +1,6 @@
 theory MinWeightBasis
   imports "../../Sepreftime" "../../Refine_Foreach"
-    "List-Index.List_Index" Matroids.Matroid Complex_Main    
+    "List-Index.List_Index" Matroids.Matroid     
 begin
   
 abbreviation "sorted_wrt_w w == sorted_wrt (\<lambda>e1 e2. w e1 \<le> w e2)"
