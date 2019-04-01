@@ -105,8 +105,8 @@ lemma
       "kruskal_time getEdges_time \<in> \<Theta>\<^sub>2(\<lambda>(cE::nat,M::nat). cE * ln cE + M + cE * ln M )"
   subgoal 
     unfolding kruskal_def
-    apply(rule Pff.k_c)
-    using assms unfolding Pff_def Pff_axioms_def by auto
+    apply(rule Kruskal_final.k_c)
+    using assms unfolding Pff_def Kruskal_final_axioms_def by auto
   subgoal  
     apply(rule kruskal_time_plus_linear) by fact
   done

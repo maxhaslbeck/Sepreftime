@@ -153,6 +153,13 @@ lemma case_option_refine: (* obsolete ? *)
   by (auto split: option.splits)
 
 
+
+lemma SPECT_Map_empty[simp]: "SPECT Map.empty \<le> a" apply(cases a) apply auto subgoal for x2 by(auto simp: le_fun_def)
+  done
+
+lemma FAILT_SUP: "(FAILT \<in> X) \<Longrightarrow> Sup X = FAILT " by (simp add: nrest_Sup_FAILT)
+
+
 section "pointwise reasoning"
 
 named_theorems refine_pw_simps 
@@ -164,6 +171,13 @@ ML \<open>
 \<close>    
   
 definition nofailT :: "'a nrest \<Rightarrow> bool" where "nofailT S \<equiv> S\<noteq>FAILT"
+
+
+ 
+
+  definition le_or_fail :: "'a nrest \<Rightarrow> 'a nrest \<Rightarrow> bool" (infix "\<le>\<^sub>n" 50) where
+    "m \<le>\<^sub>n m' \<equiv> nofailT m \<longrightarrow> m \<le> m'"
+
 
 
 lemma nofailT_simps[simp]:
@@ -583,6 +597,8 @@ lemma RECT_unfold: "\<lbrakk>mono2 B\<rbrakk> \<Longrightarrow> RECT B = B (RECT
 definition whileT :: "('a \<Rightarrow> bool) \<Rightarrow> ('a \<Rightarrow> 'a nrest) \<Rightarrow> 'a \<Rightarrow> 'a nrest" where
   "whileT b c = RECT (\<lambda>whileT s. (if b s then bindT (c s) whileT else RETURNT s))"
 
+definition  whileIET :: "('a \<Rightarrow> bool) \<Rightarrow> ('a \<Rightarrow> nat) \<Rightarrow> ('a \<Rightarrow> bool) \<Rightarrow> ('a \<Rightarrow> 'a nrest) \<Rightarrow> 'a \<Rightarrow> 'a nrest" where
+  "\<And>E c. whileIET I E b c = whileT b c"
 
 definition whileTI :: "('a \<Rightarrow> enat option) \<Rightarrow> ( ('a\<times>'a) set) \<Rightarrow> ('a \<Rightarrow> bool) \<Rightarrow> ('a \<Rightarrow> 'a nrest) \<Rightarrow> 'a \<Rightarrow> 'a nrest" where
   "whileTI I R b c s = whileT b c s"
@@ -772,6 +788,18 @@ lemma InfQ_iff: "(\<exists>t'\<ge>enat t. Inf Q = Some t') \<longleftrightarrow>
   by auto
  
 
+
+
+lemma mm2_fst_None[simp]: "mm2 None q = (case q of None \<Rightarrow> Some \<infinity> | _ \<Rightarrow> None)"
+  apply (cases q) apply (auto simp: mm2_def) done 
+
+
+lemma mm2_auxXX1: "Some t \<le> mm2 (Q x) (Some t') \<Longrightarrow> Some t' \<le> mm2 (Q x) (Some t)"
+  apply (auto simp: mm2_def split: option.splits if_splits)
+  apply (metis helper2 idiff_0_right leD less_le_trans zero_le) 
+  apply (auto simp: less_eq_enat_def split: enat.splits)
+  done
+
  
 subsection "mii"
 
@@ -851,7 +879,7 @@ lemma pointwise_lesseq:
   shows "(\<forall>t. x \<ge> t \<longrightarrow> x' \<ge> t) \<Longrightarrow> x \<le> x'"
   by simp
 
-subsection "pointwise reasoning about T via nres3"
+subsection "pointwise reasoning about lst via nres3"
 
 
 definition nres3 where "nres3 Q M x t \<longleftrightarrow> mii Q M x \<ge> t"
@@ -961,12 +989,10 @@ proof -
 qed
 
 
-subsection "rules for T"
+subsection "rules for lst"
 
 lemma T_bindT: "lst (bindT M f) Q  = lst M (\<lambda>y. lst (f y) Q)"
-  by (rule pw_T_eq_iff, rule nres3_bindT)
-
-  
+  by (rule pw_T_eq_iff, rule nres3_bindT) 
 
 
 lemma T_REST: "lst (REST [x\<mapsto>t]) Q = mm2 (Q x) (Some t)"
@@ -984,11 +1010,6 @@ qed
 lemma T_RETURNT: "lst (RETURNT x) Q = Q x"
   unfolding RETURNT_alt apply(rule trans) apply(rule T_REST) by simp
                 
-thm T_pw
-
-find_theorems "Inf _ = Some _"  
-
-
 lemma aux1: "Some t \<le> mm2 Q (Some t') \<longleftrightarrow> Some (t+t') \<le> Q"
   apply (auto simp: mm2_def split: option.splits)
   subgoal for t''
@@ -1007,8 +1028,6 @@ lemma aux1a: "(\<forall>x t''. Q' x = Some t'' \<longrightarrow> (Q x) \<ge> Som
   subgoal for x t'' using aux1 by metis
   done
 
-thm aux1a[where Q="%_. Q" and Q'="%_. Q'" for Q Q', simplified]
-
 lemma aux1a': "(\<forall>t''. Q' = Some t'' \<longrightarrow> (Q) \<ge> Some (t + t''))
       = (mm2 (Q) (Q') \<ge> Some t) " 
   apply (auto simp: )
@@ -1016,24 +1035,6 @@ lemma aux1a': "(\<forall>t''. Q' = Some t'' \<longrightarrow> (Q) \<ge> Some (t 
     by(simp add: aux1)  
   subgoal for t'' using aux1 by metis
   done
-
-lemma "lst (SPECT P) Q \<ge> Some t \<longleftrightarrow> (\<forall>x t'. P x = Some t' \<longrightarrow> (Q x \<ge> Some (t + t')))"
-  apply (auto simp: T_pw mii_alt)
-  apply (metis aux1)
-  apply (simp add: aux1a'[symmetric])
-  done
-
-
-lemma "lst (SPECT P) Q \<ge> Some t \<longleftrightarrow> (\<forall>x t'. P x = Some t' \<longrightarrow> (\<exists>t''. Q x = Some t'' \<and> t'' \<ge> t + t'))"
-  apply (auto simp: T_pw mii_alt )
-   apply (metis aux1 le_some_optE)
-  apply (simp add: aux1a'[symmetric])
-  apply auto 
-  by fastforce
-
-lemma "lst (SPECT P) Q = Some t \<longleftrightarrow> (\<forall>x t'. P x = Some t' \<longrightarrow> (\<exists>t''. Q x = Some t'' \<and> t'' = t + t'))"
-  apply (auto simp: lst_def ) oops
-
 
 lemma T_SELECT: 
   assumes  
@@ -1062,9 +1063,8 @@ next
 qed 
 
 
-              
-section "Experimental Hoare reasoning"
 
+section \<open>consequence rules\<close>
 
 lemma aux1': "Some t \<le> mm2 Q (Some t') \<longleftrightarrow> Some (t+t') \<le> Q"
   apply (auto simp: mm2_def split: option.splits)
@@ -1175,6 +1175,8 @@ lemma T_conseq3:
 
 
 
+              
+section "Experimental Hoare reasoning"
 
 named_theorems vcg_rules
 
@@ -1208,49 +1210,111 @@ proof -
     done
   thus ?thesis .
 qed
-
-
 end
 
 
+section \<open>VCG\<close>
+
+named_theorems vcg_simp_rules
+lemmas [vcg_simp_rules] = T_RETURNT
+
+lemma TbindT_I: "Some t \<le>  lst M (\<lambda>y. lst (f y) Q) \<Longrightarrow>  Some t \<le> lst (M \<bind> f) Q"
+  by(simp add: T_bindT)
+
+method vcg' uses rls = ((rule rls TbindT_I vcg_rules[THEN T_conseq6] | clarsimp split: if_splits simp:  vcg_simp_rules)+)
 
 
 
-find_theorems "lst _ _ \<ge> _"
+lemma mm2_refl: "A < \<infinity> \<Longrightarrow> mm2 (Some A) (Some A) = Some 0"
+  unfolding mm2_def by auto
+ 
+definition mm3 where
+  "mm3 t A = (case A of None \<Rightarrow> None | Some t' \<Rightarrow> if t'\<le>t then Some (enat (t-t')) else None)"
 
-lemma mm2_fst_None[simp]: "mm2 None q = (case q of None \<Rightarrow> Some \<infinity> | _ \<Rightarrow> None)"
-  apply (cases q) apply (auto simp: mm2_def) done 
+lemma [simp]: "mm3 t0 (Some t0) = Some 0"  by (auto simp: mm3_def zero_enat_def)
 
+lemma mm3_Some_conv: "(mm3 t0 A = Some t) = (\<exists>t'. A = Some t' \<and> t0 \<ge> t' \<and> t=t0-t')"
+  unfolding mm3_def by(auto split: option.splits)
 
-lemma mm2_auxXX1: "Some t \<le> mm2 (Q x) (Some t') \<Longrightarrow> Some t' \<le> mm2 (Q x) (Some t)"
-  apply (auto simp: mm2_def split: option.splits if_splits)
-  apply (metis helper2 idiff_0_right leD less_le_trans zero_le) 
-  apply (auto simp: less_eq_enat_def split: enat.splits)
+lemma [simp]: "mm3 t0 None = None" unfolding mm3_def by auto
+
+lemma T_FAILT[simp]: "lst FAILT Q = None"
+  unfolding lst_def mii_alt by simp
+
+definition "progress m \<equiv> \<forall>s' M. m = SPECT M \<longrightarrow> M s' \<noteq> None \<longrightarrow> M s' > Some 0"
+lemma progressD: "progress m \<Longrightarrow> m=SPECT M \<Longrightarrow> M s' \<noteq> None \<Longrightarrow> M s' > Some 0"
+  by (auto simp: progress_def)
+
+lemma [simp]: "progress FAILT" by(auto simp: progress_def)
+
+subsection \<open>Progress rules\<close>
+
+named_theorems progress_rules
+
+lemma progress_SELECT_iff: "progress (SELECT P t) \<longleftrightarrow> t > 0"
+  unfolding progress_def SELECT_def emb'_def by (auto split: option.splits)
+
+lemmas [progress_rules] = progress_SELECT_iff[THEN iffD2]
+
+lemma progress_REST_iff: "progress (REST [x \<mapsto> t]) \<longleftrightarrow> t>0"
+  by (auto simp: progress_def)
+
+lemmas [progress_rules] = progress_REST_iff[THEN iffD2]
+
+lemma progress_ASSERT_bind[progress_rules]: "\<lbrakk>\<Phi> \<Longrightarrow> progress (f ()) \<rbrakk> \<Longrightarrow> progress (ASSERT \<Phi>\<bind>f)"
+  apply (cases \<Phi>)
+  apply (auto simp: progress_def)
   done
 
 
-lemma enat_minus_mono: "a' \<ge> b \<Longrightarrow> a' \<ge> a \<Longrightarrow> a' - b \<ge> (a::enat) - b"
-  apply(cases a; cases b; cases a') by auto
-
-lemma waux1: "(\<forall>s t'. I s = Some t' \<longrightarrow> b s  \<longrightarrow> c s \<noteq> FAILi \<and>  lst (c s) (Q s) \<ge> Some t')
-    = (lst (SPECT (\<lambda>x. if b x then I x else None)) (\<lambda>s. lst (c s) (Q s)) \<ge> Some 0)"
-  apply(subst (2)T_pw) unfolding mii_alt apply simp
-  apply (auto simp: mm2_def split: option.splits)
-  subgoal by force  
-  subgoal by force
-  subgoal by (simp add: lst_def miiFailt)
-  subgoal by (metis (no_types, lifting) Inf_option_def lst_def leI less_option_Some)
-  done  
+lemma progress_SPECT_emb[progress_rules]: "t > 0 \<Longrightarrow> progress (SPECT (emb P t))" by(auto simp: progress_def emb'_def)
 
 
-lemma waux2: "(\<forall>s t'. I s = Some t' \<longrightarrow> lst (whileT b c s) (\<lambda>x. if b x then None else I x) \<ge> Some t')
-      = (lst (SPECT I) (\<lambda>s. lst (whileT b c s) (\<lambda>x. if b x then None else I x)) \<ge> Some 0)"  
-  apply(subst (2) T_pw) unfolding mii_alt apply simp
-  by (force simp: mm2_def split: option.splits)  
+lemma Sup_Some: "Sup (S::enat option set) = Some e \<Longrightarrow> \<exists>x\<in>S. (\<exists>i. x = Some i)"
+  unfolding Sup_option_def by (auto split: if_splits)
 
-lemma T_ineq_D: "Some t' \<le> lst (c x) I \<Longrightarrow> (\<exists>M. c x = SPECT M \<and> mm2 (I y) (M y)  \<ge> Some t')"
-  unfolding T_pw mii_alt apply (auto split: nrest.splits) using nrest_noREST_FAILT by blast 
+lemma progress_bind[progress_rules]: assumes "progress m \<or> (\<forall>x. progress (f x))"
+  shows "progress (m\<bind>f)"
+proof  (cases m)
+  case FAILi
+  then show ?thesis by (auto simp: progress_def)
+next
+  case (REST x2)   
+  then show ?thesis unfolding  bindT_def progress_def apply safe
+  proof (goal_cases)
+    case (1 s' M y)
+    let ?P = "\<lambda>fa. \<exists>x. f x \<noteq> FAILT \<and>
+             (\<exists>t1. \<forall>x2a. f x = SPECT x2a \<longrightarrow> fa = map_option ((+) t1) \<circ> x2a \<and> x2 x = Some t1)"
+    from 1 have A: "Sup {fa s' |fa. ?P fa} = Some y" apply simp
+      apply(drule nrest_Sup_SPECT_D[where x=s']) by (auto split: nrest.splits)
+    from Sup_Some[OF this] obtain fa i where P: "?P fa" and 3: "fa s' = Some i"   by blast 
+    then obtain   x t1 x2a  where  a3: "f x = SPECT x2a"
+      and "\<forall>x2a. f x = SPECT x2a \<longrightarrow> fa = map_option ((+) t1) \<circ> x2a" and a2: "x2 x = Some t1"  
+      by fastforce 
+    then have a1: " fa = map_option ((+) t1) \<circ> x2a" by auto
+    have "progress m \<Longrightarrow> t1 > 0" apply(drule progressD)
+      using 1(1) a2 a1 a3 by auto  
+    moreover
+    have "progress (f x) \<Longrightarrow> x2a s' > Some 0"  
+      using   a1 1(1) a2 3  by (auto dest!: progressD[OF _ a3])   
+    ultimately
+    have " t1 > 0 \<or> x2a s' > Some 0" using assms by auto
 
+    then have "Some 0 < fa s'" using   a1  3 by auto
+    also have "\<dots> \<le> Sup {fa s'|fa. ?P fa}" 
+      apply(rule Sup_upper) using P by blast
+    also have "\<dots> = M s'" using A 1(3) by simp
+    finally show ?case .
+  qed 
+qed
+
+
+lemma mm2SomeleSome_conv: "mm2 (Qf) (Some t) \<ge> Some 0 \<longleftrightarrow> Qf \<ge> Some t"
+  unfolding mm2_def  by (auto split: option.split)                              
+ 
+
+
+section "rules for whileT"
 
 lemma
   assumes "whileT b c s = r"
@@ -1356,14 +1420,6 @@ qed
 
 
 
-named_theorems vcg_simp_rules
-lemmas [vcg_simp_rules] = T_RETURNT
-
-lemma TbindT_I: "Some t \<le>  lst M (\<lambda>y. lst (f y) Q) \<Longrightarrow>  Some t \<le> lst (M \<bind> f) Q"
-  by(simp add: T_bindT)
-
-method vcg' uses rls = ((rule rls TbindT_I vcg_rules[THEN T_conseq6] | clarsimp split: if_splits simp:  vcg_simp_rules)+)
-
 lemma
   assumes "whileT b c s = r"
   assumes IS[vcg_rules]: "\<And>s t'. I s = Some t' \<Longrightarrow> b s 
@@ -1424,96 +1480,6 @@ qed
 
 
 
-lemma mm2_refl: "A < \<infinity> \<Longrightarrow> mm2 (Some A) (Some A) = Some 0"
-  unfolding mm2_def by auto
- 
-definition mm3 where
-  "mm3 t A = (case A of None \<Rightarrow> None | Some t' \<Rightarrow> if t'\<le>t then Some (enat (t-t')) else None)"
-
-lemma [simp]: "mm3 t0 (Some t0) = Some 0"  by (auto simp: mm3_def zero_enat_def)
-
-lemma mm3_Some_conv: "(mm3 t0 A = Some t) = (\<exists>t'. A = Some t' \<and> t0 \<ge> t' \<and> t=t0-t')"
-  unfolding mm3_def by(auto split: option.splits)
-
-lemma [simp]: "mm3 t0 None = None" unfolding mm3_def by auto
-
-lemma T_FAILT[simp]: "lst FAILT Q = None"
-  unfolding lst_def mii_alt by simp
-
-definition "progress m \<equiv> \<forall>s' M. m = SPECT M \<longrightarrow> M s' \<noteq> None \<longrightarrow> M s' > Some 0"
-lemma progressD: "progress m \<Longrightarrow> m=SPECT M \<Longrightarrow> M s' \<noteq> None \<Longrightarrow> M s' > Some 0"
-  by (auto simp: progress_def)
-
-lemma [simp]: "progress FAILT" by(auto simp: progress_def)
-
-
-
-subsection \<open>Progress rules\<close>
-
-named_theorems progress_rules
-
-lemma progress_SELECT_iff: "progress (SELECT P t) \<longleftrightarrow> t > 0"
-  unfolding progress_def SELECT_def emb'_def by (auto split: option.splits)
-
-lemmas [progress_rules] = progress_SELECT_iff[THEN iffD2]
-
-lemma progress_REST_iff: "progress (REST [x \<mapsto> t]) \<longleftrightarrow> t>0"
-  by (auto simp: progress_def)
-
-lemmas [progress_rules] = progress_REST_iff[THEN iffD2]
-
-lemma progress_ASSERT_bind[progress_rules]: "\<lbrakk>\<Phi> \<Longrightarrow> progress (f ()) \<rbrakk> \<Longrightarrow> progress (ASSERT \<Phi>\<bind>f)"
-  apply (cases \<Phi>)
-  apply (auto simp: progress_def)
-  done
-
-
-lemma progress_SPECT_emb[progress_rules]: "t > 0 \<Longrightarrow> progress (SPECT (emb P t))" by(auto simp: progress_def emb'_def)
-
-
-lemma Sup_Some: "Sup (S::enat option set) = Some e \<Longrightarrow> \<exists>x\<in>S. (\<exists>i. x = Some i)"
-  unfolding Sup_option_def by (auto split: if_splits)
-
-lemma progress_bind[progress_rules]: assumes "progress m \<or> (\<forall>x. progress (f x))"
-  shows "progress (m\<bind>f)"
-proof  (cases m)
-  case FAILi
-  then show ?thesis by (auto simp: progress_def)
-next
-  case (REST x2)   
-  then show ?thesis unfolding  bindT_def progress_def apply safe
-  proof (goal_cases)
-    case (1 s' M y)
-    let ?P = "\<lambda>fa. \<exists>x. f x \<noteq> FAILT \<and>
-             (\<exists>t1. \<forall>x2a. f x = SPECT x2a \<longrightarrow> fa = map_option ((+) t1) \<circ> x2a \<and> x2 x = Some t1)"
-    from 1 have A: "Sup {fa s' |fa. ?P fa} = Some y" apply simp
-      apply(drule nrest_Sup_SPECT_D[where x=s']) by (auto split: nrest.splits)
-    from Sup_Some[OF this] obtain fa i where P: "?P fa" and 3: "fa s' = Some i"   by blast 
-    then obtain   x t1 x2a  where  a3: "f x = SPECT x2a"
-      and "\<forall>x2a. f x = SPECT x2a \<longrightarrow> fa = map_option ((+) t1) \<circ> x2a" and a2: "x2 x = Some t1"  
-      by fastforce 
-    then have a1: " fa = map_option ((+) t1) \<circ> x2a" by auto
-    have "progress m \<Longrightarrow> t1 > 0" apply(drule progressD)
-      using 1(1) a2 a1 a3 by auto  
-    moreover
-    have "progress (f x) \<Longrightarrow> x2a s' > Some 0"  
-      using   a1 1(1) a2 3  by (auto dest!: progressD[OF _ a3])   
-    ultimately
-    have " t1 > 0 \<or> x2a s' > Some 0" using assms by auto
-
-    then have "Some 0 < fa s'" using   a1  3 by auto
-    also have "\<dots> \<le> Sup {fa s'|fa. ?P fa}" 
-      apply(rule Sup_upper) using P by blast
-    also have "\<dots> = M s'" using A 1(3) by simp
-    finally show ?case .
-  qed 
-qed
-
-
-lemma mm2SomeleSome_conv: "mm2 (Qf) (Some t) \<ge> Some 0 \<longleftrightarrow> Qf \<ge> Some t"
-  unfolding mm2_def  by (auto split: option.split)                              
- 
-
 
 lemma
   fixes I :: "'a \<Rightarrow> nat option"
@@ -1553,10 +1519,6 @@ lemma
   done
 
 
-definition  whileIET :: "('a \<Rightarrow> bool) \<Rightarrow> ('a \<Rightarrow> nat) \<Rightarrow> ('a \<Rightarrow> bool) \<Rightarrow> ('a \<Rightarrow> 'a nrest) \<Rightarrow> 'a \<Rightarrow> 'a nrest" where
-  "\<And>E c. whileIET I E b c = whileT b c"
- 
-
 lemma  whileIET_rule[THEN T_conseq6, vcg_rules]:
   fixes E
   assumes 
@@ -1583,10 +1545,7 @@ lemma transf:
     using assms by auto
     subgoal by simp
     done
-
-  thm mm3_def mm2_def
-
-
+ 
 lemma  whileIET_rule':
   fixes E
   assumes 
@@ -1595,7 +1554,19 @@ lemma  whileIET_rule':
   "I s0" 
 shows "Some 0 \<le> lst (whileIET I E b C s0) (\<lambda>x. if b x then None else mm3 (E s0) (if I x then Some (E x) else None))" 
   apply(rule whileIET_rule) apply(rule transf[where b=b]) using assms by auto  
-   
+
+
+
+lemma waux1: "(\<forall>s t'. I s = Some t' \<longrightarrow> b s  \<longrightarrow> c s \<noteq> FAILi \<and>  lst (c s) (Q s) \<ge> Some t')
+    = (lst (SPECT (\<lambda>x. if b x then I x else None)) (\<lambda>s. lst (c s) (Q s)) \<ge> Some 0)"
+  apply(subst (2)T_pw) unfolding mii_alt apply simp
+  by (force simp: mm2_def split: option.splits) 
+
+
+lemma waux2: "(\<forall>s t'. I s = Some t' \<longrightarrow> lst (whileT b c s) (\<lambda>x. if b x then None else I x) \<ge> Some t')
+      = (lst (SPECT I) (\<lambda>s. lst (whileT b c s) (\<lambda>x. if b x then None else I x)) \<ge> Some 0)"  
+  apply(subst (2) T_pw) unfolding mii_alt apply simp
+  by (force simp: mm2_def split: option.splits)  
 
 lemma 
   assumes IS: "lst (SPECT (\<lambda>x. if b x then I x else None)) (\<lambda>s. lst (c s) (\<lambda>s'. if (s',s)\<in>R then I s' else None)) \<ge> Some 0" 
@@ -1641,14 +1612,7 @@ lemma
   shows whileT_rule_: "lst (SPECT I) (\<lambda>s. lst (whileT b c s) (\<lambda>x. if b x then None else I x)) \<ge> Some 0"
   using IS unfolding  waux1[symmetric] waux2[symmetric]  using whileT_rule[OF _ _ _ wf] by blast
  
-
-
-
-
-
-subsubsection "Examples"
-
- 
+subsection "Examples"
 
 
 experiment
@@ -1817,21 +1781,9 @@ lemma dont_care_about_runtime_as_long_as_it_terminates:
 end
 
  
-
  
 
-  definition le_or_fail :: "'a nrest \<Rightarrow> 'a nrest \<Rightarrow> bool" (infix "\<le>\<^sub>n" 50) where
-    "m \<le>\<^sub>n m' \<equiv> nofailT m \<longrightarrow> m \<le> m'"
-
-
-
-lemma SPECT_Map_empty[simp]: "SPECT Map.empty \<le> a" apply(cases a) apply auto subgoal for x2 by(auto simp: le_fun_def)
-  done
-
-lemma FAILT_SUP: "(FAILT \<in> X) \<Longrightarrow> Sup X = FAILT " by (simp add: nrest_Sup_FAILT)
- 
-
-subsection "some Monadic Refinement Automation"
+section "some Monadic Refinement Automation"
 
 
 ML {*
@@ -1912,13 +1864,5 @@ method_setup refine_vcg =
     Refine.rcg_tac (add_thms @ Refine.vcg.get ctxt) ctxt THEN_ALL_NEW_FWD (TRY o Refine.post_tac ctxt)
   )) *} 
   "Refinement framework: Generate refinement and verification conditions"
-
-
-
-
- 
-
-
-
 
 end

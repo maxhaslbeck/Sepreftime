@@ -19,6 +19,10 @@ lemma everywhereNone: "(\<forall>x\<in>X. x = None) \<longleftrightarrow> X = {}
 subsection "Auxiliaries for enat"
 
 
+
+lemma enat_minus_mono: "a' \<ge> b \<Longrightarrow> a' \<ge> a \<Longrightarrow> a' - b \<ge> (a::enat) - b"
+  apply(cases a; cases b; cases a') by auto
+
 lemma enat_plus_minus_aux1: "a + b \<le> a' \<Longrightarrow> \<not> a' < a \<Longrightarrow> b \<le> a' - (a::enat)"
   apply(cases a; cases b; cases a') by auto
 
