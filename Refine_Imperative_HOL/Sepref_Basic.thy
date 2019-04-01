@@ -699,15 +699,10 @@ proof (goal_cases)
     proof (safe)
       show "Mf ra' \<ge> Some (enat (Ca+Ca'))" apply fact done
 
-      from IMP have "\<Gamma>2 ra r * R ra' r' * true \<Longrightarrow>\<^sub>A \<Gamma>' * R ra' r' * true"   
-      proof -
-        have "\<forall>a aa ab ac. (ac * ab \<Longrightarrow>\<^sub>A a * true) \<or> \<not> (ac \<Longrightarrow>\<^sub>A aa * a)"
-          by (metis (full_types) assn_times_assoc entails_trans2 entails_frame entails_true mult.left_commute)
-        then have "\<forall>a aa ab. ab * (aa * a) \<Longrightarrow>\<^sub>A aa * true"
-          by (metis (no_types) assn_times_assoc entails_frame entails_true)
-        then show ?thesis
-          by (metis (no_types) IMP assn_times_assoc entails_trans2 entails_frame)
-      qed  
+      have "\<Gamma>2 ra r * R ra' r' * true \<Longrightarrow>\<^sub>A \<Gamma>' * R ra' r' * true"
+        apply(subst mult.assoc)
+        apply(rule ent_trans[OF entails_frame[OF IMP]])
+        by sep_auto 
 
       with ende  show "pHeap h'' (new_addrs h as h'') (n + (Ca + Ca') - (t + t')) \<Turnstile> \<Gamma>' * R ra' r' * true"
         using entailsD by blast
