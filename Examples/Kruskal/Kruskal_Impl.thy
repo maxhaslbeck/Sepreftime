@@ -405,7 +405,7 @@ proof -
   from extract_cost_ub[OF this, of t]
   show ?thesis by (simp add: ran_emb')
 qed
-
+ 
 
 lemma array_length_rule_raw [hoare_triple]:
   "<dyn_array_raw (xs, n) p * $1>
@@ -446,7 +446,7 @@ lemma push_array_raw_rule [hoare_triple]:
 
 lemma push_array_rule''' [hoare_triple]:
   "n \<le> length xs \<Longrightarrow>
-   <dyn_array' (xs, n) p * $( n *0+100)>
+   <dyn_array' (xs, n) p * $19>
    push_array x p
    <dyn_array' (push_array_fun x (xs, n))>\<^sub>t" 
   unfolding  
@@ -458,8 +458,8 @@ lemma push_array_rule''' [hoare_triple]:
   apply(sep_auto simp only: heap: push_array_basic_rule')
   subgoal apply(subst array_copy_length) by simp_all
   by sep_auto
-  
-
+   
+thm array_max_rule'
 
 
 end
