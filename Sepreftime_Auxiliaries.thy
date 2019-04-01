@@ -19,6 +19,15 @@ lemma everywhereNone: "(\<forall>x\<in>X. x = None) \<longleftrightarrow> X = {}
 subsection "Auxiliaries for enat"
 
 
+lemma enat_plus_minus_aux1: "a + b \<le> a' \<Longrightarrow> \<not> a' < a \<Longrightarrow> b \<le> a' - (a::enat)"
+  apply(cases a; cases b; cases a') by auto
+
+lemma enat_plus_minus_aux2: "\<not> a < a' \<Longrightarrow> b \<le> a - a' \<Longrightarrow> a' + b \<le> (a::enat)"
+  apply(cases a; cases b; cases a') by auto
+
+lemma enat_minus_inf_conv[simp]: "a - enat n = \<infinity> \<longleftrightarrow> a=\<infinity>" by (cases a) auto
+lemma enat_minus_fin_conv[simp]: "a - enat n = enat m \<longleftrightarrow> (\<exists>k. a=enat k \<and> m = k - n)" by (cases a) auto
+
 lemma helper: "x2 \<le> x2a \<Longrightarrow> \<not> x2 < a \<Longrightarrow> \<not> x2a < a \<Longrightarrow>  x2 - (a::enat) \<le> x2a - a"
   apply(cases x2; cases x2a) apply auto apply(cases a) by auto
 

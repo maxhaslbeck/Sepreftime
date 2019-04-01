@@ -14,49 +14,49 @@ subsection "ASSERT"
 lemma le_R_ASSERTI: "(\<Phi> \<Longrightarrow> M \<le> \<Down> R M') \<Longrightarrow>  M \<le> \<Down> R (ASSERT \<Phi> \<bind> (\<lambda>_. M'))"
   by(auto simp: pw_le_iff refine_pw_simps)
 
-lemma T_ASSERT[vcg_simp_rules]: "Some t \<le> TTT Q (ASSERT \<Phi>) \<longleftrightarrow> Some t \<le> Q () \<and> \<Phi>"
+lemma T_ASSERT[vcg_simp_rules]: "Some t \<le> lst (ASSERT \<Phi>) Q \<longleftrightarrow> Some t \<le> Q () \<and> \<Phi>"
   apply (cases \<Phi>)
    apply vcg'
   done
-lemma T_ASSERT_I: "Some t \<le> Q () \<Longrightarrow> \<Phi> \<Longrightarrow> Some t \<le> TTT Q (ASSERT \<Phi>)"
+lemma T_ASSERT_I: "Some t \<le> Q () \<Longrightarrow> \<Phi> \<Longrightarrow> Some t \<le> lst (ASSERT \<Phi>) Q"
   by(simp add: T_ASSERT T_RETURNT) 
 
 
 lemma T_RESTemb_iff: "Some t'
-       \<le> TTT Q (REST (emb' P t)) \<longleftrightarrow> (\<forall>x. P x \<longrightarrow> Some (t' + t x) \<le> Q x ) "
+       \<le> lst (REST (emb' P t)) Q \<longleftrightarrow> (\<forall>x. P x \<longrightarrow> Some (t' + t x) \<le> Q x ) "
   by(auto simp: emb'_def T_pw mii_alt aux1)  
 
 
 lemma T_RESTemb: "(\<And>x. P x \<Longrightarrow> Some (t' + t x) \<le> Q x)
-    \<Longrightarrow>  Some t' \<le> TTT Q (REST (emb' P t))  "
+    \<Longrightarrow>  Some t' \<le> lst (REST (emb' P t)) Q"
   by (auto simp: T_RESTemb_iff)
 
 lemma  T_SPEC: "(\<And>x. P x \<Longrightarrow> Some (t' + t x) \<le> Q x)
-    \<Longrightarrow>  Some t' \<le> TTT Q (SPEC P t)  "
+    \<Longrightarrow>  Some t' \<le> lst (SPEC P t) Q"
   unfolding SPEC_REST_emb'_conv
   by (auto simp: T_RESTemb_iff)
 
 lemma T_SPECT_I: "(Some (t' + t ) \<le> Q x)
-    \<Longrightarrow>  Some t' \<le> TTT Q (SPECT [ x \<mapsto> t])  "
+    \<Longrightarrow>  Some t' \<le> lst (SPECT [ x \<mapsto> t]) Q"
   by(auto simp:   T_pw mii_alt aux1)   
 
 lemma mm2_map_option: "Some (t'+t) \<le> mm2 (Q x) (x2 x)
   \<Longrightarrow> Some t' \<le> mm2 (Q x) (map_option ((+) t) (x2 x)) "
   apply(cases "Q x")
   apply (auto simp: mm2_def  split: option.splits if_splits)
-  subgoal by (metis add.assoc add.commute g leD le_iff_add less_le_trans linordered_field_class.sign_simps(2) linordered_field_class.sign_simps(3)) 
-  subgoal by (smt add.commute add.left_commute f g)  
+  subgoal by (metis enat_plus_minus_aux2 leD le_iff_add less_le_trans linordered_field_class.sign_simps(2) linordered_field_class.sign_simps(3)) 
+  subgoal by (smt add.commute add.left_commute enat_plus_minus_aux1 enat_plus_minus_aux2)  
   done
 
 
-lemma  T_consume: "(Some (t' + t) \<le> TTT Q M)
-    \<Longrightarrow>  Some t' \<le> TTT Q (consume M t)  "
+lemma  T_consume: "(Some (t' + t) \<le> lst M Q)
+    \<Longrightarrow>  Some t' \<le> lst (consume M t) Q"
   unfolding consume_def T_pw apply (auto split: nrest.splits simp: miiFailt)
   by (auto intro!: mm2_map_option  simp: mii_alt    split: option.splits if_splits)
     
     
 
-definition "valid t Q M = (Some t \<le> TTT Q M)"
+definition "valid t Q M = (Some t \<le> lst M Q)"
 
 subsection \<open>VCG splitter\<close>
 
@@ -104,7 +104,7 @@ ML \<open>
 
     fun split_tac ctxt = Subgoal.FOCUS_PARAMS (fn {context = ctxt, ...} => ALLGOALS (
         SUBGOAL (fn (t, _) => case Logic.strip_imp_concl t of
-          @{mpat "Trueprop (Some _ \<le> TTT _ ?prog)"} => split_term_tac ctxt prog
+          @{mpat "Trueprop (Some _ \<le> lst ?prog _)"} => split_term_tac ctxt prog
         | @{mpat "Trueprop (progress ?prog)"} => split_term_tac ctxt prog
         | @{mpat "Trueprop (Case_Labeling.CTXT _ _ _ (valid _ _ ?prog))"} => split_term_tac ctxt prog
         | _ => no_tac
@@ -167,10 +167,10 @@ lemma  "mm3 (E s) (if I s' then Some (E s') else None) = (if I s' \<and> (E s' \
   by simp
 
 lemma While:
-  assumes  "I s0"  "(\<And>s. I s \<Longrightarrow> b s \<Longrightarrow> Some 0 \<le> TTT (\<lambda>s'. mm3 (E s) (if I s' then Some (E s') else None)) (C s))"
+  assumes  "I s0"  "(\<And>s. I s \<Longrightarrow> b s \<Longrightarrow> Some 0 \<le> lst (C s) (\<lambda>s'. mm3 (E s) (if I s' then Some (E s') else None)))"
      "(\<And>s. progress (C s))"
      "(\<And>x. \<not> b x \<Longrightarrow>  I x \<Longrightarrow>  (E x) \<le> (E s0) \<Longrightarrow>   Some (t + enat ((E s0) - E x)) \<le> Q x)"
-   shows   "Some t \<le> TTT Q (whileIET I E b C s0)"
+   shows   "Some t \<le> lst (whileIET I E b C s0) Q"
   apply(rule whileIET_rule'[THEN T_conseq4])
   subgoal using assms(2) by simp
   subgoal using assms(3) by simp
@@ -237,11 +237,11 @@ lemma monadic_WHILE_aux: "monadic_WHILE b f s = monadic_WHILEIT (\<lambda>_. Tru
   unfolding monadic_WHILEIT_def monadic_WHILE_def 
   by simp
 
-lemma " TTT Q (c x) = Some t \<Longrightarrow> Some t \<le> TTT Q' (c x)"
+lemma "lst (c x) Q = Some t \<Longrightarrow> Some t \<le> lst (c x) Q'"
       apply(rule T_conseq6) oops
 
 
-lemma TbindT_I2: "tt \<le>  TTT (\<lambda>y. TTT Q (f y)) M \<Longrightarrow>  tt \<le> TTT Q (M \<bind> f)"
+lemma TbindT_I2: "tt \<le>  lst M (\<lambda>y. lst (f y) Q) \<Longrightarrow>  tt \<le> lst (M \<bind> f) Q"
   by (simp add: T_bindT)
 
 thm RECT_wf_induct
@@ -251,9 +251,9 @@ thm whileT_rule''
 
 lemma T_conseq7:
   assumes 
-    "TTT Q' f \<ge> tt"
+    "lst f Q' \<ge> tt"
     "\<And>x t'' M. f = SPECT M \<Longrightarrow> M x \<noteq> None \<Longrightarrow> Q' x = Some t'' \<Longrightarrow> (Q x) \<ge> Some ( t'')" 
-  shows "TTT Q f \<ge> tt"
+  shows "lst f Q \<ge> tt"
   apply(cases tt) apply simp
   apply simp
   apply(rule T_conseq6) using assms by auto
@@ -261,10 +261,10 @@ lemma T_conseq7:
 lemma
   assumes "monadic_WHILE bm c s = r"
   assumes IS[vcg_rules]: "\<And>s.  
-   TTT (\<lambda>b. if b then TTT (\<lambda>s'. if (s',s)\<in>R then I s' else None) (c s) else Q s) (bm s) \<ge> I s"
+   lst (bm s) (\<lambda>b. if b then lst (c s) (\<lambda>s'. if (s',s)\<in>R then I s' else None) else Q s) \<ge> I s"
     (*  "T (\<lambda>x. T I (c x)) (SPECT (\<lambda>x. if b x then I x else None)) \<ge> Some 0" *)
   assumes wf: "wf R"
-  shows monadic_WHILE_ruleaaa'': "TTT Q r \<ge> I s"
+  shows monadic_WHILE_ruleaaa'': "lst r Q \<ge> I s"
   using assms(1)
   unfolding monadic_WHILE_def
 proof (induction rule: RECT_wf_induct[where R="R"])
@@ -300,11 +300,11 @@ thm whileT_rule''
 lemma
   assumes "monadic_WHILE bm c s = r"
  assumes IS[vcg_rules]: "\<And>s t'. I s = Some t' 
-           \<Longrightarrow>  TTT (\<lambda>b. if b then TTT (\<lambda>s'. if (s',s)\<in>R then I s' else None) (c s) else Q s) (bm s) \<ge> Some t'"
+           \<Longrightarrow>  lst (bm s) (\<lambda>b. if b then lst (c s)  (\<lambda>s'. if (s',s)\<in>R then I s' else None)else Q s) \<ge> Some t'"
     (*  "T (\<lambda>x. T I (c x)) (SPECT (\<lambda>x. if b x then I x else None)) \<ge> Some 0" *)
   assumes "I s = Some t"
   assumes wf: "wf R"
-  shows monadic_WHILE_rule'': "TTT Q r \<ge> Some t"
+  shows monadic_WHILE_rule'': "lst r Q \<ge> Some t"
   using assms(1,3)
   unfolding monadic_WHILE_def
 proof (induction arbitrary: t rule: RECT_wf_induct[where R="R"])
@@ -343,11 +343,11 @@ lemma
   assumes "whileT b c s0 = r"
   assumes progress: "\<And>s. progress (c s)" 
   assumes IS[vcg_rules]: "\<And>s t t'. I s = Some t \<Longrightarrow>  b s  \<Longrightarrow> 
-           TTT (\<lambda>s'. mm3 t (I s') ) (c s) \<ge> Some 0"
+           lst (c s) (\<lambda>s'. mm3 t (I s') ) \<ge> Some 0"
     (*  "T (\<lambda>x. T I (c x)) (SPECT (\<lambda>x. if b x then I x else None)) \<ge> Some 0" *) 
   assumes [simp]: "I s0 = Some t0" 
     (*  assumes wf: "wf R" *)                         
-  shows whileT_rule''': "TTT (\<lambda>x. if b x then None else mm3 t0 (I x)) r \<ge> Some 0"  
+  shows whileT_rule''': "lst r (\<lambda>x. if b x then None else mm3 t0 (I x)) \<ge> Some 0"  
   apply(rule T_conseq4)
    apply(rule whileT_rule''[where I="\<lambda>s. mm3 t0 (I s)"
         and R="measure (the_enat o the o I)", OF assms(1)])
@@ -393,12 +393,11 @@ lemma Tea: "Someplus A B = Some t \<longleftrightarrow> (\<exists>a b. A = Some 
   apply(cases A) apply (cases B) apply (auto)
  apply (cases B) by (auto)
 
-term TTT
 
-lemma TTT_Some_nofailT: "TTT Q c = Some l \<Longrightarrow> c \<noteq> FAILT"
+lemma TTT_Some_nofailT: "lst c Q = Some l \<Longrightarrow> c \<noteq> FAILT"
   unfolding lst_def mii_alt   by auto 
 
-lemma GRR: assumes "TTT Q (SPECT Mf) = Some l"
+lemma GRR: assumes "lst (SPECT Mf) Q = Some l"
   shows "Mf x = None \<or> (Q x\<noteq> None \<and> (Q x) \<ge> Mf x) "
 proof - 
   from assms have "None \<notin> {mii Q (SPECT Mf) x |x. True}" 
@@ -410,32 +409,23 @@ proof -
   then show ?thesis by (auto split: option.splits if_splits)
 qed
 
-
-lemma "TTT Q c = Some l \<Longrightarrow> Someplus (Some t) (TTT Q c) = TTT (\<lambda>a. Someplus (Some t) (Q a)) c"
-  unfolding lst_def mii_alt
-  oops
-
 lemma Someplus_None: "Someplus A B = None \<longleftrightarrow> (A = None \<or> B = None)" apply(cases A; cases B) by auto
 
 lemma Somemm3: "A \<ge> B \<Longrightarrow> mm3 A (Some B) = Some (A - B)" unfolding mm3_def by auto
 
-
- 
-
-
 lemma assumes "monadic_WHILE bm c s0 = r"
   and step: "\<And>s. I s  \<Longrightarrow>
-    Some 0 \<le> TTT (\<lambda>b. if b
-                   then TTT (\<lambda>s'. (if I s' \<and> (E s' \<le> E s) then Some (enat (E s - E s')) else None)) (c s)
+    Some 0 \<le> lst  (bm s) (\<lambda>b. if b
+                   then lst (c s) (\<lambda>s'. (if I s' \<and> (E s' \<le> E s) then Some (enat (E s - E s')) else None))
                    else mm2 (Q s) (Someplus (Some t) (mm3 (E s0) (Some (E s))))  )
-       (bm s)"
+      "
   and progress: "\<And>s. progress (c s)"
  (* "mm3 (E s0) (if I s0 then Some (E s0) else None) = Some t" *)
  and I0: "I s0" 
-shows neueWhile_rule: "Some t \<le> TTT Q r"
+shows neueWhile_rule: "Some t \<le> lst r Q"
 proof -
 
-  show "Some t \<le> TTT Q r"
+  show "Some t \<le> lst r Q"
     apply (rule monadic_WHILE_rule''[where I="\<lambda>s. Someplus (Some t) (mm3 (E s0) ((\<lambda>e. if I e
                 then Some (E e) else None) s))"  and R="measure (the_enat o the o (\<lambda>e. if I e
                 then Some (E e) else None))", simplified])
@@ -456,7 +446,7 @@ proof -
       { assume "\<exists>x. M x \<noteq> None"
         then obtain x where i: "M x \<noteq> None" by blast
 
-        let ?T = "TTT (\<lambda>s'. if I s' \<and> E s' \<le> E s then Some (enat (E s - E s')) else None) (c s)"
+        let ?T = "lst (c s) (\<lambda>s'. if I s' \<and> E s' \<le> E s then Some (enat (E s - E s')) else None)"
 
         from GRR[OF 1(3)[unfolded cs], where x=x] 
          i have "(if I x \<and> E x \<le> E s then Some (enat (E s - E x)) else None) \<noteq> None \<and> M x \<le> (if I x \<and> E x \<le> E s then Some (enat (E s - E x)) else None)"
@@ -520,20 +510,20 @@ definition "H Qs t Es0 Es = mm2 Qs (Someplus (Some t) (mm3 (Es0) (Some (Es))))"
 lemma 
   fixes s0 :: 'a and I :: "'a \<Rightarrow> bool" and E :: "'a \<Rightarrow> nat"
   assumes
-  step: "(\<And>s. I s \<Longrightarrow> Some 0 \<le> TTT (\<lambda>b. if b then TTT (\<lambda>s'. if I s' \<and> E s' \<le> E s then Some (enat (E s - E s')) else None) (c s) else mm2 (Q s) (Someplus (Some t) (mm3 (E s0) (Some (E s))))) (bm s))"
+  step: "(\<And>s. I s \<Longrightarrow> Some 0 \<le> lst (bm s)  (\<lambda>b. if b then lst (c s) (\<lambda>s'. if I s' \<and> E s' \<le> E s then Some (enat (E s - E s')) else None)  else mm2 (Q s) (Someplus (Some t) (mm3 (E s0) (Some (E s))))))"
  and  progress: "\<And>s. progress (c s)"
  and  i: "I s0"
-shows neueWhile_rule': "Some t \<le> TTT Q (monadic_WHILEIE I E bm c s0)"
+shows neueWhile_rule': "Some t \<le> lst (monadic_WHILEIE I E bm c s0) Q"
   unfolding monadic_WHILEIE_def 
   apply(rule neueWhile_rule[OF refl]) by fact+
 
 lemma 
   fixes s0 :: 'a and I :: "'a \<Rightarrow> bool" and E :: "'a \<Rightarrow> nat"
   assumes
-  step: "(\<And>s. I s \<Longrightarrow> Some 0 \<le> TTT (\<lambda>b. if b then TTT (\<lambda>s'. G (I s' \<and> E s' \<le> E s) (enat (E s - E s'))) (c s) else H (Q s) t (E s0) (E s)) (bm s))"
+  step: "(\<And>s. I s \<Longrightarrow> Some 0 \<le> lst (bm s) (\<lambda>b. if b then lst (c s) (\<lambda>s'. G (I s' \<and> E s' \<le> E s) (enat (E s - E s'))) else H (Q s) t (E s0) (E s)))"
  and  progress: "\<And>s. progress (c s)"
  and  i: "I s0"
-shows neueWhile_rule'': "Some t \<le> TTT Q (monadic_WHILEIE I E bm c s0)"
+shows neueWhile_rule'': "Some t \<le> lst (monadic_WHILEIE I E bm c s0) Q"
   unfolding monadic_WHILEIE_def  apply(rule neueWhile_rule[OF refl, where I=I and E=E ])  
        using assms unfolding G_def H_def by auto
  
@@ -543,7 +533,7 @@ thm neueWhile_rule'[no_vars]
   lemma LmonWhileRule:
     fixes IC CT  
     assumes "V\<langle>(''precondition'', IC, []),(''monwhile'', IC, []) # CT: I s0\<rangle>"
-      and "\<And>s. I s \<Longrightarrow>  C\<langle>Suc IC,(''invariant'', Suc IC, []) # (''monwhile'', IC, []) # CT,OC: valid 0 (\<lambda>b. if b then TTT (\<lambda>s'. if I s' \<and> E s' \<le> E s then Some (enat (E s - E s')) else None) (C s) else mm2 (Q s) (Someplus (Some t) (mm3 (E s0) (Some (E s))))) (bm s)\<rangle>"
+      and "\<And>s. I s \<Longrightarrow>  C\<langle>Suc IC,(''invariant'', Suc IC, []) # (''monwhile'', IC, []) # CT,OC: valid 0 (\<lambda>b. if b then lst (C s) (\<lambda>s'. if I s' \<and> E s' \<le> E s then Some (enat (E s - E s')) else None) else mm2 (Q s) (Someplus (Some t) (mm3 (E s0) (Some (E s))))) (bm s)\<rangle>"
       and "\<And>s. V\<langle>(''progress'', IC, []),(''monwhile'', IC, []) # CT: progress (C s)\<rangle>"
     shows "C\<langle>IC,CT,OC: valid t Q (monadic_WHILEIE I E bm C s0)\<rangle>"  
     using assms(2,3,1)  unfolding valid_def  unfolding LABEL_simps  
@@ -562,7 +552,7 @@ thm neueWhile_rule'[no_vars]
   thm whileIET_rule'[THEN T_conseq4, no_vars] T_conseq4
     
 
-lemma validD: "valid t Q M \<Longrightarrow> Some t \<le> TTT Q M" by(simp add: valid_def)
+lemma validD: "valid t Q M \<Longrightarrow> Some t \<le> lst M Q" by(simp add: valid_def)
 
 
   lemma LABELs_to_concl:
@@ -582,7 +572,7 @@ lemma validD: "valid t Q M \<Longrightarrow> Some t \<le> TTT Q M" by(simp add: 
  
 
   lemma LbindTRule:
-    assumes "C\<langle>IC,CT,OC: valid t (\<lambda>y. TTT Q (f y)) m\<rangle>"
+    assumes "C\<langle>IC,CT,OC: valid t (\<lambda>y. lst (f y) Q) m\<rangle>"
     shows "C\<langle>IC,CT,OC: valid t Q (bindT m f)\<rangle>"
     using assms unfolding LABEL_simps by(simp add: T_bindT valid_def )
 
@@ -619,7 +609,7 @@ lemma validD: "valid t Q M \<Longrightarrow> Some t \<le> TTT Q M" by(simp add: 
 
   lemma LTTTinRule:
     assumes "C\<langle>IC,CT,OC: valid t Q M\<rangle>"
-    shows "C\<langle>IC,CT,OC: Some t \<le> TTT Q M\<rangle>"
+    shows "C\<langle>IC,CT,OC: Some t \<le> lst M Q\<rangle>"
     using assms unfolding LABEL_simps by(simp add:  valid_def )
 
 
@@ -653,10 +643,11 @@ lemma validD: "valid t Q M \<Longrightarrow> Some t \<le> TTT Q M" by(simp add: 
  
 
   lemma LinjectRule:
-    assumes "Some t \<le> TTT Q A \<Longrightarrow> Some t \<le> TTT Q B"
+    assumes "Some t \<le> lst A Q \<Longrightarrow> Some t \<le> lst B Q"
         "C\<langle>IC,CT,OC: valid t Q A\<rangle>"
     shows "C\<langle>IC,CT,OC: valid t Q B\<rangle>"
     using assms unfolding LABEL_simps by(simp add:  valid_def )
+
   lemma Linject2Rule:
     assumes "A = B"
         "C\<langle>IC,CT,OC: valid t Q A\<rangle>"
@@ -771,7 +762,7 @@ lemma SPECT_ub': "T\<le>T' \<Longrightarrow> SPECT (emb' M' T) \<le> \<Down>Id (
 
 
 
-lemma REST_single_rule[vcg_simp_rules]: "Some t \<le> TTT Q (REST [x\<mapsto>t']) \<longleftrightarrow> Some (t+t') \<le> (Q x)"
+lemma REST_single_rule[vcg_simp_rules]: "Some t \<le> lst (REST [x\<mapsto>t']) Q \<longleftrightarrow> Some (t+t') \<le> (Q x)"
   by (simp add: T_REST aux1')
 
 thm T_pw refine_pw_simps
@@ -863,15 +854,15 @@ lemma SS[vcg_simp_rules]: "Some t = Some t' \<longleftrightarrow> t = t'" by sim
 lemma SS': "(if b then Some t else None) = Some t' \<longleftrightarrow> (b \<and> t = t')" by simp 
 
 term "(case s of (a,b) \<Rightarrow> M a b)"
-lemma case_T[vcg_rules]: "(\<And>a b. s = (a, b) \<Longrightarrow> t \<le> TTT Q (M a b)) \<Longrightarrow> t  \<le> TTT Q (case s of (a,b) \<Rightarrow> M a b)"
+lemma case_T[vcg_rules]: "(\<And>a b. s = (a, b) \<Longrightarrow> t \<le> lst Q (M a b)) \<Longrightarrow> t  \<le> lst Q (case s of (a,b) \<Rightarrow> M a b)"
   by (simp add: split_def)
 
 subsubsection \<open>new setup\<close>
 
 named_theorems vcg_rules' 
-lemma if_T[vcg_rules']: "(b \<Longrightarrow> t \<le> TTT Q Ma) \<Longrightarrow> (\<not>b \<Longrightarrow> t \<le> TTT Q Mb) \<Longrightarrow> t  \<le> TTT Q (if b then Ma else Mb)"
+lemma if_T[vcg_rules']: "(b \<Longrightarrow> t \<le> lst Ma Q) \<Longrightarrow> (\<not>b \<Longrightarrow> t \<le> lst Mb Q) \<Longrightarrow> t  \<le> lst (if b then Ma else Mb) Q"
    by (simp add: split_def)
-lemma RETURNT_T_I[vcg_rules']: "t \<le> Q x \<Longrightarrow> t  \<le> TTT Q (RETURNT x)"
+lemma RETURNT_T_I[vcg_rules']: "t \<le> Q x \<Longrightarrow> t  \<le> lst (RETURNT x) Q"
    by (simp add: T_RETURNT)
    
 declare T_SPECT_I [vcg_rules']

@@ -51,8 +51,8 @@ begin
   print_theorems 
 end
 
-  lemma  mop_map_empty_fs: "tt \<le> TTT Q (SPECT [ Map.empty \<mapsto> t  ]) 
-        \<Longrightarrow> tt \<le> TTT Q (mop_map_empty_fs s t )" unfolding mop_map_empty_fs_def by simp
+  lemma  mop_map_empty_fs: "tt \<le> lst (SPECT [ Map.empty \<mapsto> t  ])  Q
+        \<Longrightarrow> tt \<le> lst (mop_map_empty_fs s t ) Q" unfolding mop_map_empty_fs_def by simp
 
 
   definition "mop_map_empty_fixed_length s = mop_map_empty "

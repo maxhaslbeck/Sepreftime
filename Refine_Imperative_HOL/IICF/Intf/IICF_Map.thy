@@ -80,8 +80,8 @@ begin
   definition "mop_map_empty  = SPECT [ Map.empty \<mapsto> t]"
 
 
-  lemma  mop_map_empty: "tt \<le> TTT Q (SPECT [ Map.empty \<mapsto> t  ]) 
-        \<Longrightarrow> tt \<le> TTT Q (mop_map_empty )" unfolding mop_map_empty_def by simp
+  lemma  mop_map_empty: "tt \<le> lst (SPECT [ Map.empty \<mapsto> t  ]) Q 
+        \<Longrightarrow> tt \<le> lst (mop_map_empty ) Q" unfolding mop_map_empty_def by simp
 
   sepref_register "mop_map_empty" 
   print_theorems 
@@ -94,8 +94,8 @@ begin
   definition "mop_map_update m k v = SPECT [ m(k \<mapsto> v) \<mapsto> t m]"
 
 
-  lemma  mop_map_update: "tt \<le> TTT Q (SPECT [ m(k \<mapsto> v) \<mapsto> t m]) 
-        \<Longrightarrow> tt \<le> TTT Q (mop_map_update m k v)" unfolding mop_map_update_def by simp
+  lemma  mop_map_update: "tt \<le> lst (SPECT [ m(k \<mapsto> v) \<mapsto> t m])  Q
+        \<Longrightarrow> tt \<le> lst (mop_map_update m k v) Q" unfolding mop_map_update_def by simp
 
   sepref_register "mop_map_update" 
   print_theorems 
@@ -108,8 +108,8 @@ begin
   definition "mop_map_dom_member m x = SPECT (emb (\<lambda>b. b \<longleftrightarrow> x\<in>dom m) (t m))"
 
 
-  lemma  mop_map_dom_member: "tt \<le> TTT Q (SPECT (emb (\<lambda>b. b \<longleftrightarrow> x\<in>dom m) (t m))) 
-        \<Longrightarrow> tt \<le> TTT Q (mop_map_dom_member m x)" unfolding mop_map_dom_member_def by simp
+  lemma  mop_map_dom_member: "tt \<le> lst (SPECT (emb (\<lambda>b. b \<longleftrightarrow> x\<in>dom m) (t m)))  Q
+        \<Longrightarrow> tt \<le> lst (mop_map_dom_member m x) Q" unfolding mop_map_dom_member_def by simp
 
   sepref_register "mop_map_dom_member" 
   print_theorems 
@@ -124,9 +124,9 @@ definition "mop_map_lookup m x = do {
       }"
 
 
-lemma  mop_map_lookup: "tt \<le> TTT Q (SPECT [  (the (m x)) \<mapsto> t m])
+lemma  mop_map_lookup: "tt \<le> lst (SPECT [  (the (m x)) \<mapsto> t m]) Q
         \<Longrightarrow> x : dom m 
-        \<Longrightarrow> tt \<le> TTT Q (mop_map_lookup m x)" unfolding mop_map_lookup_def by simp
+        \<Longrightarrow> tt \<le> lst (mop_map_lookup m x) Q" unfolding mop_map_lookup_def by simp
 
   lemma progress_mop_map_lookup[progress_rules]: "t m > 0 \<Longrightarrow> progress (mop_map_lookup m x)"
       unfolding mop_map_lookup_def by (auto intro!: progress_rules simp add:   zero_enat_def) 

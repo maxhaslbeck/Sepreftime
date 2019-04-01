@@ -15,8 +15,8 @@ begin
   lemma progress_mop_per_init[progress_rules]: "t n > 0 \<Longrightarrow> progress (mop_per_init n)"
     unfolding mop_per_init_def by (auto intro!: progress_rules simp add:   zero_enat_def) 
 
-  lemma mop_per_init: "tt \<le> TTT Q (SPECT [ per_init' n \<mapsto> t n]) \<Longrightarrow> tt
-           \<le> TTT Q (mop_per_init n)" unfolding mop_per_init_def by simp
+  lemma mop_per_init: "tt \<le> lst (SPECT [ per_init' n \<mapsto> t n]) Q \<Longrightarrow> tt
+           \<le> lst (mop_per_init n) Q" unfolding mop_per_init_def by simp
 
   sepref_register "mop_per_init" 
 end
@@ -26,13 +26,7 @@ context
 begin
 
   definition "mop_per_compare R a b = SPECT [ per_compare R a b \<mapsto> enat (t R) ]"
-(*
-  lemma progress_mop_per_init[progress_rules]: "t n > 0 \<Longrightarrow> progress (mop_per_init n)"
-    unfolding mop_per_init_def by (auto intro!: progress_rules simp add:   zero_enat_def) 
 
-  lemma mop_per_init: "tt \<le> TTT Q (SPECT [ per_init' n \<mapsto> t n]) \<Longrightarrow> tt
-           \<le> TTT Q (mop_per_init n)" unfolding mop_per_init_def by simp
-*)
   sepref_register "mop_per_compare" 
 end
 
@@ -41,13 +35,7 @@ context
 begin
 
   definition "mop_per_union R a b = SPECT [ per_union R a b \<mapsto> enat (t R) ]"
-(*
-  lemma progress_mop_per_init[progress_rules]: "t n > 0 \<Longrightarrow> progress (mop_per_init n)"
-    unfolding mop_per_init_def by (auto intro!: progress_rules simp add:   zero_enat_def) 
 
-  lemma mop_per_init: "tt \<le> TTT Q (SPECT [ per_init' n \<mapsto> t n]) \<Longrightarrow> tt
-           \<le> TTT Q (mop_per_init n)" unfolding mop_per_init_def by simp
-*)
   sepref_register "mop_per_union" 
 end
 

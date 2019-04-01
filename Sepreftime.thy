@@ -1,6 +1,6 @@
 theory Sepreftime
   imports "HOL-Library.Extended_Nat" "Refine_Monadic.RefineG_Domain"  Refine_Monadic.Refine_Misc  
-  "HOL-Library.Monad_Syntax"  
+  "HOL-Library.Monad_Syntax"  Sepreftime_Auxiliaries
 begin
 
 section "NREST"
@@ -308,7 +308,7 @@ lemma inresT_SPEC[refine_pw_simps]: "inresT (SPEC a b) = (\<lambda>x t. a x \<an
     unfolding SPEC_def inresT_REST apply(rule ext) by(auto split: if_splits)
 
 
-section \<open> Monad Operators \<close>
+section \<open>Monad Operators\<close>
 
 definition bindT :: "'b nrest \<Rightarrow> ('b \<Rightarrow> 'a nrest) \<Rightarrow> 'a nrest" where
   "bindT M f \<equiv> case M of 
@@ -583,6 +583,10 @@ lemma RECT_unfold: "\<lbrakk>mono2 B\<rbrakk> \<Longrightarrow> RECT B = B (RECT
 definition whileT :: "('a \<Rightarrow> bool) \<Rightarrow> ('a \<Rightarrow> 'a nrest) \<Rightarrow> 'a \<Rightarrow> 'a nrest" where
   "whileT b c = RECT (\<lambda>whileT s. (if b s then bindT (c s) whileT else RETURNT s))"
 
+
+definition whileTI :: "('a \<Rightarrow> enat option) \<Rightarrow> ( ('a\<times>'a) set) \<Rightarrow> ('a \<Rightarrow> bool) \<Rightarrow> ('a \<Rightarrow> 'a nrest) \<Rightarrow> 'a \<Rightarrow> 'a nrest" where
+  "whileTI I R b c s = whileT b c s"
+
 lemma trimonoI[refine_mono]: 
   "\<lbrakk>flatf_mono_ge B; mono B\<rbrakk> \<Longrightarrow> mono2 B"
   unfolding mono2_def by auto
@@ -809,24 +813,42 @@ lemma miiFailt: "mii Q FAILT x = None" unfolding mii_def by auto
 
 subsection "lst - latest starting time"
 
-definition lst :: "('a \<Rightarrow> enat option) \<Rightarrow> 'a nrest \<Rightarrow> enat option" 
-  where "lst Qf M =  Inf { mii Qf M x | x. True}"
+definition lst :: "'a nrest \<Rightarrow> ('a \<Rightarrow> enat option) \<Rightarrow> enat option" 
+  where "lst M Qf =  Inf { mii Qf M x | x. True}"
 
-lemma T_alt_: "lst Qf M = Inf ( (mii Qf M) ` UNIV )"
+lemma T_alt_: "lst M Qf = Inf ( (mii Qf M) ` UNIV )"
   unfolding lst_def 
   by (simp add: full_SetCompr_eq) 
 
-lemma T_pw: "lst Q M \<ge> t \<longleftrightarrow> (\<forall>x. mii Q M x \<ge> t)"
+lemma T_pw: "lst M Q \<ge> t \<longleftrightarrow> (\<forall>x. mii Q M x \<ge> t)"
   unfolding lst_def mii_def apply(cases M) apply auto
   unfolding Inf_option_def apply (auto split: if_splits)
   using less_eq_option_None_is_None less_option_None not_less apply blast
   apply (smt Inf_lower Inf_option_def dual_order.trans mem_Collect_eq)
   apply metis
   by (smt in_these_eq le_Inf_iff le_cases le_some_optE less_eq_option_Some mem_Collect_eq)  
-  
+ 
+lemma T_specifies_I: "lst m Q \<ge> Some 0 \<Longrightarrow> (m \<le> SPECT Q)"
+  unfolding T_pw apply (cases m) apply (auto simp: miiFailt le_fun_def mii_alt mm2_def split: option.splits)
+  subgoal for M x apply(cases "Q x"; cases "M x") apply (auto split: if_splits)
+    apply force+ done
+  done
 
+lemma T_specifies_rev: "(m \<le> SPECT Q) \<Longrightarrow> lst m Q \<ge> Some 0" 
+  unfolding T_pw apply (cases m)
+  subgoal by auto
+   apply (auto simp: miiFailt le_fun_def mii_alt mm2_def split: option.splits)
+  subgoal for M x t apply(cases "Q x"; cases "M x") apply (auto split: if_splits)
+    by (metis less_eq_option_Some_None)
+  subgoal by (metis leD less_option_Some) 
+  done
 
-lemma z: "(\<forall>t. lst Q M \<ge> t \<longrightarrow> lst Q' M' \<ge> t) \<Longrightarrow> lst Q M \<le> lst Q' M'"
+lemma T_specifies: "lst m Q \<ge> Some 0 = (m \<le> SPECT Q)"
+  using T_specifies_I T_specifies_rev by metis
+
+lemma pointwise_lesseq:
+  fixes x :: "'a::order"
+  shows "(\<forall>t. x \<ge> t \<longrightarrow> x' \<ge> t) \<Longrightarrow> x \<le> x'"
   by simp
 
 subsection "pointwise reasoning about T via nres3"
@@ -837,19 +859,19 @@ definition nres3 where "nres3 Q M x t \<longleftrightarrow> mii Q M x \<ge> t"
 
 lemma pw_T_le:
   assumes "\<And>t. (\<forall>x. nres3 Q M x t) \<Longrightarrow> (\<forall>x. nres3 Q' M' x t)"
-  shows "lst Q M \<le> lst Q' M'"
-  apply(rule z)
+  shows "lst  M Q \<le> lst  M' Q'"
+  apply(rule pointwise_lesseq)
   using assms unfolding T_pw nres3_def  by metis 
 
 lemma assumes "\<And>t. (\<forall>x. nres3 Q M x t) = (\<forall>x. nres3 Q' M' x t)" 
-  shows pw_T_eq_iff: "lst Q M = lst Q' M'"
+  shows pw_T_eq_iff: "lst M Q  = lst M' Q'"
   apply (rule antisym)
   apply(rule pw_T_le) using assms apply metis
   apply(rule pw_T_le) using assms apply metis done 
 
 lemma assumes "\<And>t. (\<forall>x. nres3 Q M x t) \<Longrightarrow> (\<forall>x. nres3 Q' M' x t)"
       "\<And>t. (\<forall>x. nres3 Q' M' x t) \<Longrightarrow> (\<forall>x. nres3 Q M x t)"
-  shows pw_T_eqI: "lst Q M = lst Q' M'"
+  shows pw_T_eqI: "lst M Q = lst M' Q'"
   apply (rule antisym)
   apply(rule pw_T_le) apply fact
   apply(rule pw_T_le) apply fact done 
@@ -925,29 +947,29 @@ proof -
 qed
 
 
-lemma nres3_bindT: "(\<forall>x. nres3 Q (bindT m f) x t) = (\<forall>y. nres3 (\<lambda>y. lst Q (f y)) m y t)"
+lemma nres3_bindT: "(\<forall>x. nres3 Q (bindT m f) x t) = (\<forall>y. nres3 (\<lambda>y. lst (f y) Q) m y t)"
 proof -
   have "(\<forall>x. nres3 Q (bindT m f) x t) = (\<forall>x.  t \<le> mii Q (bindT m f) x)" unfolding nres3_def by auto
   also have "\<dots> = (\<forall>x. (\<forall>y. t \<le> mii (\<lambda>y. mii Q (f y) x) m y))" by(simp only: mii_bindT)
   also have "\<dots> = (\<forall>y. (\<forall>x. t \<le> mii (\<lambda>y. mii Q (f y) x) m y))" by blast
   also have "\<dots> = (\<forall>y.  t \<le> mii (\<lambda>y. Inf {mii Q (f y) x|x. True}) m y)" 
     apply(simp only: mii_continuous) using t by fast
-  also have "\<dots> = (\<forall>y.  t \<le> mii (\<lambda>y. lst Q (f y)) m y)" unfolding lst_def by auto
-  also have "\<dots> = (\<forall>y. nres3 (\<lambda>y. lst Q (f y)) m y t)" unfolding nres3_def by auto
+  also have "\<dots> = (\<forall>y.  t \<le> mii (\<lambda>y. lst (f y) Q) m y)" unfolding lst_def by auto
+  also have "\<dots> = (\<forall>y. nres3 (\<lambda>y. lst (f y) Q) m y t)" unfolding nres3_def by auto
   finally show ?thesis .
-  have "(\<forall>y.  t \<le> mii (\<lambda>y. lst Q (f y)) m y) = (t \<le> Inf{ mii (\<lambda>y. lst Q (f y)) m y|y. True})" using t by metis
+  have "(\<forall>y.  t \<le> mii (\<lambda>y. lst (f y) Q) m y) = (t \<le> Inf{ mii (\<lambda>y. lst (f y) Q) m y|y. True})" using t by metis
 qed
 
 
 subsection "rules for T"
 
-lemma T_bindT: "lst Q (bindT M f) = lst (\<lambda>y. lst Q (f y)) M"
+lemma T_bindT: "lst (bindT M f) Q  = lst M (\<lambda>y. lst (f y) Q)"
   by (rule pw_T_eq_iff, rule nres3_bindT)
 
   
 
 
-lemma T_REST: "lst Q (REST [x\<mapsto>t]) = mm2 (Q x) (Some t)"
+lemma T_REST: "lst (REST [x\<mapsto>t]) Q = mm2 (Q x) (Some t)"
 proof- 
   have *: "Inf {uu. \<exists>xa. (xa = x \<longrightarrow> uu= v) \<and> (xa \<noteq> x \<longrightarrow> uu = Some \<infinity>)} = v"  (is "Inf ?S = v") for v :: "enat option"
   proof -
@@ -959,7 +981,7 @@ proof-
 qed
 
 
-lemma T_RETURNT: "lst Q (RETURNT x) = Q x"
+lemma T_RETURNT: "lst (RETURNT x) Q = Q x"
   unfolding RETURNT_alt apply(rule trans) apply(rule T_REST) by simp
                 
 thm T_pw
@@ -995,29 +1017,29 @@ lemma aux1a': "(\<forall>t''. Q' = Some t'' \<longrightarrow> (Q) \<ge> Some (t 
   subgoal for t'' using aux1 by metis
   done
 
-lemma "lst Q (SPECT P) \<ge> Some t \<longleftrightarrow> (\<forall>x t'. P x = Some t' \<longrightarrow> (Q x \<ge> Some (t + t')))"
+lemma "lst (SPECT P) Q \<ge> Some t \<longleftrightarrow> (\<forall>x t'. P x = Some t' \<longrightarrow> (Q x \<ge> Some (t + t')))"
   apply (auto simp: T_pw mii_alt)
   apply (metis aux1)
   apply (simp add: aux1a'[symmetric])
   done
 
 
-lemma "lst Q (SPECT P) \<ge> Some t \<longleftrightarrow> (\<forall>x t'. P x = Some t' \<longrightarrow> (\<exists>t''. Q x = Some t'' \<and> t'' \<ge> t + t'))"
+lemma "lst (SPECT P) Q \<ge> Some t \<longleftrightarrow> (\<forall>x t'. P x = Some t' \<longrightarrow> (\<exists>t''. Q x = Some t'' \<and> t'' \<ge> t + t'))"
   apply (auto simp: T_pw mii_alt )
    apply (metis aux1 le_some_optE)
   apply (simp add: aux1a'[symmetric])
   apply auto 
   by fastforce
 
-lemma "lst Q (SPECT P) = Some t \<longleftrightarrow> (\<forall>x t'. P x = Some t' \<longrightarrow> (\<exists>t''. Q x = Some t'' \<and> t'' = t + t'))"
+lemma "lst (SPECT P) Q = Some t \<longleftrightarrow> (\<forall>x t'. P x = Some t' \<longrightarrow> (\<exists>t''. Q x = Some t'' \<and> t'' = t + t'))"
   apply (auto simp: lst_def ) oops
 
 
 lemma T_SELECT: 
   assumes  
-    "\<forall>x. \<not> P x \<Longrightarrow> Some tt \<le> lst Q (SPECT [None \<mapsto> tf])"
-  and p: "(\<And>x. P x \<Longrightarrow> Some tt \<le> lst Q (SPECT [Some x \<mapsto> tf]))"
-   shows "Some tt \<le> lst Q (SELECT P tf)"
+    "\<forall>x. \<not> P x \<Longrightarrow> Some tt \<le> lst (SPECT [None \<mapsto> tf]) Q"
+  and p: "(\<And>x. P x \<Longrightarrow> Some tt \<le> lst (SPECT [Some x \<mapsto> tf]) Q)"
+   shows "Some tt \<le> lst (SELECT P tf) Q"
 proof(cases "\<exists>x. P x")
   case True
   from p[unfolded T_pw mii_alt] have
@@ -1056,9 +1078,9 @@ lemma aux1': "Some t \<le> mm2 Q (Some t') \<longleftrightarrow> Some (t+t') \<l
 
 lemma T_conseq4:
   assumes 
-    "lst Q' f \<ge> Some t'"
+    "lst f Q' \<ge> Some t'"
     "\<And>x t'' M. Q' x = Some t'' \<Longrightarrow> (Q x) \<ge> Some ((t - t') + t'')" 
-  shows "lst Q f \<ge> Some t"
+  shows "lst f Q  \<ge> Some t"
 proof -
   {
     fix x
@@ -1079,42 +1101,12 @@ proof -
   thus ?thesis
     unfolding T_pw ..
 qed
-(*
-lemma T_conseq44:
-  assumes 
-    "T Q' f \<ge> Some t'"
-    "\<And>x t'' M. Q' x = Some t'' \<Longrightarrow> (Q x) \<ge> Some ((t - t') + t'')" 
-  shows "T Q f \<ge> Some t"
-proof -
-  { assume "T Q f = Some \<infinity>"
-    then have "False" unfolding lst_def 
-
-  {
-    fix x
-    from assms(1)[unfolded T_pw] have i: "Some t' \<le> mii Q' f x" by auto
-    from assms(2) have ii: "\<And>t''. Q' x = Some t'' \<Longrightarrow> (Q x) \<ge> Some ((t - t') + t'')" by auto
-    from i ii have "Some t \<le> mii Q f x"
-      unfolding mii_alt apply(auto split: nrest.splits)
-      subgoal for x2 apply(cases "x2 x") apply simp
-        apply(simp add: aux1)  
-        apply(cases "Q' x") apply simp
-        apply auto 
-        apply(cases "Q x") apply auto 
-        subgoal for a b c apply(cases t; cases t'; cases a; cases b; cases c) apply auto
-          using le_add2 by force
-        done
-      done
-  } 
-  thus ?thesis
-    unfolding T_pw ..
-qed*)
-
 
 lemma T_conseq6:
   assumes 
-    "lst Q' f \<ge> Some t"
+    "lst f Q' \<ge> Some t"
     "\<And>x t'' M. f = SPECT M \<Longrightarrow> M x \<noteq> None \<Longrightarrow> Q' x = Some t'' \<Longrightarrow> (Q x) \<ge> Some ( t'')" 
-  shows "lst Q f \<ge> Some t"
+  shows "lst f Q \<ge> Some t"
 proof -
   {
     fix x
@@ -1140,18 +1132,18 @@ qed
 
 lemma T_conseq6':
   assumes 
-    "lst Q' f \<ge> Some t"
+    "lst f Q' \<ge> Some t"
     "\<And>x t'' M. f = SPECT M \<Longrightarrow> M x \<noteq> None \<Longrightarrow>   (Q x) \<ge> Q' x" 
-  shows "lst Q f \<ge> Some t"
+  shows "lst f Q \<ge> Some t"
   apply(rule T_conseq6) apply fact   
      by (auto dest: assms(2))
 
 
 lemma T_conseq5:
   assumes 
-    "lst Q' f \<ge> Some t'"
+    "lst f Q' \<ge> Some t'"
     "\<And>x t'' M. f = SPECT M \<Longrightarrow> M x \<noteq> None \<Longrightarrow> Q' x = Some t'' \<Longrightarrow> (Q x) \<ge> Some ((t - t') + t'')" 
-  shows "lst Q f \<ge> Some t"
+  shows "lst f Q \<ge> Some t"
 proof -
   {
     fix x
@@ -1176,27 +1168,29 @@ qed
 
 lemma T_conseq3: 
   assumes 
-    "lst Q' f \<ge> Some t'"
+    "lst f Q' \<ge> Some t'"
     "\<And>x. mm2 (Q x) (Q' x) \<ge> Some (t - t')" 
-  shows "lst Q f \<ge> Some t"
+  shows "lst f Q \<ge> Some t"
   using assms T_conseq4 aux1a by metis
 
 
 
-definition P where "P f g = bindT f (\<lambda>x. bindT g (\<lambda>y. RETURNT (x+(y::nat))))"
 
 named_theorems vcg_rules
 
 method vcg uses rls = ((rule rls vcg_rules[THEN T_conseq4] | clarsimp simp: emb_eq_Some_conv emb_le_Some_conv T_bindT T_RETURNT)+)
 
+experiment
+begin
 
 
+definition P where "P f g = bindT f (\<lambda>x. bindT g (\<lambda>y. RETURNT (x+(y::nat))))"
 
 lemma assumes
-  f_spec[vcg_rules]: "lst ( emb' (\<lambda>x. x > 2) (enat o (( *) 2)) ) f \<ge> Some 0"
+  f_spec[vcg_rules]: "lst f ( emb' (\<lambda>x. x > 2) (enat o (( *) 2)) ) \<ge> Some 0"
 and 
-  g_spec[vcg_rules]: "lst ( emb' (\<lambda>x. x > 2) (enat) ) g \<ge> Some 0"
-shows "lst ( emb' (\<lambda>x. x > 5) (enat o ( *) 3) ) (P f g) \<ge> Some 0"
+  g_spec[vcg_rules]: "lst g ( emb' (\<lambda>x. x > 2) (enat) ) \<ge> Some 0"
+shows "lst (P f g) ( emb' (\<lambda>x. x > 5) (enat o ( *) 3) ) \<ge> Some 0"
 proof -
   have ?thesis
     unfolding P_def
@@ -1216,7 +1210,7 @@ proof -
 qed
 
 
-hide_const P
+end
 
 
 
@@ -1224,52 +1218,22 @@ hide_const P
 
 find_theorems "lst _ _ \<ge> _"
 
-lemma [simp]: "mm2 None q = (case q of None \<Rightarrow> Some \<infinity> | _ \<Rightarrow> None)"
-  apply (cases q) apply (auto simp: mm2_def) done
+lemma mm2_fst_None[simp]: "mm2 None q = (case q of None \<Rightarrow> Some \<infinity> | _ \<Rightarrow> None)"
+  apply (cases q) apply (auto simp: mm2_def) done 
 
-thm mm2_def
-term mii
 
-lemma [simp]: "a - enat n = \<infinity> \<longleftrightarrow> a=\<infinity>" by (cases a) auto
-lemma [simp]: "a - enat n = enat m \<longleftrightarrow> (\<exists>k. a=enat k \<and> m = k - n)" by (cases a) auto
-
-lemma auxXX1: "Some t \<le> mm2 (Q x) (Some t') \<Longrightarrow> Some t' \<le> mm2 (Q x) (Some t)"
+lemma mm2_auxXX1: "Some t \<le> mm2 (Q x) (Some t') \<Longrightarrow> Some t' \<le> mm2 (Q x) (Some t)"
   apply (auto simp: mm2_def split: option.splits if_splits)
   apply (metis helper2 idiff_0_right leD less_le_trans zero_le) 
   apply (auto simp: less_eq_enat_def split: enat.splits)
   done
 
 
-definition "TSPEC Q m \<equiv> lst Q m \<ge> Some 0"
-
-lemma "TSPEC Q m \<longleftrightarrow> (case m of FAILi \<Rightarrow> False | REST M \<Rightarrow> 
-  \<forall>x. mm2 (Q x) (M x) \<ge> Some 0
-)"
-  by (auto simp: T_pw TSPEC_def mii_alt split: option.splits nrest.splits)
-
-
-lemma fold_TSPEC: "lst Q m \<ge> Some t \<longleftrightarrow> TSPEC (\<lambda>x. mm2 (Q x) (Some t)) m"
-  apply (auto simp: TSPEC_def T_pw mii_alt split: option.splits nrest.splits simp: aux1a'[where t=0, symmetric, simplified])
-
-  subgoal for x
-    apply (drule spec[where x=x])
-    apply (auto simp: auxXX1)
-    done
-
-  subgoal for x f
-    apply (drule spec[where x=x])
-    apply (cases "f x")
-    apply (auto simp: auxXX1)
-    done
-  done
-
-
-
 lemma enat_minus_mono: "a' \<ge> b \<Longrightarrow> a' \<ge> a \<Longrightarrow> a' - b \<ge> (a::enat) - b"
   apply(cases a; cases b; cases a') by auto
 
-lemma waux1: "(\<forall>s t'. I s = Some t' \<longrightarrow> b s  \<longrightarrow> c s \<noteq> FAILi \<and>  lst (Q s) (c s) \<ge> Some t')
-    = (lst (\<lambda>s. lst (Q s) (c s)) (SPECT (\<lambda>x. if b x then I x else None)) \<ge> Some 0)"
+lemma waux1: "(\<forall>s t'. I s = Some t' \<longrightarrow> b s  \<longrightarrow> c s \<noteq> FAILi \<and>  lst (c s) (Q s) \<ge> Some t')
+    = (lst (SPECT (\<lambda>x. if b x then I x else None)) (\<lambda>s. lst (c s) (Q s)) \<ge> Some 0)"
   apply(subst (2)T_pw) unfolding mii_alt apply simp
   apply (auto simp: mm2_def split: option.splits)
   subgoal by force  
@@ -1279,22 +1243,22 @@ lemma waux1: "(\<forall>s t'. I s = Some t' \<longrightarrow> b s  \<longrightar
   done  
 
 
-lemma waux2: "(\<forall>s t'. I s = Some t' \<longrightarrow> lst (\<lambda>x. if b x then None else I x) (whileT b c s) \<ge> Some t')
-      = (lst (\<lambda>s. lst (\<lambda>x. if b x then None else I x) (whileT b c s)) (SPECT I) \<ge> Some 0)"  
+lemma waux2: "(\<forall>s t'. I s = Some t' \<longrightarrow> lst (whileT b c s) (\<lambda>x. if b x then None else I x) \<ge> Some t')
+      = (lst (SPECT I) (\<lambda>s. lst (whileT b c s) (\<lambda>x. if b x then None else I x)) \<ge> Some 0)"  
   apply(subst (2) T_pw) unfolding mii_alt apply simp
   by (force simp: mm2_def split: option.splits)  
 
-lemma T_ineq_D: "Some t' \<le> lst I (c x) \<Longrightarrow> (\<exists>M. c x = SPECT M \<and> mm2 (I y) (M y)  \<ge> Some t')"
+lemma T_ineq_D: "Some t' \<le> lst (c x) I \<Longrightarrow> (\<exists>M. c x = SPECT M \<and> mm2 (I y) (M y)  \<ge> Some t')"
   unfolding T_pw mii_alt apply (auto split: nrest.splits) using nrest_noREST_FAILT by blast 
 
 
 lemma
   assumes "whileT b c s = r"
-  assumes IS: "\<And>s t'. I s = Some t' \<Longrightarrow> b s  \<Longrightarrow> c s \<noteq> FAILi \<and>  lst I (c s) \<ge> Some t'"
+  assumes IS: "\<And>s t'. I s = Some t' \<Longrightarrow> b s  \<Longrightarrow> c s \<noteq> FAILi \<and>  lst (c s) I \<ge> Some t'"
     (*  "T (\<lambda>x. T I (c x)) (SPECT (\<lambda>x. if b x then I x else None)) \<ge> Some 0" *) 
   assumes "I s = Some t'"
   assumes wf: "wf {(y, x)|x M y. I x \<noteq> None \<and> b x \<and> c x = SPECT M \<and> M y \<noteq> None}"
-  shows whileT_rule: "lst (\<lambda>x. if b x then None else I x) r \<ge> Some t'"
+  shows whileT_rule: "lst r (\<lambda>x. if b x then None else I x) \<ge> Some t'"
   using assms(1,3)
   unfolding whileT_def
 proof (induction arbitrary: t' rule: RECT_wf_induct[where R="{(y, x)|x M y. I x \<noteq> None \<and> b x \<and> c x = SPECT M \<and> M y \<noteq> None}"])
@@ -1307,17 +1271,17 @@ next
   case step: (3 x D r t')
 
   { assume b:"b x"
-    with  IS step(3) have pff: "Some t' \<le> lst I (c x)" and cnofail: "c x \<noteq> FAILi" by auto
+    with  IS step(3) have pff: "Some t' \<le> lst (c x) I" and cnofail: "c x \<noteq> FAILi" by auto
     from b step(2) have r: "r = bindT (c x) D" by auto
     from cnofail obtain M where cM: "c x = SPECT M" by force
 
-    from step(3) pff have inf: "I x \<le> lst I (c x)" by auto
+    from step(3) pff have inf: "I x \<le> lst (c x) I" by auto
 
     have k: "\<And>y. M y \<noteq> None \<Longrightarrow> I y \<noteq> None"
       using inf[unfolded T_pw cM mii_alt] by (auto simp: mm2_def step(3) split: option.splits) 
 
     { fix y t''
-      have " None \<noteq> M y \<Longrightarrow> I y = Some t'' \<Longrightarrow> Some t'' \<le> lst (\<lambda>x. if b x then None else I x) (D y)"
+      have " None \<noteq> M y \<Longrightarrow> I y = Some t'' \<Longrightarrow> Some t'' \<le> lst (D y) (\<lambda>x. if b x then None else I x)"
         apply(rule step(1)[where y=y])
         subgoal apply auto subgoal using step(3) by auto subgoal using b by simp apply(rule exI[where x=M]) using cM  
           using leI by fastforce          
@@ -1329,18 +1293,18 @@ next
       from step(3) inf have pot_pays: "\<And>y. I x \<le> mm2 (I y) (M y)" unfolding T_pw mii_alt using cM by (auto split: nrest.splits)
       from pot_pays have ineq: "I x \<le> mm2 (I y) (M y)" by auto 
 
-      have " Some t' \<le> mii (\<lambda>y. lst (\<lambda>x. if b x then None else I x) (D y)) (c x) y" 
+      have " Some t' \<le> mii (\<lambda>y. lst (D y) (\<lambda>x. if b x then None else I x)) (c x) y" 
         unfolding mii_alt using cM apply(auto split: nrest.splits) 
         unfolding mm2_def apply (auto split: option.splits)
         subgoal using pf  
           by (metis (no_types, lifting) Inf_option_def RETURNT_alt T_RETURNT lst_def k less_eq_option_Some_None option.distinct(1))
       proof - 
         fix th tn  (* time that we have, time that we need *)
-        assume  My: "M y = Some tn" and T: "lst (\<lambda>x. if b x then None else I x) (D y) = Some th" 
+        assume  My: "M y = Some tn" and T: "lst (D y) (\<lambda>x. if b x then None else I x) = Some th" 
 
         from ineq obtain tiy where Iy: "I y = Some tiy" using My step(3) by(auto simp: mm2_def split: if_splits option.splits)
         with ineq My step(3) have 2: "tiy \<ge> tn" and a2: "t' \<le> tiy - tn" by (auto simp: mm2_def split: if_splits) 
-        from cM My pf have "Some tiy \<le> lst (\<lambda>x. if b x then None else I x) (D y)" by (simp add: \<open>I y = Some tiy\<close>)
+        from cM My pf have "Some tiy \<le> lst (D y) (\<lambda>x. if b x then None else I x)" by (simp add: \<open>I y = Some tiy\<close>)
         with T have 3: "tiy \<le> th" by simp
 
         { assume less: "th < tn"
@@ -1354,7 +1318,7 @@ next
         } 
       qed 
     }
-    then have "Some t' \<le> lst (\<lambda>x. if b x then None else I x) (bindT (c x) D)"
+    then have "Some t' \<le> lst (bindT (c x) D) (\<lambda>x. if b x then None else I x)"
       apply(simp add: T_bindT) unfolding T_pw by auto
     then have ?case unfolding r by auto
   }
@@ -1393,9 +1357,9 @@ qed
 
 
 named_theorems vcg_simp_rules
-lemmas [vcg_simp_rules] = (* T_bindT *) T_RETURNT
+lemmas [vcg_simp_rules] = T_RETURNT
 
-lemma TbindT_I: "Some t \<le>  lst (\<lambda>y. lst Q (f y)) M \<Longrightarrow>  Some t \<le> lst Q (M \<bind> f)"
+lemma TbindT_I: "Some t \<le>  lst M (\<lambda>y. lst (f y) Q) \<Longrightarrow>  Some t \<le> lst (M \<bind> f) Q"
   by(simp add: T_bindT)
 
 method vcg' uses rls = ((rule rls TbindT_I vcg_rules[THEN T_conseq6] | clarsimp split: if_splits simp:  vcg_simp_rules)+)
@@ -1403,11 +1367,11 @@ method vcg' uses rls = ((rule rls TbindT_I vcg_rules[THEN T_conseq6] | clarsimp 
 lemma
   assumes "whileT b c s = r"
   assumes IS[vcg_rules]: "\<And>s t'. I s = Some t' \<Longrightarrow> b s 
-           \<Longrightarrow>    lst (\<lambda>s'. if (s',s)\<in>R then I s' else None) (c s) \<ge> Some t'"
+           \<Longrightarrow>    lst (c s) (\<lambda>s'. if (s',s)\<in>R then I s' else None) \<ge> Some t'"
     (*  "T (\<lambda>x. T I (c x)) (SPECT (\<lambda>x. if b x then I x else None)) \<ge> Some 0" *) 
   assumes "I s = Some t"
   assumes wf: "wf R"
-  shows whileT_rule'': "lst (\<lambda>x. if b x then None else I x) r \<ge> Some t"
+  shows whileT_rule'': "lst r (\<lambda>x. if b x then None else I x) \<ge> Some t"
   using assms(1,3)
   unfolding whileT_def
 proof (induction arbitrary: t rule: RECT_wf_induct[where R="R"])
@@ -1432,12 +1396,12 @@ qed
 lemma
   assumes "whileT b c s = r"
   assumes IS[vcg_rules]: "\<And>s t'. I s = Some t' \<Longrightarrow> b s 
-           \<Longrightarrow>    lst (\<lambda>s'. if (s',s)\<in>R then I s' else None) (c s) \<ge> Some t'"
+           \<Longrightarrow>    lst (c s) (\<lambda>s'. if (s',s)\<in>R then I s' else None) \<ge> Some t'"
     (*  "T (\<lambda>x. T I (c x)) (SPECT (\<lambda>x. if b x then I x else None)) \<ge> Some 0" *) 
   assumes "I s = Some t"
   assumes wf: "wf R"
   assumes exit: "\<And>s t'. I s = Some t' \<Longrightarrow> \<not>b s \<Longrightarrow> Q s \<ge> Some t'"
-  shows whileT_rule''a_: "lst Q r \<ge> Some t"
+  shows whileT_rule''a_: "lst r Q \<ge> Some t"
   using assms(1,3)
   unfolding whileT_def
 proof (induction arbitrary: t rule: RECT_wf_induct[where R="R"])
@@ -1473,7 +1437,7 @@ lemma mm3_Some_conv: "(mm3 t0 A = Some t) = (\<exists>t'. A = Some t' \<and> t0 
 
 lemma [simp]: "mm3 t0 None = None" unfolding mm3_def by auto
 
-lemma T_FAILT[simp]: "lst Q FAILT = None"
+lemma T_FAILT[simp]: "lst FAILT Q = None"
   unfolding lst_def mii_alt by simp
 
 definition "progress m \<equiv> \<forall>s' M. m = SPECT M \<longrightarrow> M s' \<noteq> None \<longrightarrow> M s' > Some 0"
@@ -1556,11 +1520,11 @@ lemma
   assumes "whileT b c s0 = r"
   assumes progress: "\<And>s. progress (c s)" 
   assumes IS[vcg_rules]: "\<And>s t t'. I s = Some t \<Longrightarrow>  b s  \<Longrightarrow> 
-           lst (\<lambda>s'. mm3 t (I s') ) (c s) \<ge> Some 0"
+           lst (c s) (\<lambda>s'. mm3 t (I s') ) \<ge> Some 0"
     (*  "T (\<lambda>x. T I (c x)) (SPECT (\<lambda>x. if b x then I x else None)) \<ge> Some 0" *) 
   assumes [simp]: "I s0 = Some t0" 
     (*  assumes wf: "wf R" *)                         
-  shows whileT_rule''': "lst (\<lambda>x. if b x then None else mm3 t0 (I x)) r \<ge> Some 0"  
+  shows whileT_rule''': "lst r (\<lambda>x. if b x then None else mm3 t0 (I x)) \<ge> Some 0"  
   apply(rule T_conseq4)
    apply(rule whileT_rule''[where I="\<lambda>s. mm3 t0 (I s)"
         and R="measure (the_enat o the o I)", OF assms(1)])
@@ -1598,10 +1562,10 @@ lemma  whileIET_rule[THEN T_conseq6, vcg_rules]:
   assumes 
     "(\<And>s t t'.
     (if I s then Some (E s) else None) = Some t \<Longrightarrow>
-    b s \<Longrightarrow> Some 0 \<le> lst (\<lambda>s'. mm3 t (if I s' then Some (E s') else None)) (C s))" 
+    b s \<Longrightarrow> Some 0 \<le> lst (C s) (\<lambda>s'. mm3 t (if I s' then Some (E s') else None)))" 
   "\<And>s. progress (C s)"
   "I s0" 
-shows "Some 0 \<le> lst (\<lambda>x. if b x then None else mm3 (E s0) (if I x then Some (E x) else None)) (whileIET I E b C s0)"
+shows "Some 0 \<le> lst (whileIET I E b C s0) (\<lambda>x. if b x then None else mm3 (E s0) (if I x then Some (E x) else None))"
   unfolding whileIET_def  
   apply(rule whileT_rule'''[OF refl, where I="(\<lambda>e. if I e
                 then Some (E e) else None)"])
@@ -1610,10 +1574,10 @@ shows "Some 0 \<le> lst (\<lambda>x. if b x then None else mm3 (E s0) (if I x th
  
 
 lemma transf:
-  assumes "I s \<Longrightarrow>  b s \<Longrightarrow> Some 0 \<le> lst (\<lambda>s'. mm3 (E s) (if I s' then Some (E s') else None)) (C s)" 
+  assumes "I s \<Longrightarrow>  b s \<Longrightarrow> Some 0 \<le> lst (C s) (\<lambda>s'. mm3 (E s) (if I s' then Some (E s') else None))" 
   shows "
     (if I s then Some (E s) else None) = Some t \<Longrightarrow>
-    b s \<Longrightarrow> Some 0 \<le> lst (\<lambda>s'. mm3 t (if I s' then Some (E s') else None)) (C s)"
+    b s \<Longrightarrow> Some 0 \<le> lst (C s) (\<lambda>s'. mm3 t (if I s' then Some (E s') else None))"
  apply(cases "I s")
   subgoal apply simp
     using assms by auto
@@ -1626,28 +1590,28 @@ lemma transf:
 lemma  whileIET_rule':
   fixes E
   assumes 
-    "(\<And>s t t'. I s \<Longrightarrow>  b s \<Longrightarrow> Some 0 \<le> lst (\<lambda>s'. mm3 (E s) (if I s' then Some (E s') else None)) (C s))" 
+    "(\<And>s t t'. I s \<Longrightarrow>  b s \<Longrightarrow> Some 0 \<le> lst (C s) (\<lambda>s'. mm3 (E s) (if I s' then Some (E s') else None)))" 
   "\<And>s. progress (C s)"
   "I s0" 
-shows "Some 0 \<le> lst (\<lambda>x. if b x then None else mm3 (E s0) (if I x then Some (E x) else None)) (whileIET I E b C s0)" 
+shows "Some 0 \<le> lst (whileIET I E b C s0) (\<lambda>x. if b x then None else mm3 (E s0) (if I x then Some (E x) else None))" 
   apply(rule whileIET_rule) apply(rule transf[where b=b]) using assms by auto  
    
 
 lemma 
-  assumes IS: "lst (\<lambda>s. lst (\<lambda>s'. if (s',s)\<in>R then I s' else None) (c s)) (SPECT (\<lambda>x. if b x then I x else None)) \<ge> Some 0" 
+  assumes IS: "lst (SPECT (\<lambda>x. if b x then I x else None)) (\<lambda>s. lst (c s) (\<lambda>s'. if (s',s)\<in>R then I s' else None)) \<ge> Some 0" 
   assumes wf: "wf R"
-  shows whileT_rule''_: "lst (\<lambda>s. lst (\<lambda>x. if b x then None else I x) (whileT b c s)) (SPECT I) \<ge> Some 0"
+  shows whileT_rule''_: "lst (SPECT I) (\<lambda>s. lst (whileT b c s) (\<lambda>x. if b x then None else I x)) \<ge> Some 0"
   using IS   unfolding  waux1[symmetric] unfolding  waux2[symmetric]  using whileT_rule''[OF _ _ _ wf]
   by blast
  
 
 lemma
   assumes "whileT b c s = r"
-  assumes IS[vcg_rules]: "\<And>s t'. I s = Some t' \<Longrightarrow> b s  \<Longrightarrow> lst I (c s) \<ge> Some t'"
+  assumes IS[vcg_rules]: "\<And>s t'. I s = Some t' \<Longrightarrow> b s  \<Longrightarrow> lst (c s) I \<ge> Some t'"
     (*  "T (\<lambda>x. T I (c x)) (SPECT (\<lambda>x. if b x then I x else None)) \<ge> Some 0" *) 
   assumes "I s = Some t'"
   assumes wf: "wf {(y, x)|x M y. I x \<noteq> None \<and> b x \<and> c x = SPECT M \<and> M y \<noteq> None}"
-  shows whileT_rule': "lst (\<lambda>x. if b x then None else I x) r \<ge> Some t'"
+  shows whileT_rule': "lst r (\<lambda>x. if b x then None else I x) \<ge> Some t'"
   using assms(1,3)
   unfolding whileT_def
 proof (induction arbitrary: t' rule: RECT_wf_induct[where R="{(y, x)|x M y. I x \<noteq> None \<and> b x \<and> c x = SPECT M \<and> M y \<noteq> None}"])
@@ -1670,28 +1634,30 @@ next
     done 
 qed
 
-
-print_statement waux1
+ 
 lemma 
-  assumes IS: "lst (\<lambda>s. lst I (c s)) (SPECT (\<lambda>x. if b x then I x else None)) \<ge> Some 0" 
+  assumes IS: "lst (SPECT (\<lambda>x. if b x then I x else None)) (\<lambda>s. lst (c s) I) \<ge> Some 0" 
   assumes wf: "wf {(y, x)|x M y. I x \<noteq> None \<and> b x \<and> c x = SPECT M \<and> M y \<noteq> None}"
-  shows whileT_rule_: "lst (\<lambda>s. lst (\<lambda>x. if b x then None else I x) (whileT b c s)) (SPECT I) \<ge> Some 0"
+  shows whileT_rule_: "lst (SPECT I) (\<lambda>s. lst (whileT b c s) (\<lambda>x. if b x then None else I x)) \<ge> Some 0"
   using IS unfolding  waux1[symmetric] waux2[symmetric]  using whileT_rule[OF _ _ _ wf] by blast
+ 
 
 
-print_statement RECT_wf_induct
 
 
 
 subsubsection "Examples"
 
+ 
 
 
+experiment
+begin
 
 lemma 
   assumes c: "c = (\<lambda>s. SPECT [s-1\<mapsto>1])" 
       and n: "S\<le>n"
-  shows ex4: "lst (\<lambda>s. if s = 0 then Some (enat n) else None) (whileT (\<lambda>s. s>0) c (S::nat)) \<ge> Some 0"
+  shows ex4: "lst (whileT (\<lambda>s. s>0) c (S::nat)) (\<lambda>s. if s = 0 then Some (enat n) else None) \<ge> Some 0"
   apply(rule T_conseq4)
    apply(rule whileT_rule'''[where I="\<lambda>s. if s\<le>n then Some (s) else None" ])
       apply simp
@@ -1700,27 +1666,17 @@ lemma
     by(auto simp: mm2_def mm3_def one_enat_def)
   using n by (auto simp: mm3_Some_conv split: if_splits) 
 
-lemma Refinement_by_T: assumes "lst Q m \<ge> Some 0"
-  shows "m \<le> SPECT Q"
-  apply(simp add:  pw_le_iff )
-  apply(cases m) 
-   subgoal using assms by (simp add: mii_alt)
-   subgoal for M apply auto
-     subgoal for x t t' using assms[unfolded T_pw, THEN spec, of x]
-       by(auto simp: mii_alt mm2_def split: option.splits if_splits)
-     done
-   done
 
 lemma assumes "c = (\<lambda>s. SPECT [s-1\<mapsto>1])" 
       and n: "S\<le>n"
       shows ex4': "(whileT (\<lambda>s. s>0) c (S::nat)) \<le> SPECT (\<lambda>s. if s = 0 then Some (enat n) else None)"
-  apply(rule Refinement_by_T) 
+  apply(rule T_specifies_I) 
   apply(rule ex4) using assms by auto
 
 lemma 
   assumes c: "c = (\<lambda>s. SPECT [s-1\<mapsto>1])" 
       and n: "S\<le>n"
-  shows "lst (\<lambda>s. if s = 0 then Some (enat n) else None) (whileT (\<lambda>s. s>0) c (S::nat)) \<ge> Some 0"
+  shows "lst (whileT (\<lambda>s. s>0) c (S::nat)) (\<lambda>s. if s = 0 then Some (enat n) else None) \<ge> Some 0"
   apply(rule T_conseq4)
    apply(rule whileT_rule''[where I="\<lambda>s. if s\<le>n then Some (enat (n - s)) else None"
             and R="measure nat"])
@@ -1736,7 +1692,7 @@ term emb'
 lemma 
   assumes c: "c = (\<lambda>s. SPECT [s-1\<mapsto>1])" 
       and n: "S\<le>n"
-  shows "lst (\<lambda>s. if s = 0 then Some (enat n) else None) (whileT (\<lambda>s. s>0) c (S::nat)) \<ge> Some 0"
+  shows "lst (whileT (\<lambda>s. s>0) c (S::nat)) (\<lambda>s. if s = 0 then Some (enat n) else None) \<ge> Some 0"
   apply(rule T_conseq4)
    apply(rule whileT_rule[where I="\<lambda>s. if s\<le>n then Some (enat (n - s)) else None"])
       apply simp
@@ -1751,7 +1707,7 @@ lemma
 
 lemma                                       (* hmmm *)
   assumes c: "c = (\<lambda>s. SPECT (\<lambda>s'. if s'<s \<and> even s then Some C else None))"  
-  shows "lst (\<lambda>s. if s = 0 then Some \<infinity> else None) (whileT (\<lambda>s. s>0) c (S::nat)) \<ge> Some 0"
+  shows "lst (whileT (\<lambda>s. s>0) c (S::nat)) (\<lambda>s. if s = 0 then Some \<infinity> else None) \<ge> Some 0"
   apply(rule T_conseq4)
    apply(rule whileT_rule[where I="\<lambda>s. Some \<infinity>"])
       apply simp
@@ -1762,28 +1718,11 @@ lemma                                       (* hmmm *)
   by (auto split: if_splits)
 
 
-lemma T_specifies_I: "lst Q m \<ge> Some 0 \<Longrightarrow> (m \<le> SPECT Q)"
-  unfolding T_pw apply (cases m) apply (auto simp: miiFailt le_fun_def mii_alt mm2_def split: option.splits)
-  subgoal for M x apply(cases "Q x"; cases "M x") apply (auto split: if_splits)
-    apply force+ done
-  done
 
-lemma T_specifies_rev: "(m \<le> SPECT Q) \<Longrightarrow> lst Q m \<ge> Some 0" 
-  unfolding T_pw apply (cases m)
-  subgoal by auto
-   apply (auto simp: miiFailt le_fun_def mii_alt mm2_def split: option.splits)
-  subgoal for M x t apply(cases "Q x"; cases "M x") apply (auto split: if_splits)
-    by (metis less_eq_option_Some_None)
-  subgoal by (metis leD less_option_Some) 
-  done
 
-lemma T_specifies: "lst Q m \<ge> Some 0 = (m \<le> SPECT Q)"
-  using T_specifies_I T_specifies_rev by metis
-
-thm whileT_rule''
-lemma                                       (* hmmm *)
+lemma                                       
   assumes c[vcg_rules]: "\<And>s. c s \<le> SPECT (\<lambda>s'. if s'<s \<and> even s then Some C else None)"  
-  shows "lst (\<lambda>s. if s \<le> 0 then Some \<infinity> else None) (whileT (\<lambda>s. s>0) c (S::nat)) \<ge> Some 0"
+  shows "lst (whileT (\<lambda>s. s>0) c (S::nat)) (\<lambda>s. if s \<le> 0 then Some \<infinity> else None) \<ge> Some 0"
   apply(rule  whileT_rule''[where I="\<lambda>s. Some \<infinity>" and R="{(x, y). x < y}", THEN T_conseq4])
       apply simp 
      apply(rule T_conseq4)
@@ -1792,37 +1731,35 @@ lemma                                       (* hmmm *)
   apply simp apply(fact wf) by (auto split: if_splits)  
 
 
-definition whileTI :: "('a \<Rightarrow> enat option) \<Rightarrow> ( ('a\<times>'a) set) \<Rightarrow> ('a \<Rightarrow> bool) \<Rightarrow> ('a \<Rightarrow> 'a nrest) \<Rightarrow> 'a \<Rightarrow> 'a nrest" where
-  "whileTI I R b c s = whileT b c s"
+
 
 print_statement whileT_rule''
 
 lemma  whileTI_rule[vcg_rules]:
   assumes 
-      "\<And>s t'. I s = Some t' \<Longrightarrow> b s \<Longrightarrow> Some t' \<le> lst (\<lambda>s'. if (s', s) \<in> R then I s' else None) (c s)"
+      "\<And>s t'. I s = Some t' \<Longrightarrow> b s \<Longrightarrow> Some t' \<le> lst (c s) (\<lambda>s'. if (s', s) \<in> R then I s' else None)"
     and "I s = Some t'"
     and "wf R"
-  shows "Some t' \<le> lst (\<lambda>x. if b x then None else I x) (whileTI I R b c s)"
+  shows "Some t' \<le> lst (whileTI I R b c s) (\<lambda>x. if b x then None else I x)"
   unfolding   whileTI_def
   apply(rule whileT_rule''[where I=I and R=R])
   apply simp apply fact+ done
  
-thm vcg_rules
 lemma                                       (* hmmm *)
-  assumes c[vcg_rules]: "\<And>s. Some 0 \<le> lst (\<lambda>s'. if s' < s \<and> even s then Some C else None) (c s)"  
-  shows "lst (\<lambda>s. if s \<le> 0 then Some \<infinity> else None) (whileTI (\<lambda>s. Some \<infinity>) {(x, y). x < y} (\<lambda>s. s>0) c (S::nat)) \<ge> Some 0"
+  assumes c[vcg_rules]: "\<And>s. Some 0 \<le> lst (c s) (\<lambda>s'. if s' < s \<and> even s then Some C else None)"  
+  shows "lst (whileTI (\<lambda>s. Some \<infinity>) {(x, y). x < y} (\<lambda>s. s>0) c (S::nat)) (\<lambda>s. if s \<le> 0 then Some \<infinity> else None) \<ge> Some 0"
   apply vcg  
      apply (auto split: if_splits)   by(fact wf) 
 
 
 
 lemma   fixes n :: nat
-  assumes [vcg_rules]: "lst (\<lambda>s. if s \<le> n then Some 1 else None) f \<ge> Some 0"
-   and  c[vcg_rules]: "\<And>s. Some 0 \<le> lst (\<lambda>s'. if s' < s then Some (enat C) else None) (c s)"
+  assumes [vcg_rules]: "lst f (\<lambda>s. if s \<le> n then Some 1 else None) \<ge> Some 0"
+   and  c[vcg_rules]: "\<And>s. Some 0 \<le> lst (c s) (\<lambda>s'. if s' < s then Some (enat C) else None)"
    and C: "C>0"
-  shows "lst (\<lambda>s. if s \<le> 0 then Some (1+C*n) else None) (
+  shows "lst (
         do { n \<leftarrow> f;
-             whileT (\<lambda>s. s>0) c n }) \<ge> Some 0"
+             whileT (\<lambda>s. s>0) c n })  (\<lambda>s. if s \<le> 0 then Some (1+C*n) else None) \<ge> Some 0"
     (* note that n is bound from the outside ! *)
   apply(subst whileTI_def[symmetric, where I="(\<lambda>s. if s\<le>n then Some (1+C*(enat (n-s))) else None)"
                                     and R="  {(x, y). x < y}"])
@@ -1840,12 +1777,13 @@ lemma   fixes n :: nat
 
 
 lemma   fixes n :: nat
-  assumes [vcg_rules]: "lst (\<lambda>s. if s \<le> n then Some 1 else None) f \<ge> Some 0"
-   and  c[vcg_rules]: "\<And>s. Some 0 \<le> lst (\<lambda>s'. if s' < s then Some (enat C) else None) (c s)"
+  assumes [vcg_rules]: "lst f (\<lambda>s. if s \<le> n then Some 1 else None) \<ge> Some 0"
+   and  c[vcg_rules]: "\<And>s. Some 0 \<le> lst (c s) (\<lambda>s'. if s' < s then Some (enat C) else None)"
    and C: "C>0"
-  shows "lst (\<lambda>s. if s \<le> 0 then Some (1+C*n) else None) (
+  shows "lst (
         do { n \<leftarrow> f;
-             whileTI (\<lambda>s. if s\<le>n then Some (1+C*(enat (n-s))) else None)  {(x, y). x < y}  (\<lambda>s. s>0) c n }) \<ge> Some 0" 
+             whileTI (\<lambda>s. if s\<le>n then Some (1+C*(enat (n-s))) else None)  {(x, y). x < y}  (\<lambda>s. s>0) c n })
+         (\<lambda>s. if s \<le> 0 then Some (1+C*n) else None)  \<ge> Some 0" 
     (* note that n in the Invariant is bound from the inside, very much in contrast to the example above! ! *)
   apply vcg 
   apply(auto simp: wf one_enat_def split: if_splits) 
@@ -1866,7 +1804,7 @@ lemma dont_care_about_runtime_as_long_as_it_terminates:
         * the cost C of of the loop body (decrementing s) may even be \<infinity>
         * the starting state S is also arbitrary *)
   assumes c: "c = (\<lambda>s. SPECT [s-1\<mapsto>C])"
-  shows "lst (\<lambda>s. if s = 0 then Some \<infinity> else None) (whileT (\<lambda>s. s>0) c (S::nat)) \<ge> Some 0"
+  shows "lst (whileT (\<lambda>s. s>0) c (S::nat)) (\<lambda>s. if s = 0 then Some \<infinity> else None) \<ge> Some 0"
   apply(rule T_conseq4)
    apply(rule whileT_rule[where I="\<lambda>s. Some \<infinity>"])
       apply simp
@@ -1876,15 +1814,8 @@ lemma dont_care_about_runtime_as_long_as_it_terminates:
     by (smt case_prodI le_less_linear mem_Collect_eq nz_le_conv_less prod.sel(2) wf wf_def) 
   by (auto split: if_splits)
 
+end
 
-lemma "RETURNT r \<le> SPECT [f\<mapsto>i] \<longleftrightarrow> (r \<longleftrightarrow> f)"
-  unfolding RETURNT_def apply simp unfolding le_fun_def by simp
-
-lemma "SPECT  [r\<mapsto>i] \<le> SPECT [f\<mapsto>j] \<longleftrightarrow> ((r \<longleftrightarrow> f) \<and> i\<le>j)"
-   apply simp unfolding le_fun_def by simp
-
-
-abbreviation "TTT == lst"
  
 
  
@@ -1893,198 +1824,12 @@ abbreviation "TTT == lst"
     "m \<le>\<^sub>n m' \<equiv> nofailT m \<longrightarrow> m \<le> m'"
 
 
-  subsection "weakest precondition & strongest postcondition"
 
-
-definition "wp Q c = (\<lambda>s. lst Q (c s))"
-
-
-lemma "FAILT \<le> SPECT Q" apply simp oops
-
-lemma "(\<forall>s. P s \<longrightarrow> (c s) \<le> SPECT Q) \<longleftrightarrow> emb P 0 \<le> wp Q c"
-  apply rule
-  subgoal unfolding emb'_def wp_def le_fun_def by (auto simp: T_specifies)
-  subgoal unfolding emb'_def wp_def le_fun_def apply (auto simp: T_specifies[symmetric]) by metis
+lemma SPECT_Map_empty[simp]: "SPECT Map.empty \<le> a" apply(cases a) apply auto subgoal for x2 by(auto simp: le_fun_def)
   done
 
-  thm lst_def
-
-definition "spl P c s s' = None"
-
-fun Someplus where "Someplus None _ _ = Map.empty" |
-  "Someplus _ None _ = Map.empty" |
-  "Someplus (Some a) (Some b) s = [s\<mapsto>(a+b)]"
-
-
-
-thm Sup_option_def
-
-
-definition "sp P c = Sup {
-                          Sup { case P s of None \<Rightarrow> SPECT Map.empty |
-                                      Some t \<Rightarrow> (case c s of FAILi \<Rightarrow> FAILi |
-                                                    SPECT M \<Rightarrow> SPECT (Someplus (M s') (P s) s') ) 
-                             |s. True}| s'. True }"
-
-lemma spI: "(\<And>s' s.
-       (case P s of None \<Rightarrow> SPECT Map.empty
-        | Some t \<Rightarrow> case c s of FAILi \<Rightarrow> FAILi | REST M \<Rightarrow> SPECT (Someplus (M s') (P s) s'))
-       \<le> SPECT Q) \<Longrightarrow> sp P c \<le> SPECT Q"
-    apply (auto simp: sp_def)
-    apply(rule Sup_least) apply auto
-    apply(rule Sup_least) by (auto)
-
-lemma spD: assumes s: "sp P c \<le> SPECT Q"
-  shows "(case P s of None \<Rightarrow> SPECT Map.empty
-                         | Some t \<Rightarrow>
-                             case c s of FAILi \<Rightarrow> FAILi
-                             | REST M \<Rightarrow> SPECT (Someplus (M s') (P s) s')) \<le> SPECT Q"
-proof -  
-   from s have a': "\<And>s'.  
-        Sup {uu. \<exists>s. uu =
-                       (case P s of None \<Rightarrow> SPECT Map.empty
-                        | Some t \<Rightarrow>
-                            case c s of FAILi \<Rightarrow> FAILi
-                            | REST M \<Rightarrow> SPECT (Someplus (M s') (P s) s'))} \<le> SPECT Q"
-    unfolding sp_def apply(subst (asm) Sup_le_iff)
-    by (auto simp:  ) 
-  show ?thesis
-    using a'[unfolded Sup_le_iff]
-    by auto   
-qed
-
-
-lemma assumes a: "(\<And>s. P s \<Longrightarrow> (c s) \<le> SPECT Q)"
-  shows sp_refines1: "sp (emb P 0) c \<le> SPECT Q" 
-  apply(rule spI) 
-    apply (auto simp: emb'_def le_fun_def )
-    subgoal for s' s using a[of s] apply (auto simp: le_fun_def emb'_def split: nrest.splits)
-      subgoal for x2 x apply(cases "x2 s'") apply auto by metis
-      done
-    done
-
-lemma assumes a: "sp (emb P 0) c \<le> SPECT Q" and P: "P s"
-  shows sp_refines2: "(c s) \<le> SPECT Q" 
-proof -    
-  show ?thesis
-    using spD[OF a, where s=s] P    apply (auto simp: emb'_def)
-    apply(cases "c s") apply (auto simp add: emb'_def le_fun_def)
-  proof (goal_cases)
-    case (1 x2 x)
-    from 1(1)[of x]
-      show ?case apply(cases "x2 x") by (auto split: if_splits)  
-    qed
-  qed 
-
-lemma sp_refines: "(\<forall>s. P s \<longrightarrow> (c s) \<le> SPECT Q) \<longleftrightarrow>  sp (emb P 0) c \<le> SPECT Q" 
-  by(auto intro: sp_refines1 sp_refines2) 
-
-lemma wpI: "(\<And>s s'. P s \<le> mii Q (c s) s' ) \<Longrightarrow> P \<le> wp Q c"
-  unfolding wp_def lst_def apply(auto simp add: le_fun_def)
-  apply(rule Inf_greatest) by auto
-
-lemma f: "a + b \<le> a' \<Longrightarrow> \<not> a' < a \<Longrightarrow> b \<le> a' - (a::enat)"
-  apply(cases a; cases b; cases a') by auto
-
-lemma g: "\<not> a < a' \<Longrightarrow> b \<le> a - a' \<Longrightarrow> a' + b \<le> (a::enat)"
-  apply(cases a; cases b; cases a') by auto
-
-lemma [simp]: "Someplus t None s' = Map.empty" 
-  by (cases t; simp) 
-
-lemma Someplus_mii_conv: "Someplus (M s) t s \<le> Q \<longleftrightarrow> t \<le> mii Q (SPECT M) s"
-  apply(cases t) 
-    apply(auto simp:   mii_alt mm2_def le_fun_def split: if_splits option.splits )
-    subgoal using dual_order.strict_trans2 by fastforce 
-    subgoal by(simp add: f)
-    subgoal by(simp add: g)
-    done
-
-lemma wpD: assumes "P \<le> wp Q c" 
-  shows "(\<And>s s'. P s \<le> mii Q (c s) s' )"
-  using assms unfolding wp_def lst_def by(auto simp add: le_fun_def le_Inf_iff) 
+lemma FAILT_SUP: "(FAILT \<in> X) \<Longrightarrow> Sup X = FAILT " by (simp add: nrest_Sup_FAILT)
  
-
-lemma sp_wp: "(sp P c \<le> SPECT Q) \<longleftrightarrow> P \<le> wp Q c"
-  apply(rule)
-  subgoal  apply(rule wpI) subgoal for s s' apply(drule spD[where s=s and s'=s'])
-    by(auto simp: Someplus_mii_conv split: option.splits nrest.splits)
-  done
-  subgoal  apply(rule spI) subgoal for s' s  apply(drule wpD[where s=s and s'=s'])
-    apply(auto simp: Someplus_mii_conv split: option.splits nrest.splits)
-    by(auto simp: miiFailt  le_fun_def less_eq_option_None_is_None) 
-  done
-  done
-
-thm T_bindT
-term "bindT m c"
-term wp
-
-lemma "wp Q (%_. bindT m c) = wp (wp Q c) (\<lambda>_. m)"
-  unfolding wp_def T_bindT by simp
-
-thm T_RETURNT
-
-lemma "wp Q RETURNT = Q"
-  unfolding wp_def T_RETURNT by simp
-
-lemma "wp Q (\<lambda>_. RETURNT x) = (\<lambda>_. Q x)"
-  unfolding wp_def T_RETURNT by simp
-
-lemma "wp Q (\<lambda>s. SPECT (f s))  = foo"
-  unfolding wp_def unfolding lst_def mii_alt apply(rule)
-    apply (simp add:  ) oops
-    
-
-
-text \<open>I think strongest postcondition does not make any sense here,
-because the nondeterminism monad does not have a state on which predicates might work.
-so there is no real precondition,.
-only a post condition: a condition on the result of the computation,
-for this one can compute a weakest precondition, meaning, what has to hold
-in order to imply that the computation establishes a specified result\<close>
-
-definition "spp PP c = (case PP of FAILi \<Rightarrow> FAILi |
-                                SPECT P \<Rightarrow>
-                          Sup {
-                          Sup {  (case P s of None \<Rightarrow> SPECT Map.empty |
-                                      Some t \<Rightarrow> (case c s of FAILi \<Rightarrow> FAILi |
-                                                    SPECT M \<Rightarrow> SPECT (Someplus (M s') (P s) s')) ) 
-                             |s. True}| s'. True })"
-
-lemma l: "spp (SPECT P) c = sp P c" unfolding spp_def sp_def by simp 
-
-thm sp_refines[no_vars]
-lemma "(\<forall>s. P s \<longrightarrow> c s \<le> SPECT Q) = (spp (SPECT (emb P 0)) c \<le> SPECT Q)"
-  unfolding l by (rule sp_refines)
-
-lemma spp_wp: "(spp (SPECT P) c \<le> SPECT Q) \<longleftrightarrow> P \<le> wp Q c"
-  unfolding l by (rule sp_wp)
-
-lemma [simp]: "SPECT Map.empty \<le> a" apply(cases a) apply auto subgoal for x2 by(auto simp: le_fun_def)
-  done
-
-lemma kla: "(FAILT \<in> X) \<Longrightarrow> Sup X = FAILT " by (simp add: nrest_Sup_FAILT)
-
-
-(*
-lemma "spp (SPECT (emb P 0)) (\<lambda>s. RETURNT (f s)) = foo"
-  unfolding spp_def apply (auto simp: emb'_def RETURNT_def)
-  unfolding Sup_nrest_def apply auto 
-  apply(rule ext)apply auto
-  unfolding Sup_fun_def
-   defer unfolding SUP_eq_None_iff apply auto oops *)
-
-
-lemma "spp P (%_. bindT m c) = spp (spp P (\<lambda>_. m)) c"
-  apply (rule antisym)
-  subgoal  unfolding spp_def 
-    apply(cases P) apply simp
-    apply simp unfolding Sup_le_iff apply auto unfolding Sup_le_iff
-    apply auto apply(auto split: option.splits)
-    apply(cases m) apply simp
-     apply(subst (3) kla) apply auto
-    oops
 
 subsection "some Monadic Refinement Automation"
 

@@ -11,8 +11,8 @@ context
 begin
   definition "mop_plus a b =SPECT [a +  b \<mapsto> t]"
 
-  lemma mop_plus: "\<And>tt. tt \<le> TTT Q (SPECT [ a +  b \<mapsto> t]) \<Longrightarrow> tt
-           \<le> TTT Q (mop_plus a b)" unfolding mop_plus_def by simp 
+  lemma mop_plus: "\<And>tt. tt \<le> lst (SPECT [ a +  b \<mapsto> t]) Q \<Longrightarrow> tt
+           \<le> lst (mop_plus a b) Q" unfolding mop_plus_def by simp 
  
   sepref_register "mop_plus" 
   print_theorems 
@@ -33,8 +33,8 @@ context
 begin
   definition "mop_min a b =SPECT [min a b \<mapsto> t]"
 
-  lemma mop_min: "\<And>tt. tt \<le> TTT Q (SPECT [ min a b \<mapsto> t]) \<Longrightarrow> tt
-           \<le> TTT Q (mop_min a b)" unfolding mop_min_def by simp 
+  lemma mop_min: "\<And>tt. tt \<le> lst (SPECT [ min a b \<mapsto> t]) Q \<Longrightarrow> tt
+           \<le> lst (mop_min a b) Q" unfolding mop_min_def by simp 
  
   sepref_register "mop_min" 
   print_theorems 
@@ -56,8 +56,8 @@ context
 begin
   definition "mop_swap e =SPECT [prod.swap e \<mapsto> t]"
 
-  lemma mop_swap: "\<And>tt. tt \<le> TTT Q (SPECT [ prod.swap e \<mapsto> t]) \<Longrightarrow> tt
-           \<le> TTT Q (mop_swap e)" unfolding mop_swap_def by simp 
+  lemma mop_swap: "\<And>tt. tt \<le> lst (SPECT [ prod.swap e \<mapsto> t]) Q \<Longrightarrow> tt
+           \<le> lst (mop_swap e) Q" unfolding mop_swap_def by simp 
  
   sepref_register "mop_swap" 
   print_theorems 

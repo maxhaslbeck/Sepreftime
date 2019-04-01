@@ -21,8 +21,8 @@ context
 begin
   definition "mop_set_empty = SPECT [ {} \<mapsto> enat t ]"
 
-  lemma mop_set_empty: "tt \<le> TTT Q (SPECT [ {} \<mapsto> t ]) \<Longrightarrow> tt
-           \<le> TTT Q (mop_set_empty)" unfolding mop_set_empty_def by simp
+  lemma mop_set_empty: "tt \<le> lst (SPECT [ {} \<mapsto> t ]) Q \<Longrightarrow> tt
+           \<le> lst (mop_set_empty) Q" unfolding mop_set_empty_def by simp
 
   sepref_register "mop_set_empty" 
   print_theorems 
@@ -34,8 +34,8 @@ context
 begin
   definition "mop_set_isempty S = SPECT [ S={} \<mapsto> t S ]"
 
-  lemma  mop_set_isempty: "tt \<le> TTT Q (SPECT [ S={} \<mapsto> t S ]) 
-        \<Longrightarrow> tt \<le> TTT Q (mop_set_isempty S)" unfolding mop_set_isempty_def by simp
+  lemma  mop_set_isempty: "tt \<le> lst (SPECT [ S={} \<mapsto> t S ])  Q
+        \<Longrightarrow> tt \<le> lst (mop_set_isempty S) Q" unfolding mop_set_isempty_def by simp
  
   sepref_register "mop_set_isempty" 
   print_theorems 
@@ -47,8 +47,8 @@ context
 begin
   definition "mop_set_pick S = do { ASSERT (S\<noteq>{}); SPECT (emb (\<lambda>x. x\<in>S) (t S)) }"
 
-  lemma  mop_set_pick: "tt \<le> TTT Q (SPECT (emb (\<lambda>x. x\<in>S) (t S))) 
-        \<Longrightarrow> S \<noteq> {} \<Longrightarrow> tt \<le> TTT Q (mop_set_pick S)" unfolding mop_set_pick_def by simp
+  lemma  mop_set_pick: "tt \<le> lst (SPECT (emb (\<lambda>x. x\<in>S) (t S)))  Q
+        \<Longrightarrow> S \<noteq> {} \<Longrightarrow> tt \<le> lst (mop_set_pick S) Q" unfolding mop_set_pick_def by simp
 
   thm progress_rules
 
@@ -64,8 +64,8 @@ context
 begin
   definition "mop_set_pick_extract S = do { ASSERT (S\<noteq>{}); SPECT (emb (\<lambda>(x,C). x\<in>S \<and> C=S-{x}) (t S)) }"
 
-  lemma  mop_set_pick_extract: "tt \<le> TTT Q (SPECT (emb (\<lambda>(x,C). x\<in>S \<and> C=S-{x}) (t S))) 
-        \<Longrightarrow> S \<noteq> {} \<Longrightarrow> tt \<le> TTT Q (mop_set_pick_extract S)" unfolding mop_set_pick_extract_def by simp
+  lemma  mop_set_pick_extract: "tt \<le> lst (SPECT (emb (\<lambda>(x,C). x\<in>S \<and> C=S-{x}) (t S))) Q
+        \<Longrightarrow> S \<noteq> {} \<Longrightarrow> tt \<le> lst (mop_set_pick_extract S) Q" unfolding mop_set_pick_extract_def by simp
 
   thm progress_rules
 
@@ -93,8 +93,8 @@ context
 begin
   definition "mop_set_del S x = SPECT [ S - {x} \<mapsto> (t S)]"
 
-  lemma  mop_set_del: "tt \<le> TTT Q (SPECT [ S - {x} \<mapsto> (t S)]) 
-        \<Longrightarrow> tt \<le> TTT Q (mop_set_del S x)" unfolding mop_set_del_def by simp
+  lemma  mop_set_del: "tt \<le> lst (SPECT [ S - {x} \<mapsto> (t S)])  Q
+        \<Longrightarrow> tt \<le> lst (mop_set_del S x) Q" unfolding mop_set_del_def by simp
 
 
   lemma progress_mop_set_del[progress_rules]: "t S > 0 \<Longrightarrow> progress (mop_set_del S x)"
@@ -111,8 +111,8 @@ begin
 
   definition "mop_set_insert x S = SPECT [insert x S \<mapsto> t S]"
 
-  lemma mop_set_insert: "tt \<le> TTT Q (SPECT [ (insert x S) \<mapsto> t S]) \<Longrightarrow>
-         tt \<le> TTT Q (mop_set_insert x S)" unfolding mop_set_insert_def by simp
+  lemma mop_set_insert: "tt \<le> lst (SPECT [ (insert x S) \<mapsto> t S]) Q \<Longrightarrow>
+         tt \<le> lst (mop_set_insert x S) Q" unfolding mop_set_insert_def by simp
 
   sepref_register "mop_set_insert" 
   print_theorems 

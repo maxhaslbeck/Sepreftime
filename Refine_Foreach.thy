@@ -243,10 +243,10 @@ lemma nfoldliIE'_rule:
   assumes 
 "\<And>x l1 l2 \<sigma>.
     l0 = l1 @ x # l2 \<Longrightarrow>
-    I l1 (x # l2) \<sigma> \<Longrightarrow> Some 0 \<le> TTT (emb (I (l1 @ [x]) l2) (enat body_time)) (f x \<sigma>)"
+    I l1 (x # l2) \<sigma> \<Longrightarrow> Some 0 \<le> lst (f x \<sigma>) (emb (I (l1 @ [x]) l2) (enat body_time))"
 "I [] l0 \<sigma>0"
 "(\<And>\<sigma>. I l0 [] \<sigma> \<Longrightarrow> Some (t + enat (body_time * length l0)) \<le> Q \<sigma>)"
-shows "Some t \<le> TTT Q (nfoldliIE' I body_time l0 f \<sigma>0)"
+shows "Some t \<le> lst (nfoldliIE' I body_time l0 f \<sigma>0) Q"
   unfolding nfoldliIE'_def
   apply(rule nfoldliIE_rule[where P="I l0 []" and c="\<lambda>_. True" and t="body_time * length l0", THEN T_specifies_rev, THEN T_conseq4])
        apply fact

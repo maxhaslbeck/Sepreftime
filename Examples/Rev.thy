@@ -13,8 +13,8 @@ begin
   lemma progress_mop_append[progress_rules]: "t xs > 0 \<Longrightarrow> progress (mop_append x xs)"
       unfolding mop_append_def by (progress\<open>simp add:   zero_enat_def\<close>) 
 
-  lemma mop_append: "tt \<le> TTT Q (SPECT [ (x#xs) \<mapsto> t xs]) \<Longrightarrow> tt
-           \<le> TTT Q (mop_append x xs)" unfolding mop_append_def by simp
+  lemma mop_append: "tt \<le> lst (SPECT [ (x#xs) \<mapsto> t xs]) Q \<Longrightarrow> tt
+           \<le> lst (mop_append x xs) Q" unfolding mop_append_def by simp
 
   sepref_register "mop_append" 
 end

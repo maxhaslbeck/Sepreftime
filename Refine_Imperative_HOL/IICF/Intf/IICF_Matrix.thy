@@ -42,8 +42,8 @@ context
 begin
   definition "mop_matrix_get (m::_ mtx) e = SPECT [m e \<mapsto> t]"
 
-  lemma matrix_get: "\<And>tt. tt \<le> TTT Q (SPECT [ m e \<mapsto> t]) \<Longrightarrow> tt
-           \<le> TTT Q (mop_matrix_get m e)" unfolding mop_matrix_get_def by simp 
+  lemma matrix_get: "\<And>tt. tt \<le> lst (SPECT [ m e \<mapsto> t]) Q \<Longrightarrow> tt
+           \<le> lst (mop_matrix_get m e) Q" unfolding mop_matrix_get_def by simp 
 
 
   lemma progress_mop_matrix_get[progress_rules]: "t > 0 \<Longrightarrow> progress (mop_matrix_get m e)"
@@ -70,8 +70,8 @@ context
 begin
   definition "mop_matrix_set (m::'b mtx) e v = SPECT [m(e:=v) \<mapsto> t]"
 
-  lemma matrix_set: "\<And>tt. tt \<le> TTT Q (SPECT [ m(e:=v) \<mapsto> t]) \<Longrightarrow> tt
-           \<le> TTT Q (mop_matrix_set m e v)" unfolding mop_matrix_set_def by simp 
+  lemma matrix_set: "\<And>tt. tt \<le> lst (SPECT [ m(e:=v) \<mapsto> t]) Q \<Longrightarrow> tt
+           \<le> lst (mop_matrix_set m e v) Q" unfolding mop_matrix_set_def by simp 
  
   sepref_register "mop_matrix_set" 
   print_theorems 
