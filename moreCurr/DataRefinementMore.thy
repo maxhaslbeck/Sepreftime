@@ -259,7 +259,7 @@ lemma conc_abs_swap: "m' \<le> \<Down>R m \<longleftrightarrow> \<Up>R m' \<le> 
       apply(auto)
       apply(simp only: Sup_sv)
        
-      by (metis (mono_tags, lifting) Sup_le_iff mem_Collect_eq)
+      by (me tis (mono_tags, lifting) Sup_le_iff mem_Collect_eq)
     done
   done
 

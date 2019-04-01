@@ -1313,6 +1313,23 @@ lemma enat_add_cont':
   by (auto intro: Sup_least add_mono Sup_upper) 
 
 
+lemma enat_add_cont_not: 
+  shows "~(\<forall>f g B. (SUP b:B. (f::(enat\<Rightarrow>enat)) b) + (SUP b:B. g b) \<le> (SUP b:B. f b + g b))"   
+proof -
+  let ?B = "{0::enat, 1}"
+  let ?f = "\<lambda>x. x::enat"
+  let ?g = "\<lambda>x. 1-x" 
+
+  have "\<exists>f g B. \<not>(SUP b:B. (f::(enat\<Rightarrow>enat)) b) + (SUP b:B. g b) \<le> (SUP b:B. f b + g b)"
+    apply(rule exI[where x="?f"])
+    apply(rule exI[where x="?g"])
+    apply(rule exI[where x="?B"])
+    apply (auto simp: zero_enat_def sup_enat_def one_enat_def)
+    done
+  then show ?thesis by blast
+qed
+
+
 lemma enat_add_cont:
   fixes f g :: "'a \<Rightarrow> enat"
   shows "(SUP b:B. f b) + (SUP b:B. g b) \<le> (SUP b:B. f b + g b)" 
