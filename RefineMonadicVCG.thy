@@ -763,7 +763,7 @@ lemma SPECT_ub': "T\<le>T' \<Longrightarrow> SPECT (emb' M' T) \<le> \<Down>Id (
 
 
 lemma REST_single_rule[vcg_simp_rules]: "Some t \<le> lst (REST [x\<mapsto>t']) Q \<longleftrightarrow> Some (t+t') \<le> (Q x)"
-  by (simp add: T_REST aux1')
+  by (simp add: T_REST aux1)
 
 thm T_pw refine_pw_simps
 
