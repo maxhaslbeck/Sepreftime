@@ -7,13 +7,13 @@ Setup:
 
 Check theories:
 
-0) navigate to /path/to/folder/Sepreftime
+0) navigate to /path/to/folder/Sepreftime/Sepreftime
 1) /path/to/Isabelle2018/bin/isabelle build -D .
-
+Building the theories may take a while. But beware to not build from the root folder of the archive (where the README resides) but from within the /Sepreftime subfolder!
 
 Browse theories:
 
-0) navigate to /path/to/folder/Sepreftime
-1) /path/to/Isabelle2018/bin isabelle jedit -l SeprefTime_Base Examples/Examples.thy
+0) navigate to /path/to/folder/Sepreftime/Sepreftime
+1) /path/to/Isabelle2018/bin/isabelle jedit -l SeprefTime_Base Examples/Examples.thy
 
 
