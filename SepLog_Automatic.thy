@@ -740,6 +740,15 @@ end; \<open>struct\<close>
 
 
 \<close> 
+method_setup vcgba = {* 
+  Scan.lift (Args.mode "ss") --
+  Method.sections Seplogic_Auto.vcg_modifiers >>
+  (fn (ss,_) => fn ctxt => SIMPLE_METHOD' (
+  CHANGED o (
+    if ss then Seplogic_Auto.vcg_step_tac ctxt 
+    else Seplogic_Auto.vcg_tac ctxt
+  )
+)) *} "Seplogic: Verification Condition Generator"
 
 
 

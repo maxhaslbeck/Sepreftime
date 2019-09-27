@@ -709,11 +709,13 @@ partial_function (heap) uf_rep_of :: "nat array \<Rightarrow> nat \<Rightarrow> 
     if n=i then return i else uf_rep_of p n
   }"
 
+lemma root_height_of_zero: "ufa_invar l \<Longrightarrow> i < length l \<Longrightarrow> l ! i = i  \<Longrightarrow>  height_of l i =0"  
+    using h_rep rep_of_iff by fastforce   
 
 lemma uf_rep_of_rule: "\<lbrakk>ufa_invar l; i<length l\<rbrakk> \<Longrightarrow>
   <p\<mapsto>\<^sub>al * $(height_of l i + 2)> uf_rep_of p i <\<lambda>r. p\<mapsto>\<^sub>al * \<up>(r=rep_of l i)>\<^sub>t"
   apply (induct rule: rep_of_induct)
-  apply (subst uf_rep_of.simps)
+   apply (subst uf_rep_of.simps)   
   apply (sep_auto simp: rep_of_refl)
 
   apply (subst uf_rep_of.simps)
