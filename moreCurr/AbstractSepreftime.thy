@@ -2181,9 +2181,10 @@ lemma helper': "x2 \<le> x2a \<Longrightarrow> a \<le> x2 \<Longrightarrow> a \<
 
 thm diff_right_mono
 
+(*
 lemma helper'': "x2 \<le> x2a \<Longrightarrow> a \<le> x2 \<Longrightarrow> a \<le> x2a \<Longrightarrow>  x2 - (a::(enat)) \<le> x2a - a"
   using diff_right_mono[where a=a]  oops
-
+*)
   
 (*
 class whatineed = minus + order +
@@ -2948,7 +2949,7 @@ lemma limit_mii_f: "mii_f Q M x \<noteq> None \<Longrightarrow> limitO b (mii_f 
   done
 
 
-lemma "T_f Q M \<noteq> None
+lemma aaa: "T_f Q M \<noteq> None
      \<Longrightarrow> limitO b (T_f Q M) = T (limitT b Q) (limit b M)"
   unfolding T_f_def T_def 
   unfolding limitO_Inf
@@ -2973,12 +2974,103 @@ lemma fa: "(a::enat option)\<le>b \<longleftrightarrow> (\<forall>t. t\<le>a \<l
 lemma faa: "(a::('a\<Rightarrow>enat) option)\<le>b \<longleftrightarrow> (\<forall>t. t\<le>a \<longrightarrow> t\<le>b)"
   using dual_order.trans by blast
 
+
+
 lemma T_f_bindT: "T_f Q (bindT M f) = T_f (\<lambda>y. T_f Q (f y)) M"
   apply(rule antisym)
   subgoal apply(subst faa)
     unfolding T_f_componentwise apply safe
     subgoal for t b x apply(cases t) apply (simp add: limitO_def)
       oops
+
+
+thm T_f_by_T
+lemma a: "limitO b (T_f Q (M \<bind> f)) = T (limitOF b Q) (limit b M \<bind> (\<lambda>y. limit b (f y)))"
+  sorry
+
+lemma "mii Q M x \<le> mii Q' M x"
+  unfolding mii_def apply(auto split: nrest.splits)
+  
+  
+  sorry
+
+lemma T_mono: "Q\<le>Q' \<Longrightarrow> T Q M \<le> T Q' M" 
+  apply(rule pw_T_le) unfolding nres3_def mii_def
+  apply(auto split: nrest.splits )
+    subgoal apply(rule order.trans[OF _ mm_mono[of Q]])
+        by (auto simp: le_fun_def)
+    subgoal apply(rule order.trans[OF _ mm_mono[of Q]])
+      by (auto simp: le_fun_def)
+    done
+
+lemma "limitT b (\<lambda>y. T_f Q (f y)) = (\<lambda>y. T (limitOF b Q) (limit b (f y)))"
+  apply(rule ext)
+  unfolding limitT_def
+  apply(auto split: option.splits)
+  subgoal 
+  using aaa
+
+  unfolding T_f_def T_def limitT_def apply(rule ext) apply auto
+    sorry
+  oops
+
+  thm pw_bindT_nofailTf'
+
+lemma T_f_bindT: "T_f Q (bindT M f) = T_f (\<lambda>y. T_f Q (f y)) M"
+proof -
+  assume "T_f Q (bindT M f) = None" 
+  
+
+  apply(rule antisym)
+  subgoal apply(subst T_f_by_T)
+    apply(subst a)
+    apply(subst T_bindT) 
+    apply safe 
+    apply(rule T_mono)
+    sorry
+  oops
+*) 
+lemma T_snd_FAILT: " T Q FAILT = None"
+  unfolding T_def by (auto simp: miiFailt)
+
+lemma aaI: "\<forall>b. limitO b f \<le> limitO b g \<Longrightarrow> f\<le> g"
+  unfolding limitO_def limitF_def 
+  apply(cases f; cases g) by(auto simp: le_fun_def split: option.splits)
+
+
+lemma T_f_specifies_I: "T_f Q m \<ge> Some 0 \<Longrightarrow> (m \<le> SPECT Q)" 
+  apply(subst (asm) T_f_by_T)
+  apply(cases m) apply (simp add: T_snd_FAILT limitO_def ) apply simp
+  apply(rule le_funI)
+  apply(rule aaI) 
+  apply safe
+proof (goal_cases)
+  case (1 x2 x b)
+  then have "limitO b (Some 0) \<le> T (limitT b Q) (limit b (SPECT x2))" by simp
+  then have "Some 0 \<le> mii (limitT b Q) (limit b (SPECT x2)) x" by(auto simp: limitO_def limitF_def T_pw )
+  then have P: "\<And>y. x2 x=Some y \<Longrightarrow> Some (y b) \<le> limitT b Q x"
+    unfolding mii_alt limit_def by (auto simp add: aux1)
+
+  show ?case
+    apply(cases "x2 x")
+     apply (simp add: limitO_def)
+    using P  apply (auto simp add: limitO_def limitF_def limitT_def split: option.splits)
+    apply(cases "Q x") by auto  
+qed 
+
+
+lemma T_specifies_rev: "(m \<le> SPECT Q) \<Longrightarrow> T_f Q m \<ge> Some 0" 
+  apply(subst T_f_by_T)
+  apply(cases m) apply (simp add: T_snd_FAILT limitO_def )  
+  apply(simp add: T_pw limitO_def limitF_def mii_alt limit_def ) 
+  apply (auto split: option.splits simp: aux1 limitT_def le_fun_def )
+  subgoal 
+    by (metis less_eq_option_None_is_None) 
+  subgoal 
+    by (metis le_fun_def less_eq_option_Some) 
+  done 
+
+
 
 
 

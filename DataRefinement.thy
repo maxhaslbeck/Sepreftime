@@ -168,7 +168,7 @@ lemma Sup_enatoption_less2: " Sup X = Some \<infinity> \<Longrightarrow> (\<exis
 
 lemma pw_conc_inres[refine_pw_simps]:
   "inresT (\<Down>R S') s t = (nofailT S' 
-  \<longrightarrow> ((\<exists>s'. (s,s')\<in>R \<and> inresT S' s' t) (* \<and> (\<forall>s' t'. (s,s')\<in>R \<longrightarrow> inresT S' s' t' \<longrightarrow> t' \<le> t ) *) ))"
+  \<longrightarrow> ((\<exists>s'. (s,s')\<in>R \<and> inresT S' s' t) \<comment> \<open> \<and> (\<forall>s' t'. (s,s')\<in>R \<longrightarrow> inresT S' s' t' \<longrightarrow> t' \<le> t )\<close> ))"
   apply (cases S')
   subgoal by simp
   subgoal  for m'
@@ -456,7 +456,7 @@ lemma SPECT_refines_conc_fun:
 
 lemma SPECT_refines_conc_fun_sv:
   assumes "single_valued R" 
-    and a: "dom n \<subseteq> Domain R"
+    and a: "dom n \<subseteq> Domain R"                                                
     and "\<And>c. c \<in> dom n \<Longrightarrow> n c \<le> (THE a. (c,a)\<in>R)"
   shows "SPECT n \<le> \<Down> R (SPECT m)"
   apply(rule SPECT_refines_conc_fun') using a

@@ -1160,10 +1160,10 @@ begin
 definition P where "P f g = bindT f (\<lambda>x. bindT g (\<lambda>y. RETURNT (x+(y::nat))))"
 
 lemma assumes
-  f_spec[vcg_rules]: "lst f ( emb' (\<lambda>x. x > 2) (enat o (( *) 2)) ) \<ge> Some 0"
+  f_spec[vcg_rules]: "lst f ( emb' (\<lambda>x. x > 2) (enat o ((*) 2)) ) \<ge> Some 0"
 and 
   g_spec[vcg_rules]: "lst g ( emb' (\<lambda>x. x > 2) (enat) ) \<ge> Some 0"
-shows "lst (P f g) ( emb' (\<lambda>x. x > 5) (enat o ( *) 3) ) \<ge> Some 0"
+shows "lst (P f g) ( emb' (\<lambda>x. x > 5) (enat o (*) 3) ) \<ge> Some 0"
 proof -
   have ?thesis
     unfolding P_def
@@ -1401,7 +1401,7 @@ shows "Some 0 \<le> lst (whileIET I E b C s0) (\<lambda>x. if b x then None else
 section "some Monadic Refinement Automation"
 
 
-ML {*
+ML \<open>
 structure Refine = struct
 
   structure vcg = Named_Thms
@@ -1460,7 +1460,7 @@ structure Refine = struct
          
 
 end;
-*}
+\<close>
 setup {* Refine.vcg.setup *}
 setup {* Refine.vcg_cons.setup *}
 setup {* Refine.refine0.setup *}
@@ -1472,7 +1472,7 @@ method_setup refine_rcg =
   {* Attrib.thms >> (fn add_thms => fn ctxt => SIMPLE_METHOD' (
     Refine.rcg_tac add_thms ctxt THEN_ALL_NEW_FWD (TRY o Refine.post_tac ctxt)
   )) *} 
-  "Refinement framework: Generate refinement conditions"
+  "Refinement framework: Generate refinement conditions"     
 
 method_setup refine_vcg = 
   {* Attrib.thms >> (fn add_thms => fn ctxt => SIMPLE_METHOD' (
