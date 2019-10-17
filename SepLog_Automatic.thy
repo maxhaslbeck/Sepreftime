@@ -247,25 +247,6 @@ lemma frame_inference_finalize:
   apply assumption
   done
 
-subsection {* Entailment Solver *}
-lemma entails_solve_init:
-  "FI_QUERY P (Q*$T) true \<Longrightarrow> P \<Longrightarrow>\<^sub>A Q * true * $T"
-  "FI_QUERY P Q true \<Longrightarrow> P \<Longrightarrow>\<^sub>A Q * true"
-  "FI_QUERY P Q emp \<Longrightarrow> P \<Longrightarrow>\<^sub>A Q"
-    apply (simp_all add: mult.assoc )   
-  by (simp add:  mult.commute)  
-
-lemma entails_solve_finalize:
-  "FI_RESULT M P emp true"
-  "FI_RESULT M emp emp emp"
-  by (auto simp add: fi_match_entails intro: ent_star_mono)
-
-
-named_theorems sep_dflt_simps "Seplogic: Default simplification rules for automated solvers"
-named_theorems sep_eintros "Seplogic: Intro rules for entailment solver"
-named_theorems sep_heap_rules "Seplogic: VCG heap rules"
-named_theorems sep_decon_rules "Seplogic: VCG deconstruct rules"
-
 
 
 subsection {* Frame Inference *}
@@ -282,6 +263,7 @@ lemma timeframe_inference_init:
   using assms apply (simp add: time_credit_add mult.assoc)
   apply(rotater) apply rotater apply rotatel apply rotatel apply(rule match_first)  apply rotatel apply (rule match_first)
   .
+
 lemma timeframe_inference_init_normalize:
  "emp * $T\<Longrightarrow>\<^sub>A F * $T' \<Longrightarrow> $T\<Longrightarrow>\<^sub>A F * $T'"
   by auto
@@ -289,6 +271,33 @@ lemma timeframe_inference_init_normalize:
 
 lemma dollarD: "a = b \<Longrightarrow> $a \<Longrightarrow>\<^sub>A $b"
   by simp
+
+subsection {* Entailment Solver *}
+lemma entails_solve_init:
+  "FI_QUERY P (Q*$T) true \<Longrightarrow> P \<Longrightarrow>\<^sub>A Q * true * $T"
+  "FI_QUERY P Q true \<Longrightarrow> P \<Longrightarrow>\<^sub>A Q * true"
+  "FI_QUERY P Q emp \<Longrightarrow> P \<Longrightarrow>\<^sub>A Q"
+    apply (simp_all add: mult.assoc )   
+  by (simp add:  mult.commute)  
+
+lemma entails_solve_init_time:
+  "FI_QUERY P (Q) true \<Longrightarrow> TI_QUERY T T' FT \<Longrightarrow>  P * $T \<Longrightarrow>\<^sub>A Q * true * $T'"
+  apply simp 
+    by (smt ent_star_mono gc_time le_add1 linordered_field_class.sign_simps(5) linordered_field_class.sign_simps(6) merge_true_star_ctx) 
+
+
+lemma entails_solve_finalize:
+  "FI_RESULT M P emp true"
+  "FI_RESULT M emp emp emp"
+  by (auto simp add: fi_match_entails intro: ent_star_mono)
+
+
+named_theorems sep_dflt_simps "Seplogic: Default simplification rules for automated solvers"
+named_theorems sep_eintros "Seplogic: Intro rules for entailment solver"
+named_theorems sep_heap_rules "Seplogic: VCG heap rules"
+named_theorems sep_decon_rules "Seplogic: VCG deconstruct rules"
+
+
 
 
 ML \<open>
@@ -574,17 +583,18 @@ struct
   (* Nat splitter  powerd by auto2   *)
   (***********************************)
 
-  fun mytac ctxt a b = let val _ = tracing (Syntax.string_of_term ctxt a);
+  fun mytac ctxt a b = let   val _ = tracing (Syntax.string_of_term ctxt a);
               val _ = tracing (Syntax.string_of_term ctxt b)
               val _ = tracing ("ole")
       val ths = map snd (SepTimeSteps.split_nat ctxt ([], (a, b))); 
       val _ = length ths
       val _ =  let fun print thm = tracing (Thm.string_of_thm ctxt thm)
           in map print ths end 
+      val ths = map snd (SepTimeSteps.split_nat ctxt ([], (a, b))); 
    in
-         (if length ths > 0 then let val _ = tracing "in" in (EqSubst.eqsubst_tac ctxt [1] ths 
+         (if length ths > 0 then  (EqSubst.eqsubst_tac ctxt [1] ths 
               THEN' FIRST' [ resolve_tac ctxt @{thms refl}, 
-                             SOLVED' (simp_tac (put_simpset HOL_ss ctxt  addsimps @{thms mult.commute})) ] ) 1 end else no_tac) end 
+                             SOLVED' (simp_tac (put_simpset HOL_ss ctxt  addsimps @{thms mult.commute})) ] ) 1  else no_tac) end 
 
   fun split_nat_tac ctxt = Subgoal.FOCUS_PARAMS (fn {context = ctxt, ...} => ALLGOALS (
         SUBGOAL (fn (t, _) => case Logic.strip_imp_concl t of
@@ -600,23 +610,28 @@ struct
   (***********************************)
 
   fun time_frame_inference_tac ctxt =
+  let val _ = tracing "what"
+  in
+    (fn _ => let val _ = tracing "aha0" in all_tac end)
+    THEN'
     TRY o resolve_tac ctxt @{thms timeframe_inference_init_normalize}
+    THEN' (fn _ => let val _ = tracing "aha1" in all_tac end)
     THEN' 
     resolve_tac ctxt @{thms timeframe_inference_init} 
     (* normal frame inference *)
     THEN' match_frame_tac (resolve_tac ctxt @{thms ent_refl}) ctxt
     THEN' resolve_tac ctxt @{thms frame_inference_finalize}
-
+    THEN' (fn _ => let val _ = tracing "aha2" in all_tac end)
     (* time_frame inference *) 
     THEN'  TRY o (EqSubst.eqsubst_tac ctxt [0] @{thms One_nat_def[symmetric]} ) 
     THEN'  TRY o (REPEAT_DETERM' (EqSubst.eqsubst_tac ctxt [0] @{thms Suc_eq_plus1} )) 
-
+    THEN' (fn _ => let val _ = tracing "aha" in all_tac end)
 
     THEN' (resolve_tac ctxt @{thms TI_QUERYD})
     THEN' SOLVED' (split_nat_tac ctxt)
  
     THEN' resolve_tac ctxt @{thms refl}  
-
+end
     ;
 
 
@@ -639,11 +654,7 @@ struct
     (TRY o REPEAT_ALL_NEW (match_tac ctxt @{thms ent_ex_preI}) THEN'
      resolve_tac ctxt [thm]) i st
   end;
-
-  fun print_tac ctxt i st =
-    let val _ = tracing ("..>");
-        val _ = tracing (Thm.string_of_thm ctxt st)
-    in all_tac st end
+ 
 
   fun atom_solve_tac ctxt = 
         FIRST' [ resolve_tac ctxt @{thms ent_refl},
@@ -660,14 +671,27 @@ struct
         (put_simpset HOL_ss ctxt addsimps @{thms solve_ent_preprocess_simps});
 
     val match_entails_tac =
+      FIRST' [
+
+      resolve_tac ctxt @{thms entails_solve_init_time} 
+      THEN' match_frame_tac (atom_solve_tac ctxt)  ctxt
+      THEN' resolve_tac ctxt @{thms entails_solve_finalize} 
+      THEN'  TRY o (EqSubst.eqsubst_tac ctxt [0] @{thms One_nat_def[symmetric]} ) 
+      THEN'  TRY o (REPEAT_DETERM' (EqSubst.eqsubst_tac ctxt [0] @{thms Suc_eq_plus1} )) 
+
+  
+      THEN' (resolve_tac ctxt @{thms TI_QUERYD})
+      THEN' SOLVED' (split_nat_tac ctxt),
+    
       resolve_tac ctxt @{thms entails_solve_init} 
       THEN' match_frame_tac (atom_solve_tac ctxt)  ctxt
-      THEN' resolve_tac ctxt @{thms entails_solve_finalize};
+      THEN' resolve_tac ctxt @{thms entails_solve_finalize}
+       ];
   in
     preprocess_entails_tac
     THEN' (TRY o
       REPEAT_ALL_NEW (match_tac ctxt (rev (Named_Theorems.get ctxt @{named_theorems sep_eintros}))))
-    THEN_ALL_NEW (print_tac ctxt THEN' dflt_tac ctxt THEN'                                             
+    THEN_ALL_NEW (  dflt_tac ctxt THEN'                                             
       TRY o (match_tac ctxt @{thms ent_triv} 
         ORELSE' resolve_tac ctxt @{thms ent_refl}
         ORELSE' match_entails_tac))
@@ -678,10 +702,10 @@ struct
   (* Verification Condition Generator*)
   (***********************************)
 
-  fun heap_rule_tac ctxt h_thms = let val _ = tracing "here heap_rule_tac" in
+  fun heap_rule_tac ctxt h_thms =  
     resolve_tac ctxt h_thms ORELSE' (
     resolve_tac ctxt @{thms fi_rule} THEN' (resolve_tac ctxt h_thms THEN_IGNORE_NEWGOALS
-    ( dflt_tac ctxt THEN'  time_frame_inference_tac ctxt) )) end;                                          
+    ( dflt_tac ctxt THEN'  time_frame_inference_tac ctxt) ))                                           
 
   (* Apply consequence rule if postcondition is not a schematic var *)
   fun app_post_cons_tac ctxt i st = 
@@ -705,27 +729,25 @@ struct
           FIRST' [resolve_tac ctxt d_thms, heap_rule_tac])) 
     ]))
   end; 
-  fun vcg_tac ctxt = REPEAT_DETERM' (print_tac ctxt THEN' vcg_step_tac ctxt)
+  fun vcg_tac ctxt = REPEAT_DETERM' (  vcg_step_tac ctxt)
                                           
-
-  fun print_tac2 s i st =
-    let val _ = tracing (s)
-    in all_tac st end
+ 
 
   (***********************************)
   (*        Automatic Solver         *)
   (***********************************)
 
-  fun sep_autosolve_tac do_pre do_post ctxt = let
+  fun sep_autosolve_tac do_pre do_post ctxt = let 
+    val _ = tracing ("ole")
     val pre_tacs = [
-      CHANGED o (print_tac2 "clarsimp" THEN' clarsimp_tac ctxt),
-      CHANGED o (print_tac2 "intros" THEN' REPEAT_ALL_NEW (match_tac ctxt @{thms ballI allI impI conjI}))
+      CHANGED o (clarsimp_tac ctxt),
+      CHANGED o (REPEAT_ALL_NEW (match_tac ctxt @{thms ballI allI impI conjI}))
     ];                                
     val main_tacs = [
       match_tac ctxt @{thms is_hoare_triple} THEN' CHANGED o vcg_tac ctxt,
       match_tac ctxt @{thms is_entails} THEN' CHANGED o solve_entails_tac ctxt
     ];                                                       
-    val post_tacs = [print_tac2 "auto" THEN' SELECT_GOAL (auto_tac ctxt)];
+    val post_tacs = [   SELECT_GOAL (auto_tac ctxt)];
     val tacs = (if do_pre then pre_tacs else [])
       @ main_tacs 
       @ (if do_post then post_tacs else []);
@@ -744,6 +766,15 @@ end; \<open>struct\<close>
 
 
 
+method_setup vcg = {* 
+  Scan.lift (Args.mode "ss") --
+  Method.sections Seplogic_Auto.vcg_modifiers >>
+  (fn (ss,_) => fn ctxt => SIMPLE_METHOD' (
+  CHANGED o (
+    if ss then Seplogic_Auto.vcg_step_tac ctxt 
+    else Seplogic_Auto.vcg_tac ctxt
+  )
+)) *} "Seplogic: Verification Condition Generator"
 
 method_setup sep_auto = 
   {* Scan.lift (Args.mode "nopre" -- Args.mode "nopost" -- Args.mode "plain") 
@@ -842,12 +873,7 @@ declare bind_rule [sep_decon_rules]
 lemma nth_rule'[sep_heap_rules]: "(i < length xs) \<Longrightarrow> <a \<mapsto>\<^sub>a xs * $ 1 > Array.nth a i <\<lambda>r. a \<mapsto>\<^sub>a xs * \<up> (r = xs ! i)>"
   apply(rule pre_rule[OF _ nth_rule]) by sep_auto
    
-lemma "<a \<mapsto>\<^sub>a (xs::nat list)  * $3 * \<up> (i < length xs)> 
-        do { n \<leftarrow> Array.nth a i;
-             m \<leftarrow> Array.nth a i;
-             return ( n+m ) }
-       <\<lambda>r. a \<mapsto>\<^sub>a xs * \<up> (r = 2 * (xs ! i))>"  
-  by (sep_auto simp: zero_time ) 
+
       
 declare new_rule [sep_heap_rules]
 thm new_rule
@@ -942,6 +968,12 @@ lemma "\<And>x. x \<mapsto>\<^sub>a replicate (N * M) 0 * timeCredit_assn ((M * 
   by (sep_auto) 
 
 
+lemma "\<And>x. x \<mapsto>\<^sub>a replicate (N * M) 0 * timeCredit_assn ((M * N * 9))  * timeCredit_assn (2) \<Longrightarrow>\<^sub>A x \<mapsto>\<^sub>a replicate (N * M) 0 * timeCredit_assn (Suc (Suc (9 * (N * M))))"
+  
+  apply(vcg (ss))
+  by (sep_auto)
+
+
 lemma prod_split_rule: "(\<And>a b. x = (a, b) \<Longrightarrow> <P> f a b <Q>) \<Longrightarrow> <P> case x of (a, b) \<Rightarrow> f a b <Q>"
   by(auto split: prod.split)
  
@@ -956,7 +988,15 @@ lemma If_rule[sep_decon_rules]: "(b \<Longrightarrow> <P> f <Q>) \<Longrightarro
 lemmas [sep_eintros] = impI conjI exI
 
     declare make_rule [sep_heap_rules]
+
  
+
+lemma "P * $4 \<Longrightarrow>\<^sub>A P * true * $3"
+    "P * $3 \<Longrightarrow>\<^sub>A P * true"
+    "P * Q *  $(f x * 4 + 3) \<Longrightarrow>\<^sub>A Q * P * true * $(f x * 4)"
+    "P * Q *  $(g y * 6 + f x * 4 + 3) \<Longrightarrow>\<^sub>A Q * P * true * $(g y * 2 + f x * 4)"
+  by solve_entails+
+
 
 
 end
