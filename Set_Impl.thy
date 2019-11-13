@@ -38,7 +38,7 @@ definition [rewrite]: "rbt_set_insert k b = rbt_insert k () b"
 lemma g[rewrite]: "card (keys_of M) + 1 = sizeM1 M"
      by (auto simp: sizeM1_def)
 
-setup {* fold del_prfstep_thm @{thms rbt_map_assn_def} *}  
+setup \<open>fold del_prfstep_thm @{thms rbt_map_assn_def}\<close>  
 
 declare [[print_trace]]
 thm rbt_insert_rule rbt_insert_rule'

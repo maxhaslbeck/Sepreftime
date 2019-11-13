@@ -20,7 +20,7 @@ begin
 
 
   definition new_liam :: "nat \<Rightarrow> (('a::{heap}) array_map \<times> 'b::{heap,zero} ref) Heap"  where
-    "new_liam n = do { a \<leftarrow> Array.new n None; s\<leftarrow>Ref.ref 0; return (a,s) } "
+    "new_liam n = do { a \<leftarrow> Array_Time.new n None; s\<leftarrow>Ref_Time.ref 0; return (a,s) } "
 
 lemma return_rule':
   "<$1> return x <\<lambda>r. \<up>(r = x)>" by auto2
@@ -76,11 +76,11 @@ thm sep_decon_rules
 
 definition update_liam where
     "update_liam m k v = do {
-          ov \<leftarrow> Array.nth (fst m) k;
-          a \<leftarrow> Array.upd k (Some v) (fst m);
+          ov \<leftarrow> Array_Time.nth (fst m) k;
+          a \<leftarrow> Array_Time.upd k (Some v) (fst m);
           (if ov = None then do {
-              s \<leftarrow> Ref.lookup (snd m);
-              Ref.update (snd m) (s+1);
+              s \<leftarrow> Ref_Time.lookup (snd m);
+              Ref_Time.update (snd m) (s+1);
               return (a,snd m)
             } else return (a, snd m))
         }
@@ -126,7 +126,7 @@ lemma mop_set_insert_rule[sepref_fr_rules]:
 
 
 definition dom_member_liam where
-    "dom_member_liam m k = do { f \<leftarrow> Array.nth (fst m) k; return (f \<noteq> None) }"
+    "dom_member_liam m k = do { f \<leftarrow> Array_Time.nth (fst m) k; return (f \<noteq> None) }"
 
 
 lemma dom_member_liam_rule: "k<n  \<Longrightarrow> <is_liam n M m * $2> dom_member_liam m k <\<lambda>r. is_liam n M m * \<up>(r\<longleftrightarrow>k\<in>dom M)  >\<^sub>t"
@@ -152,7 +152,7 @@ lemma mop_mem_set_rule[sepref_fr_rules]:
 
 
 definition nth_liam where
-    "nth_liam m k = do { f \<leftarrow> Array.nth (fst m) k; return (the f) }"
+    "nth_liam m k = do { f \<leftarrow> Array_Time.nth (fst m) k; return (the f) }"
 
 lemma nth_liam_rule: "k<n \<Longrightarrow> k \<in> dom M \<Longrightarrow> <is_liam n M m * $2> nth_liam m k <\<lambda>r. is_liam n M m * \<up>(r=the (M k))>\<^sub>t"
   unfolding nth_liam_def is_liam_def

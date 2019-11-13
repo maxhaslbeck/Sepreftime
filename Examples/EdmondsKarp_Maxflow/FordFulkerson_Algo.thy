@@ -4,7 +4,7 @@ imports
   Flow_Networks.Ford_Fulkerson EdmondsKarp_Maxflow.EdmondsKarp_Termination_Abstract
  (*  Maxflow_Lib.Refine_Add_Fofu *)
   "../../Refine_Imperative_HOL/Sepref"
-  "../../RefineMonadicVCG"
+  "NREST.RefineMonadicVCG"
 begin
  
 text \<open>In this theory, we formalize the abstract Ford-Fulkerson
@@ -43,7 +43,7 @@ text \<open>
   \<close>
 definition (in FoFu) "find_augmenting_spec f \<equiv> do {
     ASSERT (NFlow c s t f);
-    SELECT (%p. (* NPreflow.isAugmentingPath c s t f p \<and> *) special_info f p) (find_augmenting_time)
+    SELECT (%p. \<comment>\<open> NPreflow.isAugmentingPath c s t f p \<and> \<close> special_info f p) (find_augmenting_time)
   }"
 
 

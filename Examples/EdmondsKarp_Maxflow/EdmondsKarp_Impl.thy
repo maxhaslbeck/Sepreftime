@@ -77,7 +77,7 @@ begin
 
     sepref_decl_intf i_ps is "nat \<Rightarrow> nat list" 
 
-    definition (in -) "ps_get_imp psi u \<equiv> Array.nth psi u"
+    definition (in -) "ps_get_imp psi u \<equiv> Array_Time.nth psi u"
 
     sepref_register "ps_get_op" :: "i_ps \<Rightarrow> node \<Rightarrow> node list nrest"
 
@@ -99,7 +99,7 @@ begin
 
     abbreviation "am_init_time == (N+1::nat)"
 
-    lemma [sepref_fr_rules]: "(Array.make N, PR_CONST (init_ps am_init_time)) 
+    lemma [sepref_fr_rules]: "(Array_Time.make N, PR_CONST (init_ps am_init_time)) 
       \<in> (pure Id)\<^sup>k \<rightarrow>\<^sub>a is_am" 
       unfolding init_ps_def  
       apply sepref_to_hoare       

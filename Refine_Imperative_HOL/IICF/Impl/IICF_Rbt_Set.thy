@@ -1,6 +1,6 @@
 theory IICF_Rbt_Set
   imports "SepLogicTime_RBTreeBasic.RBTree_Impl" 
-      "../Intf/IICF_Set"  "../../../RefineMonadicVCG" "../../Sepref"
+      "../Intf/IICF_Set"  "NREST.RefineMonadicVCG" "NREST.NREST"
 begin
 
 hide_const R B
@@ -103,7 +103,7 @@ definition "rbt_map_isempty b = tree_is_empty b"
 lemma rbt_map_isempty_rule[hoare_triple]: "<rbt_map_assn M b * $1> rbt_map_isempty b <\<lambda>r. rbt_map_assn M b * \<up> (r \<longleftrightarrow> (M = empty_map))>\<^sub>t"
   by auto2
 
-setup {* fold del_prfstep_thm @{thms rbt_map_assn_def} *}   
+setup \<open>fold del_prfstep_thm @{thms rbt_map_assn_def}\<close>   
 
 
 

@@ -30,7 +30,7 @@ begin
 
 
   (*definition "mtx_new N M c \<equiv> do {
-    Array.make (N*M) (\<lambda>i. c (i div M, i mod M))
+    Array_Time.make (N*M) (\<lambda>i. c (i div M, i mod M))
   }"*)
 
 
@@ -77,9 +77,9 @@ lemma imp_for'_rule':
 
 
   definition "mtx_tabulate N M c \<equiv> do {
-    m \<leftarrow> Array.new (N*M) 0;
+    m \<leftarrow> Array_Time.new (N*M) 0;
     (_,_,m) \<leftarrow> imp_for' 0 (N*M) (\<lambda>k (i,j,m). do {
-      Array.upd k (c (i,j)) m;
+      Array_Time.upd k (c (i,j)) m;
       let j=j+1;
       if j<M then return (i,j,m)
       else return (i+1,0,m)
@@ -91,10 +91,10 @@ lemma imp_for'_rule':
   definition "amtx_copy \<equiv> array_copy"
 *)
 
-  definition [rewrite]: "amtx_dflt N M v = Array.make (N*M) (\<lambda>i. v)"
+  definition [rewrite]: "amtx_dflt N M v = Array_Time.make (N*M) (\<lambda>i. v)"
 
-  definition [rewrite]: "mtx_get M mtx e = Array.nth mtx (fst e * M + snd e)"
-  definition  [rewrite]: "mtx_set M mtx e v = Array.upd (fst e * M + snd e) v mtx"
+  definition [rewrite]: "mtx_get M mtx e = Array_Time.nth mtx (fst e * M + snd e)"
+  definition  [rewrite]: "mtx_set M mtx e v = Array_Time.upd (fst e * M + snd e) v mtx"
 
 
   lemma mtx_idx_unique_conv[simp]: 
@@ -496,7 +496,7 @@ context fixes N M :: nat
       unfolding op_mtx_set_def mtx_rel_def
       apply (rule frefI) apply parametricity by simp_all
 
-    lemma op_amtx_lin_get_aref: "(uncurry Array.nth, uncurry (RETURN oo PR_CONST op_amtx_lin_get)) \<in> [\<lambda>(_,i). i<N*M]\<^sub>a (is_amtx N M)\<^sup>k *\<^sub>a nat_assn\<^sup>k \<rightarrow> id_assn"  
+    lemma op_amtx_lin_get_aref: "(uncurry Array_Time.nth, uncurry (RETURN oo PR_CONST op_amtx_lin_get)) \<in> [\<lambda>(_,i). i<N*M]\<^sub>a (is_amtx N M)\<^sup>k *\<^sub>a nat_assn\<^sup>k \<rightarrow> id_assn"  
       apply sepref_to_hoare
       unfolding is_amtx_def     
       apply sep_auto
@@ -505,7 +505,7 @@ context fixes N M :: nat
   
     sepref_decl_impl amtx_lin_get: op_amtx_lin_get_aref by auto 
     
-    lemma op_amtx_lin_set_aref: "(uncurry2 (\<lambda>m i x. Array.upd i x m), uncurry2 (RETURN ooo PR_CONST op_amtx_lin_set)) \<in> [\<lambda>((_,i),_). i<N*M]\<^sub>a (is_amtx N M)\<^sup>d *\<^sub>a nat_assn\<^sup>k *\<^sub>a id_assn\<^sup>k \<rightarrow> is_amtx N M"  
+    lemma op_amtx_lin_set_aref: "(uncurry2 (\<lambda>m i x. Array_Time.upd i x m), uncurry2 (RETURN ooo PR_CONST op_amtx_lin_set)) \<in> [\<lambda>((_,i),_). i<N*M]\<^sub>a (is_amtx N M)\<^sup>d *\<^sub>a nat_assn\<^sup>k *\<^sub>a id_assn\<^sup>k \<rightarrow> is_amtx N M"  
     proof -
       have [simp]: "i < N * M \<Longrightarrow> \<not>(M \<le> i mod M)" for i
         by (cases "N = 0 \<or> M = 0") (auto simp add: not_le) 

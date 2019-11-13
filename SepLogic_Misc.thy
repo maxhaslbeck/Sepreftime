@@ -1,10 +1,10 @@
 theory SepLogic_Misc
-imports SepLog_Misc DataRefinement
+imports SepAuto_Time.SepLog_Misc NREST.DataRefinement
 begin
 
 
     
-subsection {* Relators *} 
+subsection \<open>Relators\<close> 
   
 definition nrest_rel where 
   nres_rel_def_internal: "nrest_rel R \<equiv> {(c,a). c \<le> \<Down>R a}"

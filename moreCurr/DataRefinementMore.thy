@@ -2,7 +2,7 @@ theory DataRefinementMore
 imports AbstractSepreftime
 begin
 
-subsection {* Data Refinement *}
+subsection \<open>Data Refinement\<close>
 
 
 lemma "{(1,2),(2,4)}``{1,2}={2,4}" by auto
@@ -493,7 +493,7 @@ lemma conc_trans_sv:
   shows "C \<le> \<Down>R (\<Down>R' A)"
   using assms by (fastforce simp: pw_le_iff refine_pw_simps)
 
-text {* WARNING: The order of the single statements is important here! *}
+text \<open>WARNING: The order of the single statements is important here!\<close>
 lemma conc_trans_additional[trans]:
   assumes "single_valued R"
   shows

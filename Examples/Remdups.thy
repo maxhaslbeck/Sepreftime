@@ -2,7 +2,7 @@ theory Remdups
   imports "../Refine_Imperative_HOL/Sepref" "SepLogicTime_RBTreeBasic.RBTree_Impl"
     "../Refine_Imperative_HOL/IICF/Impl/IICF_Rbt_Set"  
     "../Refine_Imperative_HOL/IICF/Impl/IICF_DArray_List"  
- "../RefineMonadicVCG" "../Refine_Foreach"
+ "NREST.RefineMonadicVCG" "../Refine_Foreach"
 begin
         
 

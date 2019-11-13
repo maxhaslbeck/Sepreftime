@@ -105,8 +105,8 @@ definition "add_size_rel   = br fst (\<lambda>(l,n). n= Max V)"
 lemma max_node_is_Max_V: " E = (\<lambda>(a, _, y). Upair a y) ` set la \<Longrightarrow> max_node la = Max V"
 proof -
   assume E: "E = (\<lambda>(a, _, y). Upair a y) ` set la"
-  have pff: "fst ` set la \<union> (snd \<circ> snd) ` set la = (\<Union>x\<in>set la. case x of (x1, x1a, x2a) \<Rightarrow> {x1, x2a})"
-    apply auto by (metis image_comp img_snd)
+  have pff: "fst ` set la \<union>  (\<lambda>x. snd (snd x)) ` set la = (\<Union>x\<in>set la. case x of (x1, x1a, x2a) \<Rightarrow> {x1, x2a})"
+    by (auto simp add: rev_image_eqI)  
   have "V \<noteq> {}" using E_nonempty V_def by auto
   then have Mo: "Max V = Max (insert 0 V)" by auto 
   show ?thesis unfolding Mo unfolding V_def
@@ -114,19 +114,14 @@ proof -
   by (auto simp add:  max_node_def prod.case_distrib pff ) 
 qed
 
-lemma lst_graph_P_V: "lst_graph_P la E \<Longrightarrow> V = (fst ` set la \<union> (snd \<circ> snd) ` set la)" 
-  apply (auto simp: emb_eq_Some_conv lst_graph_P_def V_def)
-  subgoal 
-    by blast 
-  subgoal  
-    by (metis image_comp img_snd) 
-  done
+lemma lst_graph_P_V: "lst_graph_P la E \<Longrightarrow> V = (fst ` set la \<union> (\<lambda>x. snd (snd x)) ` set la)" 
+  by (auto simp: emb_eq_Some_conv lst_graph_P_def V_def rev_image_eqI) 
 
  
 
 lemma  k: "\<And>V::nat set. finite V \<Longrightarrow> V \<noteq> {} \<Longrightarrow> Max V = Max (insert 0 V)" by auto
 
-lemma *: "(la::((nat*int*nat) list)) \<noteq> [] \<Longrightarrow> Max (insert 0 (fst ` set la \<union> (snd \<circ> snd) ` set la)) = Max (fst ` set la \<union> (snd \<circ> snd) ` set la)"
+lemma *: "(la::((nat*int*nat) list)) \<noteq> [] \<Longrightarrow> Max (insert 0 (fst ` set la \<union> (\<lambda>x. snd (snd x)) ` set la)) = Max (fst ` set la \<union> (\<lambda>x. snd (snd x)) ` set la)"
 proof -
   assume "la \<noteq> []"
   then have "fst ` set la \<union> (snd \<circ> snd) ` set la \<noteq> {}" by auto
@@ -144,7 +139,7 @@ lemma obtain_sorted_carrier'''_refine: "obtain_sorted_carrier''' \<le> \<Down>ad
   apply(rule le_R_ASSERTI)
   apply(rule ASSERT_leI) apply simp
   apply(rule SPECT_refine) apply (auto split: if_splits)    
-  apply(subst * ) subgoal apply auto using E_nonempty by auto
+  apply(subst * ) subgoal apply auto using E_nonempty by auto 
   by (metis (mono_tags) fst_conv in_br_conv lst_graph_P_V prod_case_simp) 
    
     

@@ -1,5 +1,5 @@
 theory HNR                    
-imports Sepreftime "SepLogicTime_RBTreeBasic.SepAuto" (* Refine_Monadic.RefineG_Recursion *)
+imports NREST.NREST "SepLogicTime_RBTreeBasic.SepAuto_Time" (* Refine_Monadic.RefineG_Recursion *)
   SepLogic_Misc  
   "Refine_Imperative_HOL/Lib/Structured_Apply"
 begin
@@ -309,21 +309,6 @@ lemma hnr_RETURN_pure:
 
 section "assert"
 
-
-definition "iASSERT ret \<Phi> \<equiv> if \<Phi> then ret () else top"
-
-definition ASSERT where "ASSERT \<equiv> iASSERT RETURNT"
-
-lemma ASSERT_True[simp]: "ASSERT True = RETURNT ()" 
-  by (auto simp: ASSERT_def iASSERT_def)
-lemma ASSERT_False[simp]: "ASSERT False = FAILT" 
-  by (auto simp: ASSERT_def iASSERT_def) 
-
-
-lemma bind_ASSERT_eq_if: "do { ASSERT \<Phi>; m } = (if \<Phi> then m else FAILT)"
-  unfolding ASSERT_def iASSERT_def by simp
-
-
 lemma hnr_ASSERT:
   assumes "\<Phi> \<Longrightarrow> hn_refine \<Gamma> c \<Gamma>' R c'"
   shows "hn_refine \<Gamma> c \<Gamma>' R (do { ASSERT \<Phi>; c'})"
@@ -477,11 +462,11 @@ proof (goal_cases)
       from IMP have "\<Gamma>2 ra r * R ra' r' * true \<Longrightarrow>\<^sub>A \<Gamma>' * R ra' r' * true"   
       proof -
         have "\<forall>a aa ab ac. (ac * ab \<Longrightarrow>\<^sub>A a * true) \<or> \<not> (ac \<Longrightarrow>\<^sub>A aa * a)"
-          by (metis (full_types) assn_times_assoc entail_trans2 entails_frame entails_true mult.left_commute)
+          by (metis (full_types) assn_times_assoc entails_trans2 entails_frame entails_true mult.left_commute)
         then have "\<forall>a aa ab. ab * (aa * a) \<Longrightarrow>\<^sub>A aa * true"
           by (metis (no_types) assn_times_assoc entails_frame entails_true)
         then show ?thesis
-          by (metis (no_types) IMP assn_times_assoc entail_trans2 entails_frame)
+          by (metis (no_types) IMP assn_times_assoc entails_trans2 entails_frame)
       qed  
 
       with ende  show "pHeap h'' (new_addrs h as h'') (n + (Ca + Ca') - (t + t')) \<Turnstile> \<Gamma>' * R ra' r' * true"
@@ -510,7 +495,7 @@ lemma hnr_RECT:
     \<Longrightarrow> hn_refine (hn_ctxt Rx ax px * F) (cB cf px) (F' ax px) Ry (aB af ax)"
   assumes M: "(\<And>x. mono_Heap (\<lambda>f. cB f x))"
   shows "hn_refine 
-    (hn_ctxt Rx ax px * F) (heap.fixp_fun cB px) (F' ax px) Ry (Sepreftime.RECT aB ax)"
+    (hn_ctxt Rx ax px * F) (heap.fixp_fun cB px) (F' ax px) Ry (NREST.RECT aB ax)"
   unfolding RECT_flat_gfp_def
 proof (simp, intro conjI impI)
   assume "mono2 aB"

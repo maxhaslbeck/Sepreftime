@@ -37,7 +37,7 @@ instance wrap :: heap
 fun maxn' :: "wrap array \<Rightarrow> nat \<Rightarrow> nat Heap" where
   "maxn' p 0 = return 0"
 |  "maxn' p (Suc n) = do {
-       l \<leftarrow> Array.nth p n;
+       l \<leftarrow> Array_Time.nth p n;
       (case l of W (a,w,b) \<Rightarrow> do { 
             mn \<leftarrow> maxn' p n;
             return (max mn (max a b))
@@ -70,7 +70,7 @@ next
     apply(rule arg_cong[where f="Max"]) by auto 
 qed
 
-definition "maxn p = do { l \<leftarrow> Array.len p; maxn' p l }"
+definition "maxn p = do { l \<leftarrow> Array_Time.len p; maxn' p l }"
 
 lemma maxn_rule: "<p\<mapsto>\<^sub>axs * timeCredit_assn(length xs*2+2)> maxn p <\<lambda>r. p\<mapsto>\<^sub>axs *  \<up>(r=maxnode  (map extr xs))>"
   unfolding maxn_def by(sep_auto heap: maxn'_rule length_rule simp: zero_time) 
@@ -86,7 +86,7 @@ definition sortEdges'  :: "(nat \<times> int \<times> nat) list \<Rightarrow> ((
       a \<leftarrow> destroy da;
       merge_sort_impl a;
       mn \<leftarrow> maxn a; 
-      sl \<leftarrow> Array.freeze a;
+      sl \<leftarrow> Array_Time.freeze a;
       return (map extr sl, mn)
     }"
 
@@ -105,10 +105,10 @@ lemma sortEdges'_time_bound[asym_bound]: "sortEdges'_time \<in> \<Theta>(\<lambd
 
 definition sortEdges  :: "(nat \<times> int \<times> nat) list \<Rightarrow> ((nat \<times> int \<times> nat) list * nat) Heap"  where
   "sortEdges l = do {
-      a \<leftarrow> Array.of_list (map W l);
+      a \<leftarrow> Array_Time.of_list (map W l);
       merge_sort_impl a;
       mn \<leftarrow> maxn a; 
-      sl \<leftarrow> Array.freeze a;
+      sl \<leftarrow> Array_Time.freeze a;
       return (map extr sl, mn)
     }"
 
@@ -119,7 +119,7 @@ definition sortEdges_time :: "nat \<Rightarrow> nat" where
 
 
 lemma of_list_map_rule: "<timeCredit_assn (1 + length xs)>
-    Array.of_list (map f xs) <\<lambda>r. r \<mapsto>\<^sub>a (map f xs)>"
+    Array_Time.of_list (map f xs) <\<lambda>r. r \<mapsto>\<^sub>a (map f xs)>"
   using of_list_rule[where xs="map f xs"]
   by auto
 
@@ -160,7 +160,7 @@ lemma extr_W_on_set: "extr ` W ` S = S"
   by (auto simp: extrW)
 
 lemma freeze_sort_maprule:
-  "<a \<mapsto>\<^sub>a sort (map f xs) * timeCredit_assn(1 + length xs)> Array.freeze a <\<lambda>r. a \<mapsto>\<^sub>a sort (map f xs) * \<up>(r = sort (map f xs))>" 
+  "<a \<mapsto>\<^sub>a sort (map f xs) * timeCredit_assn(1 + length xs)> Array_Time.freeze a <\<lambda>r. a \<mapsto>\<^sub>a sort (map f xs) * \<up>(r = sort (map f xs))>" 
   using freeze_rule[where xs="sort (map f xs)"] by auto
 
 lemma sortEdges_rule: "<timeCredit_assn(sortEdges_time (length l))> sortEdges l <\<lambda>(sl, mn). \<up>(sorted_wrt edges_less_eq sl)>\<^sub>t"
@@ -171,8 +171,8 @@ lemma sortEdges_rule2: "<timeCredit_assn(sortEdges_time (length l))> sortEdges l
   unfolding sortEdges_def  sortEdges_time_def
   apply(sep_auto heap: mergeSort_map_rule maxn_sort_maprule of_list_map_rule  freeze_sort_maprule simp: extrW sorted_wrap )
   apply(simp add: max_node_def)
-  using extr_W_on_set    
-  by (metis (no_types, lifting) image_comp) 
+  using extr_W_on_set     
+  by (simp add: image_image)   
 
 thm remdups_rule
 lemma remdup_map_rule:
@@ -236,7 +236,7 @@ lemma maxn_sort_smallerrule: "length xs \<le> S \<Longrightarrow> <p\<mapsto>\<^
    apply sep_auto+
   done 
 
-lemma freeze_smallerrule: "length xs \<le> S \<Longrightarrow> <a \<mapsto>\<^sub>a xs * timeCredit_assn(1 + S)> Array.freeze a <\<lambda>r. a \<mapsto>\<^sub>a xs * \<up>(r = xs)>\<^sub>t"
+lemma freeze_smallerrule: "length xs \<le> S \<Longrightarrow> <a \<mapsto>\<^sub>a xs * timeCredit_assn(1 + S)> Array_Time.freeze a <\<lambda>r. a \<mapsto>\<^sub>a xs * \<up>(r = xs)>\<^sub>t"
   apply(rule ht_cons_rule[where P'="a \<mapsto>\<^sub>a xs * timeCredit_assn (1+(length xs)) * true"])
     apply(simp only: mult.assoc)
     apply(rule match_first)  apply(rule gc_time)  apply simp
@@ -274,9 +274,9 @@ lemma sortEdges'_rule: "<timeCredit_assn(sortEdges'_time (length l))>
     using extr_W_on_set by blast   
   subgoal apply(simp add: distinct_map)  
     by (simp add: inj_onI wrap.expand)  
-  subgoal unfolding max_node_def 
-    using extr_W_on_set    
-    by (metis (no_types, lifting) image_comp)   
+  subgoal premises prems 
+    unfolding max_node_def prems(1)[symmetric]  
+    using extr_W_on_set by(simp add: image_comp) 
   done 
 
 
