@@ -870,13 +870,15 @@ definition uf_cmp_time :: "nat \<Rightarrow> nat" where "uf_cmp_time n = 10+ hei
 lemma uf_cmp_time_bound[asym_bound]: 
   "uf_cmp_time \<in> \<Theta>(\<lambda>n. ln n)" unfolding uf_cmp_time_def by auto2 
 
+
 lemma uf_cmp_rule:
   "<is_uf R u * $(uf_cmp_time (card (Domain R)))> uf_cmp u i j <\<lambda>r. is_uf R u * \<up>(r\<longleftrightarrow>(i,j)\<in>R)>\<^sub>t" 
   unfolding uf_cmp_def is_uf_def uf_cmp_time_def
   apply (sep_auto heap: uf_rep_of_c_rule_ub length_rule dest: ufa_\<alpha>_lenD simp: not_le split: prod.split)
    apply(rule fi_rule[OF uf_rep_of_c_rule_ub]) defer defer defer
       apply(simp only: mult.assoc)
-  apply(rule match_first) apply sep_auto
+      apply(rule match_first)        
+      apply simp
       apply(timeframeinf)
      defer apply simp apply simp apply simp
   apply(sep_auto) 
@@ -887,8 +889,7 @@ lemma uf_cmp_rule:
   apply (drule cnv_to_ufa_\<alpha>_eq, simp_all)
   apply (drule cnv_to_ufa_\<alpha>_eq, simp_all)
   apply (subst ufa_find_correct)
-  apply (auto simp add: )
-  sorry 
+  by (auto simp add: ) 
   
 
 definition uf_union :: "uf \<Rightarrow> nat \<Rightarrow> nat \<Rightarrow> uf Heap" where 
