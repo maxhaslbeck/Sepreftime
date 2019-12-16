@@ -142,7 +142,7 @@ lemma hn_refine_tl[sepref_fr_rules]: " hn_refine (hn_val Id s' s)
 (* synthesize *) 
 
 context 
-  fixes as::"('a::{heap,linorder}) list"
+  fixes as::"('a::{heap,linorder,zero}) list"
   notes [[sepref_register_adhoc as]]
   notes [sepref_import_param] = IdI[of as] 
 begin

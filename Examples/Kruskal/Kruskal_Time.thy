@@ -45,6 +45,11 @@ lemma mBT: "minBasis_time = kruskal_time getEdges_time (card E, Max V)"
   unfolding minBasis_time_def kruskal_time_def by simp
 
 
+definition "kruskal_final = kruskal' getEdges_impl uf_init uf_cmp uf_union sortEdges'"
+
+  concrete_definition (in -) kruskal_final 
+    uses Kruskal_final.kruskal_final_def
+
 lemma k_c: "<timeCredit_assn (kruskal_time getEdges_time (card E, Max V))> kruskal <\<lambda>r. \<exists>\<^sub>Ara. hr_comp (da_assn id_assn) lst_graph_rel ra r * \<up> (MST ra)>\<^sub>t"
   unfolding mBT[symmetric] using kruskal_correct_forest by simp
 

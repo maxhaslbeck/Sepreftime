@@ -6,6 +6,15 @@ begin
 
 datatype wrap = W (extr: "(nat \<times> int \<times> nat)")
 
+
+instantiation wrap :: zero
+begin
+definition zero_wrap where "zero_wrap = W (0,0,0)"
+
+instance ..
+
+end
+
 instantiation wrap :: linorder
 begin
 fun less_eq_wrap  where "less_eq_wrap (W (a2,a,a3)) (W (b2,b,b3)) = (if a=b then (if a2=b2 then (if a3=b3 then True else a3<b3) else a2<b2) else a<b)"

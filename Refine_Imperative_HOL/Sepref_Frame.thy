@@ -182,11 +182,8 @@ proof (goal_cases)
   case 1 thus ?case
     unfolding WEAKEN_HNR_POST_def
     apply clarsimp
-    apply (rule entt_star_mono)     
-    apply (auto)  
+    apply (rule entt_star_mono)   
     subgoal using entailsD' entails_def mod_false' by blast  
-    subgoal using entailsD' entails_def mod_false' by blast
-    subgoal using entailsD' entails_def mod_false' by blast 
     subgoal by (metis assn_times_comm entailsD' entails_def mod_false') 
     done
 next

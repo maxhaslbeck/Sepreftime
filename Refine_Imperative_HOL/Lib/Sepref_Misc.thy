@@ -1,10 +1,10 @@
 theory Sepref_Misc
 imports 
   Refine_Monadic.Refine_Misc
-  PO_Normalizer
-  "List-Index.List_Index"
+  Refine_Imperative_HOL.PO_Normalizer
+  "List-Index.List_Index"  
 (*  Separation_Logic_Imperative_HOL.Sep_Main *)
-  Named_Theorems_Rev
+  Refine_Imperative_HOL.Named_Theorems_Rev
   "HOL-Eisbach.Eisbach"
 (*  Separation_Logic_Imperative_HOL.Array_Blit *)
 begin

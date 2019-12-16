@@ -702,7 +702,7 @@ lemma uf_init_rule:
  
 
 
-partial_function (heap) uf_rep_of :: "nat array \<Rightarrow> nat \<Rightarrow> nat Heap" 
+partial_function (heap_time) uf_rep_of :: "nat array \<Rightarrow> nat \<Rightarrow> nat Heap" 
   where [code]: 
   "uf_rep_of p i = do {
     n \<leftarrow> Array_Time.nth p i;
@@ -723,7 +723,7 @@ lemma uf_rep_of_rule: "\<lbrakk>ufa_invar l; i<length l\<rbrakk> \<Longrightarro
   done
 
 text \<open>We chose a non tail-recursive version here, as it is easier to prove.\<close>
-partial_function (heap) uf_compress :: "nat \<Rightarrow> nat \<Rightarrow> nat array \<Rightarrow> unit Heap" 
+partial_function (heap_time) uf_compress :: "nat \<Rightarrow> nat \<Rightarrow> nat array \<Rightarrow> unit Heap" 
   where [code]: 
   "uf_compress i ci p = (
     if i=ci then return ()

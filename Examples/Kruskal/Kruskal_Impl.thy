@@ -345,6 +345,11 @@ sepref_definition kruskal is
   apply sepref_dbg_constraints
       done  
 
+
+  concrete_definition (in -) kruskal' 
+    uses Kruskal_intermediate_Impl.kruskal_def
+
+
 thm kruskal3_refine kruskal2_refine   kruskal1_refine kruskal0_refine minWeightBasis3_refine
  
 thm kruskal.refine kruskal3_refine kruskal2_refine   kruskal1_refine kruskal0_refine minWeightBasis3_refine

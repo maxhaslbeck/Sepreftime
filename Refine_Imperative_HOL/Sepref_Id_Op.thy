@@ -4,7 +4,7 @@ imports
   Main 
   Automatic_Refinement.Refine_Lib
   Automatic_Refinement.Autoref_Tagging
-  "Lib/Named_Theorems_Rev"
+  Refine_Imperative_HOL.Named_Theorems_Rev
 begin
 
 text \<open>
