@@ -1,32 +1,32 @@
 theory Refine_Foreach
-imports Sepreftime RefineMonadicVCG SepLogic_Misc
+imports NREST.NREST NREST.RefineMonadicVCG SepLogic_Misc
 begin
 
 
-text {*
+text \<open>
   A common pattern for loop usage is iteration over the elements of a set.
-  This theory provides the @{text "FOREACH"}-combinator, that iterates over 
+  This theory provides the \<open>FOREACH\<close>-combinator, that iterates over 
   each element of a set.
-*}
+\<close>
 
-subsection {* Auxilliary Lemmas *}
-text {* The following lemma is commonly used when reasoning about iterator
+subsection \<open>Auxilliary Lemmas\<close>
+text \<open>The following lemma is commonly used when reasoning about iterator
   invariants.
   It helps converting the set of elements that remain to be iterated over to
-  the set of elements already iterated over. *}
+  the set of elements already iterated over.\<close>
 lemma it_step_insert_iff: 
   "it \<subseteq> S \<Longrightarrow> x\<in>it \<Longrightarrow> S-(it-{x}) = insert x (S-it)" by auto
 
-subsection {* Definition *}
+subsection \<open>Definition\<close>
 
-text {*
+text \<open>
   Foreach-loops come in different versions, depending on whether they have an 
   annotated invariant (I), a termination condition (C), and an order (O).
 
   Note that asserting that the set is finite is not necessary to guarantee
   termination. However, we currently provide only iteration over finite sets,
   as this also matches the ICF concept of iterators.
-*}
+\<close>
    
 definition "FOREACH_body f \<equiv> \<lambda>(xs, \<sigma>). do {
   x \<leftarrow> RETURNT( hd xs); \<sigma>'\<leftarrow>f x \<sigma>; RETURNT (tl xs,\<sigma>')
@@ -34,7 +34,7 @@ definition "FOREACH_body f \<equiv> \<lambda>(xs, \<sigma>). do {
 
 definition FOREACH_cond where "FOREACH_cond c \<equiv> (\<lambda>(xs,\<sigma>). xs\<noteq>[] \<and> c \<sigma>)"
 
-text {* Foreach with continuation condition, order and annotated invariant: *}
+text \<open>Foreach with continuation condition, order and annotated invariant:\<close>
 
 definition FOREACHoci ("FOREACH\<^sub>O\<^sub>C\<^bsup>_,_\<^esup>") where "FOREACHoci R \<Phi> S c f \<sigma>0 inittime body_time \<equiv> do {
   ASSERT (finite S);
@@ -43,11 +43,11 @@ definition FOREACHoci ("FOREACH\<^sub>O\<^sub>C\<^bsup>_,_\<^esup>") where "FORE
     (\<lambda>(it,\<sigma>). \<exists>xs'. xs = xs' @ it \<and> \<Phi> (set it) \<sigma>) (\<lambda>(it,_). length it * body_time)  (FOREACH_cond c) (FOREACH_body f) (xs,\<sigma>0); 
   RETURNT \<sigma> }"
 
-text {* Foreach with continuation condition and annotated invariant: *}
+text \<open>Foreach with continuation condition and annotated invariant:\<close>
 definition FOREACHci ("FOREACH\<^sub>C\<^bsup>_\<^esup>") where "FOREACHci \<equiv> FOREACHoci (\<lambda>_ _. True)"
 
 
-subsection {* Proof Rules *}
+subsection \<open>Proof Rules\<close>
 thm vcg_rules
 lemma FOREACHoci_rule:
   assumes IP: 
@@ -118,16 +118,16 @@ definition [to_relAPP]: "list_set_rel R \<equiv> \<langle>R\<rangle>list_rel O b
 
 
 
-subsection {* Nres-Fold with Interruption (nfoldli) *}
-text {*
+subsection \<open>Nres-Fold with Interruption (nfoldli)\<close>
+text \<open>
   A foreach-loop can be conveniently expressed as an operation that converts
   the set to a list, followed by folding over the list.
   
   This representation is handy for automatic refinement, as the complex 
   foreach-operation is expressed by two relatively simple operations.
-*}
+\<close>
 
-text {* We first define a fold-function in the nrest-monad *}
+text \<open>We first define a fold-function in the nrest-monad\<close>
 definition nfoldli where
   "nfoldli l c f s = RECT (\<lambda>D (l,s). (case l of 
     [] \<Rightarrow> RETURNT s 
@@ -263,8 +263,8 @@ shows "Some t \<le> lst (nfoldliIE' I body_time l0 f \<sigma>0) Q"
 
 
 
-text {* We relate our fold-function to the while-loop that we used in
-  the original definition of the foreach-loop *}
+text \<open>We relate our fold-function to the while-loop that we used in
+  the original definition of the foreach-loop\<close>
 lemma nfoldli_while: "nfoldli l c f \<sigma>
           \<le>
          (whileIET I E 
@@ -334,8 +334,8 @@ lemma nfoldli_rule:
 
 definition "LIST_FOREACH' tsl c f \<sigma> \<equiv> do {xs \<leftarrow> tsl; nfoldli xs c f \<sigma>}"
 
-text {* This constant is a placeholder to be converted to
-  custom operations by pattern rules *} 
+text \<open>This constant is a placeholder to be converted to
+  custom operations by pattern rules\<close> 
 definition "it_to_sorted_list R s to_sorted_list_time
   \<equiv> SPECT (emb (\<lambda>l. distinct l \<and> s = set l \<and> sorted_wrt R l) to_sorted_list_time)"
 

@@ -174,7 +174,7 @@ ML \<open>
     ( val name = @{binding refine}
       val description = "Refinement Framework: Refinement rules (intro)" )\<close>
 
-ML {*
+ML \<open>
 structure Refine = struct
 
   structure vcg = Named_Thms
@@ -233,12 +233,12 @@ structure Refine = struct
          
 
 end;
-*}
-setup {* Refine.vcg.setup *}
-setup {* Refine.vcg_cons.setup *}
-setup {* Refine.refine0.setup *}
-setup {* Refine.refine.setup *}
-setup {* Refine.refine2.setup *}
+\<close>
+setup \<open>Refine.vcg.setup\<close>
+setup \<open>Refine.vcg_cons.setup\<close>
+setup \<open>Refine.refine0.setup\<close>
+setup \<open>Refine.refine.setup\<close>
+setup \<open>Refine.refine2.setup\<close>
 
 
 end

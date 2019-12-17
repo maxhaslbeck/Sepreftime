@@ -80,7 +80,7 @@ text \<open>Next, we specify the Edmonds-Karp algorithm.
 definition "edka_partial \<equiv> do {
   f \<leftarrow> SPECT [(\<lambda>_. 0) \<mapsto> init_graph (card V)];
 
-  (f,_) \<leftarrow> whileT(*\<^bsup>fofu_invar\<^esup>*)
+  (f,_) \<leftarrow> whileT
     (\<lambda>(f,brk). \<not>brk) 
     (\<lambda>(f,_). do {
       p \<leftarrow> find_shortest_augmenting_spec f;
@@ -134,7 +134,7 @@ text \<open>We specify the total correct version of Edmonds-Karp algorithm.\<clo
 definition "edka \<equiv> do {
   f \<leftarrow> SPECT [(\<lambda>_. 0) \<mapsto> init_graph (card V)];
 
-  (f,_) \<leftarrow> whileT(*\<^bsup>fofu_invar\<^esup>*)
+  (f,_) \<leftarrow> whileT
     (\<lambda>(f,brk). \<not>brk) 
     (\<lambda>(f,_). do {
       p \<leftarrow> find_shortest_augmenting_spec f;

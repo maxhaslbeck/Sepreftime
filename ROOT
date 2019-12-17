@@ -30,5 +30,8 @@ session SeprefTime_Base = SepLogicTime_RBTreeBasic +
     "Automatic_Refinement.Automatic_Refinement" 
 
 session SeprefTime = SeprefTime_Base + 
+  sessions
+    SepAuto_Time
+    NREST
   theories
-    "Examples/Examples"
+     "Examples/Examples"

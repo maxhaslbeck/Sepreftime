@@ -12,11 +12,11 @@ subsubsection "empty map init via rbtree"
 definition "map_empty = tree_empty"
 
 declare [[print_trace]] 
-setup {* fold del_prfstep_thm @{thms rbt_map_assn_def} *}
+setup \<open>fold del_prfstep_thm @{thms rbt_map_assn_def}\<close>
 
 lemma meval_empty_map[rewrite]: "meval empty_map = Map.empty" unfolding empty_map_def by auto
 
-setup {* add_rewrite_rule @{thm meval.simps} *}
+setup \<open>add_rewrite_rule @{thm meval.simps}\<close>
 theorem map_empty_rule [hoare_triple]:
   "<$1> map_empty <rbt_map_map_assn (Map.empty)>"
   unfolding map_empty_def by auto2

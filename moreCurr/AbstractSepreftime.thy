@@ -1876,7 +1876,7 @@ lemma g_bindT_flat_mono[refine_mono]:
   by blast+  
 
 
-subsection {* Derived Program Constructs *}
+subsection \<open>Derived Program Constructs\<close>
 
 subsubsection \<open>Assertion\<close> 
 

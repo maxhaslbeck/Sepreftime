@@ -2,8 +2,8 @@ section \<open>Basic Definitions\<close>
 theory Sepref_Basic
 imports 
   "HOL-Eisbach.Eisbach"
-(*  Separation_Logic_Imperative_HOL.Sep_Main  \<rightarrow> *) "../Sep_Main" 
-(*  Refine_Monadic.Refine_Monadic  \<rightarrow> *)  "../Sepreftime" 
+(*  Separation_Logic_Imperative_HOL.Sep_Main  \<rightarrow> *) "../Sep_Main_Time" 
+(*  Refine_Monadic.Refine_Monadic  \<rightarrow> *)  NREST.NREST
   "../SepLogic_Misc"
   "Lib/Structured_Apply"
   "Lib/Sepref_Misc"
@@ -852,7 +852,7 @@ lemma hnr_RECT:
     \<Longrightarrow> hn_refine (hn_ctxt Rx ax px * F) (cB cf px) (F' ax px) Ry (aB af ax)"
   assumes M: "(\<And>x. mono_Heap (\<lambda>f. cB f x))"
   shows "hn_refine 
-    (hn_ctxt Rx ax px * F) (heap.fixp_fun cB px) (F' ax px) Ry (Sepreftime.RECT aB ax)"
+    (hn_ctxt Rx ax px * F) (heap.fixp_fun cB px) (F' ax px) Ry (NREST.RECT aB ax)"
   unfolding RECT_flat_gfp_def
 proof (simp, intro conjI impI)
   assume "mono2 aB"

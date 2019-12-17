@@ -11,7 +11,7 @@ lemmas [safe_constraint_rules] = CN_FALSEI[of is_pure "array_assn" for A]
 lemma mop_lookup_list_as_array_rule[sepref_fr_rules]:
   "1 \<le> n \<Longrightarrow> x < length xs \<Longrightarrow>
     hn_refine (hn_ctxt array_assn xs p * hn_val Id x x')
-     (Array.nth p (x'::nat))
+     (Array_Time.nth p (x'::nat))
      (hn_ctxt array_assn xs p * hn_ctxt (pure Id) x x') id_assn ( PR_CONST (mop_lookup_list n) $  xs $ x)"
   unfolding autoref_tag_defs mop_lookup_list_def
   apply (rule extract_cost_otherway[OF _  nth_rule, where F="nat_assn x x'"]) unfolding mult.assoc

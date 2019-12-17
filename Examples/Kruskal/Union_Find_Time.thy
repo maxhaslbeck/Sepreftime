@@ -1,6 +1,6 @@
 theory Union_Find_Time
 imports 
-  "../../SepLog_Automatic" 
+  "SepAuto_Time.SepLog_Automatic" 
   "../../Refine_Imperative_HOL/Sepref_Additional" 
   Collections.Partial_Equivalence_Relation
   "HOL-Library.Code_Target_Numeral"
@@ -10,32 +10,32 @@ begin
 
 notation timeCredit_assn  ("$") 
 
-text {*
+text \<open>
   We implement a simple union-find data-structure based on an array.
   It uses path compression and a size-based union heuristics.
-*}
+\<close>
 
-subsection {* Abstract Union-Find on Lists *}
-text {*
+subsection \<open>Abstract Union-Find on Lists\<close>
+text \<open>
   We first formulate union-find structures on lists, and later implement 
   them using Imperative/HOL. This is a separation of proof concerns
   between proving the algorithmic idea correct and generating the verification
   conditions.
-*}
+\<close>
 
-subsubsection {* Representatives *}
-text {*
+subsubsection \<open>Representatives\<close>
+text \<open>
   We define a function that searches for the representative of an element.
   This function is only partially defined, as it does not terminate on all
   lists. We use the domain of this function to characterize valid union-find 
   lists. 
-*}
+\<close>
 function (domintros) rep_of 
   where "rep_of l i = (if l!i = i then i else rep_of l (l!i))"
   by pat_completeness auto
 
-text {* A valid union-find structure only contains valid indexes, and
-  the @{text "rep_of"} function terminates for all indexes. *}
+text \<open>A valid union-find structure only contains valid indexes, and
+  the \<open>rep_of\<close> function terminates for all indexes.\<close>
 definition 
   "ufa_invar l \<equiv> \<forall>i<length l. rep_of_dom (l,i) \<and> l!i<length l"
 
@@ -44,7 +44,7 @@ lemma ufa_invarD:
   "\<lbrakk>ufa_invar l; i<length l\<rbrakk> \<Longrightarrow> l!i<length l" 
   unfolding ufa_invar_def by auto
 
-text {* We derive the following equations for the @{text "rep-of"} function. *}
+text \<open>We derive the following equations for the \<open>rep-of\<close> function.\<close>
 lemma rep_of_refl: "l!i=i \<Longrightarrow> rep_of l i = i"
   apply (subst rep_of.psimps)
   apply (rule rep_of.domintros)
@@ -63,8 +63,8 @@ lemma rep_of_iff: "\<lbrakk>ufa_invar l; i<length l\<rbrakk>
   \<Longrightarrow> rep_of l i = (if l!i=i then i else rep_of l (l!i))"
   by (simp add: rep_of_simps)
 
-text {* We derive a custom induction rule, that is more suited to
-  our purposes. *}
+text \<open>We derive a custom induction rule, that is more suited to
+  our purposes.\<close>
 lemma rep_of_induct[case_names base step, consumes 2]:
   assumes I: "ufa_invar l" 
   assumes L: "i<length l"
@@ -80,7 +80,7 @@ proof -
   thus ?thesis using I L by simp
 qed
 
-text {* In the following, we define various properties of @{text "rep_of"}. *}
+text \<open>In the following, we define various properties of \<open>rep_of\<close>.\<close>
 lemma rep_of_min: 
   "\<lbrakk> ufa_invar l; i<length l \<rbrakk> \<Longrightarrow> l!(rep_of l i) = rep_of l i"
 proof -
@@ -112,7 +112,7 @@ lemma rep_of_idx:
   "\<lbrakk>ufa_invar l; i<length l\<rbrakk> \<Longrightarrow> rep_of l (l!i) = rep_of l i"
   by (metis rep_of_step)
 
-subsubsection {* Abstraction to Partial Equivalence Relation *}
+subsubsection \<open>Abstraction to Partial Equivalence Relation\<close>
 definition ufa_\<alpha> :: "nat list \<Rightarrow> (nat\<times>nat) set" 
   where "ufa_\<alpha> l 
     \<equiv> {(x,y). x<length l \<and> y<length l \<and> rep_of l x = rep_of l y}"
@@ -143,7 +143,7 @@ lemma ufa_\<alpha>_len_eq:
   shows "length l = length l'"
   by (metis assms le_antisym less_not_refl linorder_le_less_linear ufa_\<alpha>_refl)
 
-subsubsection {* Operations *}
+subsubsection \<open>Operations\<close>
 lemma ufa_init_invar: "ufa_invar [0..<n]"
   unfolding ufa_invar_def
   by (auto intro: rep_of.domintros)
@@ -189,7 +189,7 @@ proof (intro allI impI, simp only: length_list_update)
   next
     case (step i)
 
-    from step.prems `ufa_invar l` `i<length l` `l!i\<noteq>i` 
+    from step.prems \<open>ufa_invar l\<close> \<open>i<length l\<close> \<open>l!i\<noteq>i\<close> 
     have [simp]: "ufa_union l x y ! i = l!i"
       apply (auto simp: rep_of_min rep_of_bound nth_list_update)
       done
@@ -215,8 +215,8 @@ lemma ufa_union_aux:
   using I IL
 proof (induct rule: rep_of_induct)
   case (base i)
-  have [simp]: "rep_of l i = i" using `l!i=i` by (simp add: rep_of_refl)
-  note [simp] = `ufa_invar l` `i<length l`
+  have [simp]: "rep_of l i = i" using \<open>l!i=i\<close> by (simp add: rep_of_refl)
+  note [simp] = \<open>ufa_invar l\<close> \<open>i<length l\<close>
   show ?case proof (cases)
     assume A[simp]: "rep_of l x = i"
     have [simp]: "l[i := rep_of l y] ! i = rep_of l y" 
@@ -239,18 +239,18 @@ proof (induct rule: rep_of_induct)
   next
     assume A: "rep_of l x \<noteq> i"
     hence "ufa_union l x y ! i = l!i" by (auto)
-    also note `l!i=i`
+    also note \<open>l!i=i\<close>
     finally have "rep_of (ufa_union l x y) i = i" by (simp add: rep_of_refl)
     thus ?thesis using A by auto
   qed
 next    
   case (step i)
 
-  note [simp] = I L `i<length l`
+  note [simp] = I L \<open>i<length l\<close>
 
-  have "rep_of l x \<noteq> i" by (metis I L(1) rep_of_min `l!i\<noteq>i`)
+  have "rep_of l x \<noteq> i" by (metis I L(1) rep_of_min \<open>l!i\<noteq>i\<close>)
   hence [simp]: "ufa_union l x y ! i = l!i"
-    by (auto simp add: nth_list_update rep_of_bound `l!i\<noteq>i`) []
+    by (auto simp add: nth_list_update rep_of_bound \<open>l!i\<noteq>i\<close>) []
 
   have "rep_of (ufa_union l x y) i = rep_of (ufa_union l x y) (l!i)" 
     by (auto simp add: rep_of_iff[OF ufa_union_invar[OF I L]])
@@ -507,18 +507,18 @@ lemma ufa_union_on_path:
   qed
 
 
-lemma hel: "(\<And>x. x\<in>A \<Longrightarrow> f x \<le> g x) \<Longrightarrow> finite A  \<Longrightarrow> MAXIMUM A f \<le> MAXIMUM A g"  
+lemma hel: "(\<And>x. x\<in>A \<Longrightarrow> f x \<le> g x) \<Longrightarrow> finite A  \<Longrightarrow> Max (f ` A) \<le> Max (g ` A)"  
   by (smt Max_ge_iff Max_in finite_imageI imageE image_eqI image_is_empty order_refl)  
-lemma MAXIMUM_mono: "(\<And>x. x\<in>A \<Longrightarrow> f x \<le> g x) \<Longrightarrow> finite A  \<Longrightarrow> A = B \<Longrightarrow> MAXIMUM A f \<le> MAXIMUM B g"  
+lemma MAXIMUM_mono: "(\<And>x. x\<in>A \<Longrightarrow> f x \<le> g x) \<Longrightarrow> finite A  \<Longrightarrow> A = B \<Longrightarrow> Max (f ` A) \<le> Max (g ` B)"  
   using hel by blast 
-lemma MAXIMUM_eq: "(\<And>x. x\<in>A \<Longrightarrow> f x = g x) \<Longrightarrow> finite A  \<Longrightarrow> A = B \<Longrightarrow> MAXIMUM A f = MAXIMUM B g"  
+lemma MAXIMUM_eq: "(\<And>x. x\<in>A \<Longrightarrow> f x = g x) \<Longrightarrow> finite A  \<Longrightarrow> A = B \<Longrightarrow> Max (f ` A) =  Max (g ` B)"  
   apply(rule antisym) by  (auto intro: MAXIMUM_mono)
 
 
 
 
 
-lemma h_of_alt: "h_of l i = MAXIMUM {j|j. j<length l \<and> rep_of l j = i} (height_of l)"
+lemma h_of_alt: "h_of l i = Max ((height_of l) ` {j|j. j<length l \<and> rep_of l j = i})"
   unfolding h_of_def 
   by (simp add: setcompr_eq_image) 
  
@@ -543,7 +543,7 @@ lemma h_of_uf_union_untouched:
 lemma Suc_h_of: assumes
   a:  "i < length l " "rep_of l i = i"
   shows 
-  "Suc (h_of l i) = MAXIMUM {j|j. j<length l \<and> rep_of l j = i} (\<lambda>j. Suc (height_of l j))"
+  "Suc (h_of l i) = Max ((\<lambda>j. Suc (height_of l j)) ` {j|j. j<length l \<and> rep_of l j = i})"
   unfolding h_of_alt  
   apply(subst  mono_Max_commute[where f=Suc]) 
   subgoal by (simp add: mono_Suc)
@@ -552,7 +552,7 @@ lemma Suc_h_of: assumes
   by (simp add: image_image) 
 
 lemma MAXIMUM_Un: "finite A \<Longrightarrow> finite B \<Longrightarrow> A \<noteq> {} \<Longrightarrow> B \<noteq> {} 
-  \<Longrightarrow> MAXIMUM (A \<union> B) f = max (MAXIMUM A f) (MAXIMUM B f)"
+  \<Longrightarrow> Max (f ` (A \<union> B)) = max (Max (f `A)) (Max (f `B))"
   apply(simp add: image_Un)
   apply(subst Max_Un) by auto
 
@@ -587,16 +587,16 @@ proof -
   have B: "?B = {j |j. j < length l \<and> rep_of l j = rep_of l x}"
     using ufa_union_aux assms by auto
 
-  have "h_of (ufa_union l x y) i = MAXIMUM {j|j. j<length (ufa_union l x y) \<and> rep_of (ufa_union l x y) j = i} (height_of (ufa_union l x y))"
+  have "h_of (ufa_union l x y) i = Max ((height_of (ufa_union l x y))` {j|j. j<length (ufa_union l x y) \<and> rep_of (ufa_union l x y) j = i} )"
     unfolding h_of_alt by simp
-  also have "\<dots> = MAXIMUM (?A \<union> ?B) (height_of (ufa_union l x y))"
+  also have "\<dots> = Max ((height_of (ufa_union l x y))`(?A \<union> ?B))"
     unfolding * by simp
-  also have "\<dots> = max (MAXIMUM ?A (height_of (ufa_union l x y))) (MAXIMUM ?B (height_of (ufa_union l x y)))"
+  also have "\<dots> = max (Max ((height_of (ufa_union l x y))`?A)) (Max ((height_of (ufa_union l x y))`?B))"
     apply(subst MAXIMUM_Un) apply simp_all
     subgoal  apply(rule exI[where x=y]) using assms by (simp add: ufa_union_aux)  
     subgoal  apply(rule exI[where x=x]) using assms by (simp add: ufa_union_aux)  
     done
-  also have "\<dots> \<le> max (MAXIMUM ?A (height_of l)) (MAXIMUM ?B (\<lambda>j. Suc (height_of l j)))"
+  also have "\<dots> \<le> max (Max ((height_of l)` ?A )) (Max ((\<lambda>j. Suc (height_of l j))` ?B))"
     apply(rule max.mono)
     subgoal apply(rule MAXIMUM_mono)
       subgoal apply(rule order_eq_refl) apply(rule ufa_union_not_on_path_stays) using assms by auto  
@@ -646,14 +646,14 @@ qed
     
 
 
-subsection {* Implementation with Imperative/HOL *}
-text {* In this section, we implement the union-find data-structure with
+subsection \<open>Implementation with Imperative/HOL\<close>
+text \<open>In this section, we implement the union-find data-structure with
   two arrays, one holding the next-pointers, and another one holding the size
   information. Note that we do not prove that the array for the 
   size information contains any reasonable values, as the correctness of the
   algorithm is not affected by this. We leave it future work to also estimate
   the complexity of the algorithm.
-*}
+\<close>
 
 type_synonym uf = "nat array \<times> nat array"
 
@@ -664,13 +664,13 @@ definition is_uf :: "(nat\<times>nat) set \<Rightarrow> uf \<Rightarrow> assn" w
 
 definition uf_init :: "nat \<Rightarrow> uf Heap" where 
   "uf_init n \<equiv> do {
-    l \<leftarrow> Array.of_list [0..<n];
-    szl \<leftarrow> Array.new n (1::nat);
+    l \<leftarrow> Array_Time.of_list [0..<n];
+    szl \<leftarrow> Array_Time.new n (1::nat);
     return (szl,l)
   }"
 
 lemma of_list_rule':
-    "<$ (1 + n)> Array.of_list [0..<n] <\<lambda>r. r \<mapsto>\<^sub>a [0..<n]>"
+    "<$ (1 + n)> Array_Time.of_list [0..<n] <\<lambda>r. r \<mapsto>\<^sub>a [0..<n]>"
   using of_list_rule[of "[0..<n]"] by auto 
 
 lemma height_of_init: "j<n \<Longrightarrow> height_of [0..<n] j = 0"
@@ -702,10 +702,10 @@ lemma uf_init_rule:
  
 
 
-partial_function (heap) uf_rep_of :: "nat array \<Rightarrow> nat \<Rightarrow> nat Heap" 
+partial_function (heap_time) uf_rep_of :: "nat array \<Rightarrow> nat \<Rightarrow> nat Heap" 
   where [code]: 
   "uf_rep_of p i = do {
-    n \<leftarrow> Array.nth p i;
+    n \<leftarrow> Array_Time.nth p i;
     if n=i then return i else uf_rep_of p n
   }"
 
@@ -722,15 +722,15 @@ lemma uf_rep_of_rule: "\<lbrakk>ufa_invar l; i<length l\<rbrakk> \<Longrightarro
   apply (sep_auto simp: rep_of_step height_of_step)
   done
 
-text {* We chose a non tail-recursive version here, as it is easier to prove. *}
-partial_function (heap) uf_compress :: "nat \<Rightarrow> nat \<Rightarrow> nat array \<Rightarrow> unit Heap" 
+text \<open>We chose a non tail-recursive version here, as it is easier to prove.\<close>
+partial_function (heap_time) uf_compress :: "nat \<Rightarrow> nat \<Rightarrow> nat array \<Rightarrow> unit Heap" 
   where [code]: 
   "uf_compress i ci p = (
     if i=ci then return ()
     else do {
-      ni\<leftarrow>Array.nth p i;
+      ni\<leftarrow>Array_Time.nth p i;
       uf_compress ni ci p;
-      Array.upd i ci p;
+      Array_Time.upd i ci p;
       return ()
     })"
 
@@ -767,7 +767,7 @@ proof (induction rule: rep_of_induct)
     done
 next
   case (step i)
-  note SS = `ufa_invar l` `i<length l` `l!i\<noteq>i` `ci = rep_of l i` `invar l szl`
+  note SS = \<open>ufa_invar l\<close> \<open>i<length l\<close> \<open>l!i\<noteq>i\<close> \<open>ci = rep_of l i\<close> \<open>invar l szl\<close>
 
    
   have IH': 
@@ -848,7 +848,7 @@ qed
 definition uf_cmp :: "uf \<Rightarrow> nat \<Rightarrow> nat \<Rightarrow> bool Heap" where 
   "uf_cmp u i j \<equiv> do {
     let (s,p)=u;
-    n\<leftarrow>Array.len p;
+    n\<leftarrow>Array_Time.len p;
     if (i\<ge>n \<or> j\<ge>n) then return False
     else do {
       ci\<leftarrow>uf_rep_of_c p i;
@@ -870,13 +870,15 @@ definition uf_cmp_time :: "nat \<Rightarrow> nat" where "uf_cmp_time n = 10+ hei
 lemma uf_cmp_time_bound[asym_bound]: 
   "uf_cmp_time \<in> \<Theta>(\<lambda>n. ln n)" unfolding uf_cmp_time_def by auto2 
 
+
 lemma uf_cmp_rule:
   "<is_uf R u * $(uf_cmp_time (card (Domain R)))> uf_cmp u i j <\<lambda>r. is_uf R u * \<up>(r\<longleftrightarrow>(i,j)\<in>R)>\<^sub>t" 
   unfolding uf_cmp_def is_uf_def uf_cmp_time_def
   apply (sep_auto heap: uf_rep_of_c_rule_ub length_rule dest: ufa_\<alpha>_lenD simp: not_le split: prod.split)
    apply(rule fi_rule[OF uf_rep_of_c_rule_ub]) defer defer defer
       apply(simp only: mult.assoc)
-  apply(rule match_first) apply sep_auto
+      apply(rule match_first)        
+      apply simp
       apply(timeframeinf)
      defer apply simp apply simp apply simp
   apply(sep_auto) 
@@ -887,8 +889,7 @@ lemma uf_cmp_rule:
   apply (drule cnv_to_ufa_\<alpha>_eq, simp_all)
   apply (drule cnv_to_ufa_\<alpha>_eq, simp_all)
   apply (subst ufa_find_correct)
-  apply (auto simp add: )
-  done 
+  by (auto simp add: ) 
   
 
 definition uf_union :: "uf \<Rightarrow> nat \<Rightarrow> nat \<Rightarrow> uf Heap" where 
@@ -898,15 +899,15 @@ definition uf_union :: "uf \<Rightarrow> nat \<Rightarrow> nat \<Rightarrow> uf 
     cj \<leftarrow> uf_rep_of p j;
     if (ci=cj) then return (s,p) 
     else do {
-      si \<leftarrow> Array.nth s ci;
-      sj \<leftarrow> Array.nth s cj;
+      si \<leftarrow> Array_Time.nth s ci;
+      sj \<leftarrow> Array_Time.nth s cj;
       if si<sj then do {
-        Array.upd ci cj p;
-        Array.upd cj (si+sj) s;
+        Array_Time.upd ci cj p;
+        Array_Time.upd cj (si+sj) s;
         return (s,p)
       } else do { 
-        Array.upd cj ci p;
-        Array.upd ci (si+sj) s;
+        Array_Time.upd cj ci p;
+        Array_Time.upd ci (si+sj) s;
         return (s,p)
       }
     }

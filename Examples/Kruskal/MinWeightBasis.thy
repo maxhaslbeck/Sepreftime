@@ -1,5 +1,5 @@
 theory MinWeightBasis
-  imports "../../Sepreftime" "../../Refine_Foreach"
+  imports NREST.NREST "../../Refine_Foreach"
     "List-Index.List_Index" Matroids.Matroid     
 begin
   
@@ -185,13 +185,13 @@ proof (rule ccontr)
     unfolding  limi_def apply auto
     by (smt dF i index_nth_id leD leI linorder_linear mem_Collect_eq set_conv_nth set_take_if_index wF wsorted_nth_mono) (* FIXME *) 
   have z': "insert x ?FL_restricted \<subseteq> insert x (set ?X)"
-    using xnX `?FL_restricted \<subseteq> set (take i FL)` by auto 
+    using xnX \<open>?FL_restricted \<subseteq> set (take i FL)\<close> by auto 
   from indep_subset[OF indepX z'] have add_x_stay_indep: "indep (insert x ?FL_restricted)" .
 
   \<comment> \<open>... finally this means that we must have taken the element during our greedy algorithm\<close>
-  from `no_smallest_element_skipped {} F` `x\<in>carrier` `w x < w (FL ! i)` add_x_stay_indep
+  from \<open>no_smallest_element_skipped {} F\<close> \<open>x\<in>carrier\<close> \<open>w x < w (FL ! i)\<close> add_x_stay_indep
     have "x \<in> ?FL_restricted"  by (auto dest: no_smallest_element_skippedD)
-  with `?FL_restricted \<subseteq> set ?X` have "x \<in> set ?X"  by auto
+  with \<open>?FL_restricted \<subseteq> set ?X\<close> have "x \<in> set ?X"  by auto
 
   \<comment> \<open>... but we actually didn't. This finishes our proof by contradiction.\<close>  
   with xnX show "False" by auto              

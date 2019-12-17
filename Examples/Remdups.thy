@@ -2,7 +2,7 @@ theory Remdups
   imports "../Refine_Imperative_HOL/Sepref" "SepLogicTime_RBTreeBasic.RBTree_Impl"
     "../Refine_Imperative_HOL/IICF/Impl/IICF_Rbt_Set"  
     "../Refine_Imperative_HOL/IICF/Impl/IICF_DArray_List"  
- "../RefineMonadicVCG" "../Refine_Foreach"
+ "NREST.RefineMonadicVCG" "../Refine_Foreach"
 begin
         
 
@@ -142,7 +142,7 @@ lemma hn_refine_tl[sepref_fr_rules]: " hn_refine (hn_val Id s' s)
 (* synthesize *) 
 
 context 
-  fixes as::"('a::{heap,linorder}) list"
+  fixes as::"('a::{heap,linorder,zero}) list"
   notes [[sepref_register_adhoc as]]
   notes [sepref_import_param] = IdI[of as] 
 begin

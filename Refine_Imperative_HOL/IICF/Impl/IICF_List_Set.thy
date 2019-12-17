@@ -1,6 +1,6 @@
 theory IICF_List_Set
   imports "SepLogicTime_RBTreeBasic.LinkedList" 
-      "../Intf/IICF_Set"  "../../../RefineMonadicVCG"
+      "../Intf/IICF_Set"  "NREST.RefineMonadicVCG"
 begin
  
 

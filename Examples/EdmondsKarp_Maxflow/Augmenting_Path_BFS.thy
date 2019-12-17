@@ -4,7 +4,7 @@ imports
   (* Maxflow_Lib.Refine_Add_Fofu *)
   Graph_Impl
   "../../Refine_Foreach"
-  "../../RefineMonadicVCG"
+(*  "NREST.RefineMonadicVCG" *)
   "../../Refine_Imperative_HOL/IICF/Intf/IICF_Set"
   "../../Refine_Imperative_HOL/IICF/Intf/IICF_Map"
   "../../Refine_Imperative_HOL/IICF/Intf/IICF_List"
@@ -316,7 +316,7 @@ definition Te :: "node \<Rightarrow> bool \<times> (nat \<Rightarrow> nat option
     then obtain d' where dstd': "dst \<in> Vd d'"
       by (auto simp: in_Vd_conv)
 
-    txt {* We make a case-distinction whether @{text "d'\<le>d"}: *}
+    txt \<open>We make a case-distinction whether \<open>d'\<le>d\<close>:\<close>
     have "d'\<le>d \<or> Suc d \<le> d'" by auto  
     moreover {
       assume "d'\<le>d"
@@ -324,13 +324,13 @@ definition Te :: "node \<Rightarrow> bool \<times> (nat \<Rightarrow> nat option
       with dst_ne_VIS have False by auto
     } moreover {
       assume "Suc d \<le> d'"
-      txt {* In the case @{text "d+1 \<le> d'"}, we also obtain a node
-        that has a shortest path of length @{text "d+1"}: *}
+      txt \<open>In the case \<open>d+1 \<le> d'\<close>, we also obtain a node
+        that has a shortest path of length \<open>d+1\<close>:\<close>
       with min_dist_le[OF C] dstd' obtain v' where "v' \<in> Vd (Suc d)"
         by (auto simp: in_Vd_conv)
-      txt {* However, the invariant states that such nodes are either in
-        @{text "N"} or are successors of @{text "C"}. As @{text "N"} 
-        and @{text "C"} are both empty, we again get a contradiction. *}
+      txt \<open>However, the invariant states that such nodes are either in
+        \<open>N\<close> or are successors of \<open>C\<close>. As \<open>N\<close> 
+        and \<open>C\<close> are both empty, we again get a contradiction.\<close>
       with N_eq have False by auto  
     } ultimately show False by blast
   qed
@@ -480,7 +480,7 @@ definition Te :: "node \<Rightarrow> bool \<times> (nat \<Rightarrow> nat option
       by (metis assms(1) nat_neq_iff nf_invar.CVdI pre_bfs_invar.in_Vd_conv)
     have Ein2: "card (E - inedges (Vvisited src {} d) \<union> inedges C) = card (E - inedges (Vvisited src {} d)) + card (inedges C)"
       apply(rule card_Un_disjoint) apply rule apply fact 
-      subgoal using `finite C`      by (metis (no_types, lifting) Collect_mem_eq Diff_iff Ein UnCI \<open>finite E\<close> finite_subset mem_Collect_eq subsetI) 
+      subgoal using \<open>finite C\<close>      by (metis (no_types, lifting) Collect_mem_eq Diff_iff Ein UnCI \<open>finite E\<close> finite_subset mem_Collect_eq subsetI) 
       apply (auto simp: Vvisited_def)    using assms(1) nf_invar.CVdI by blast 
   
     have E: "E - outedges (Vvisited src C d) = (E - outedges (Vvisited src {} d)) \<union> outedges C"
@@ -488,7 +488,7 @@ definition Te :: "node \<Rightarrow> bool \<times> (nat \<Rightarrow> nat option
       by (metis assms(1) nat_neq_iff nf_invar.CVdI pre_bfs_invar.in_Vd_conv)
     have E2: "card (E - outedges (Vvisited src {} d) \<union> outedges C) = card (E - outedges (Vvisited src {} d)) + card (outedges C)"
       apply(rule card_Un_disjoint) apply rule apply fact 
-      subgoal using `finite C`      by (metis (no_types, lifting) Collect_mem_eq Diff_iff E UnCI \<open>finite E\<close> finite_subset mem_Collect_eq subsetI) 
+      subgoal using \<open>finite C\<close>      by (metis (no_types, lifting) Collect_mem_eq Diff_iff E UnCI \<open>finite E\<close> finite_subset mem_Collect_eq subsetI) 
       apply (auto simp: Vvisited_def)    using assms(1) nf_invar.CVdI by blast 
   
     have "card (E `` {x} - dom PRED) \<le> card (E `` {x}) " apply(rule card_mono) using fE by auto
