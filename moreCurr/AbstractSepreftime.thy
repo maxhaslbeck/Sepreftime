@@ -3,6 +3,7 @@ theory AbstractSepreftime
   "HOL-Library.Monad_Syntax"   "HOL-Library.Groups_Big_Fun"
   Complex_Main
   Coinductive.CCPO_Topology
+ 
 
 begin
 
@@ -743,11 +744,11 @@ definition limitOF where "limitOF b X = (\<lambda>x. (limitO b (X x)))"
 
 lemma limitOF: "limitOF b (Sup A) = Sup (limitOF b ` A)"
   unfolding limitOF_def Sup_fun_def apply(rule ext) 
-  apply simp using limitO by (metis image_image)
+  apply simp using limitO by (m etis image_image)
 
 lemma limitOF_Inf: "limitOF b (Inf A) = Inf (limitOF b ` A)"
   unfolding limitOF_def Inf_fun_def apply(rule ext) 
-  apply simp using limitO_Inf by (metis image_image)
+  apply simp using limitO_Inf by (me tis image_image)
 
 lemma limit_limitOF: "limit b S =  (case S of FAILi \<Rightarrow> FAILi | REST X \<Rightarrow> REST (limitOF b X))"
   unfolding limit_limitO limitOF_def by simp
@@ -1259,7 +1260,7 @@ lemma Sup_image_emult1:
   shows "Sup ((\<lambda>y :: enat. x * y) ` Y) = x * Sup Y"
 proof(cases "finite Y")
   case True
-  have "( * ) x ` Y = {x * m |m. m \<in> Y}" by auto
+  have "(*) x ` Y = {x * m |m. m \<in> Y}" by auto
   thus ?thesis using True by(simp add: Sup_enat_def mult_Max_commute assms)
 next
   case False
@@ -1273,7 +1274,7 @@ next
           by (metis SUP_bot bot_enat_def)  
       next
         case f: False
-        with enat have "\<not> finite (( * ) x ` Y)" using False
+        with enat have "\<not> finite ((*) x ` Y)" using False
             apply(auto dest!: finite_imageD intro!: inj_onI)  
             by (simp add: mult.commute pff)  
         with False f enat show ?thesis by(simp add: Sup_enat_def assms) 
@@ -1282,12 +1283,14 @@ next
     case infinity
     from False have i: "Sup Y \<noteq> 0"  
       by (simp add: Sup_enat_def assms) 
-    from infinity False have "( * ) x ` Y = {\<infinity>} \<or> ( * ) x ` Y = {\<infinity>,0}" using assms  
+    from infinity False have "(*) x ` Y = {\<infinity>} \<or> (*) x ` Y = {\<infinity>,0}" using assms  
       by (smt aux11 finite.simps image_insert imult_is_infinity insert_commute mk_disjoint_insert mult_zero_right)  
     thus ?thesis using i infinity assms
       apply auto
       subgoal by (metis ccpo_Sup_singleton imult_is_infinity) 
-      subgoal by (metis Sup_insert bot_enat_def ccSup_empty ccpo_Sup_singleton imult_is_infinity)  
+      subgoal sorry
+          (* by (metis Sup_insert bot_enat_def ccSup_empty
+           ccpo_Sup_singleton imult_is_infinity)  *)
       done
   qed
 qed
@@ -1297,7 +1300,7 @@ lemma enat_mult_cont: "Sup A * (c::enat) = Sup ((\<lambda>x. x*c)`A)"
   apply(cases "A={}")
   subgoal unfolding Sup_enat_def by simp
   using Sup_image_emult1  
-  by (metis mult_commute_abs) 
+  sorry(*by (me tis mult_commute_abs) *)
 
 lemma enat_mult_cont':
   fixes f :: "'a \<Rightarrow> enat"
@@ -2157,11 +2160,10 @@ instance
   apply(intro_classes) .  
 end
 
-
-definition mm_g :: "( 'a \<Rightarrow> ('d::{minus,ord,infinity}) option) \<Rightarrow> ( 'a \<Rightarrow> 'd option) \<Rightarrow> ( 'a \<Rightarrow> 'd option)" where
-  "mm_g R m = (\<lambda>x. (case m x of None \<Rightarrow> Some \<infinity>
+definition mm_g :: "( 'a \<Rightarrow> ('d::{minus,ord,top}) option) \<Rightarrow> ( 'a \<Rightarrow> 'd option) \<Rightarrow> ( 'a \<Rightarrow> 'd option)" where
+  "mm_g R m = (\<lambda>x. (case m x of None \<Rightarrow> Some \<top>
                                 | Some mt \<Rightarrow>
-                                  (case R x of None \<Rightarrow> None | Some rt \<Rightarrow> (if rt < mt then None else Some (rt - mt)))))"
+                                  (case R x of None \<Rightarrow> None | Some rt \<Rightarrow> (if mt \<le> rt then  Some (rt - mt) else None))))"
 
 definition mm_f :: "( 'a \<Rightarrow> (_\<Rightarrow>enat) option) \<Rightarrow> ( 'a \<Rightarrow> (_\<Rightarrow>enat) option) \<Rightarrow> ( 'a \<Rightarrow> (_\<Rightarrow>enat) option)" where
   "mm_f R m = (\<lambda>x. (case m x of None \<Rightarrow> Some \<infinity>
@@ -2445,6 +2447,11 @@ lemma InfQ_iff: "(\<exists>t'\<ge>enat t. Inf Q = Some t') \<longleftrightarrow>
  
 subsection "mii"
 
+
+definition mii_g :: "('a \<Rightarrow> ('b::{minus,complete_lattice}) option) \<Rightarrow> ('a,'b) nrest \<Rightarrow> 'a \<Rightarrow> 'b option" where 
+  "mii_g Qf M x =  (case M of FAILi \<Rightarrow> None | REST Mf \<Rightarrow> (mm_g Qf Mf) x)"
+                                                           
+
 definition mii :: "('a \<Rightarrow> enat option) \<Rightarrow> ('a,enat) nrest \<Rightarrow> 'a \<Rightarrow> enat option" where 
   "mii Qf M x =  (case M of FAILi \<Rightarrow> None | REST Mf \<Rightarrow> (mm Qf Mf) x)"
 
@@ -2520,6 +2527,7 @@ lemma mii_inf: "mii Qf M x = Some \<infinity> \<longleftrightarrow> (\<exists>Mf
 
 
 lemma miiFailt: "mii Q FAILT x = None" unfolding mii_def by auto
+lemma mii_gFailt: "mii_g Q FAILT x = None" unfolding mii_g_def by auto
 
 
 subsection "T"
@@ -2530,18 +2538,28 @@ definition T :: "('a \<Rightarrow> enat option) \<Rightarrow> ('a,enat) nrest \<
 definition T_f :: "('a \<Rightarrow> (_\<Rightarrow>enat) option) \<Rightarrow> ('a,(_\<Rightarrow>enat)) nrest \<Rightarrow> (_\<Rightarrow>enat) option" 
   where "T_f Qf M =  Inf { mii_f Qf M x | x. True}"
 
+definition T_g :: "('a \<Rightarrow> ('b::{complete_lattice,minus}) option) \<Rightarrow> ('a,'b) nrest \<Rightarrow> 'b option" 
+  where "T_g Qf M =  Inf { mii_g Qf M x | x. True}"
+
+
 lemma T_alt_: "T Qf M = Inf ( (mii Qf M) ` UNIV )"
   unfolding T_def 
   by (simp add: full_SetCompr_eq) 
 
+
+lemma T_g_pw: "T_g Q M \<ge> t  \<longleftrightarrow> (\<forall>x. mii_g  Q M x \<ge> t)"
+  unfolding T_g_def mii_g_def apply(cases M) apply auto
+  subgoal  
+    by (metis (mono_tags, lifting) le_Inf_iff mem_Collect_eq) 
+  subgoal by (auto intro: Inf_greatest)
+  done
+
 lemma T_pw: "T Q M \<ge> t  \<longleftrightarrow> (\<forall>x. mii  Q M x \<ge> t)"
   unfolding T_def mii_def apply(cases M) apply auto
-  unfolding Inf_option_def apply (auto split: if_splits)
-  using less_eq_option_None_is_None less_option_None not_less apply blast
-  apply (smt Inf_lower Inf_option_def dual_order.trans mem_Collect_eq)
-  apply metis
-  by (smt in_these_eq le_Inf_iff le_cases le_some_optE less_eq_option_Some mem_Collect_eq)  
-  
+  subgoal  
+    by (metis (mono_tags, lifting) le_Inf_iff mem_Collect_eq) 
+  subgoal by (auto intro: Inf_greatest)
+  done
 
 lemma T_f_pw: "T_f Q M \<ge> t \<longleftrightarrow> (\<forall>x. mii_f Q M x \<ge> t)"
   unfolding T_f_def mii_f_def  apply(cases M) apply auto
@@ -3002,7 +3020,7 @@ lemma T_mono: "Q\<le>Q' \<Longrightarrow> T Q M \<le> T Q' M"
     subgoal apply(rule order.trans[OF _ mm_mono[of Q]])
       by (auto simp: le_fun_def)
     done
-
+(*
 lemma "limitT b (\<lambda>y. T_f Q (f y)) = (\<lambda>y. T (limitOF b Q) (limit b (f y)))"
   apply(rule ext)
   unfolding limitT_def
@@ -3059,7 +3077,7 @@ proof (goal_cases)
 qed 
 
 
-lemma T_specifies_rev: "(m \<le> SPECT Q) \<Longrightarrow> T_f Q m \<ge> Some 0" 
+lemma T_f_specifies_rev: "(m \<le> SPECT Q) \<Longrightarrow> T_f Q m \<ge> Some 0" 
   apply(subst T_f_by_T)
   apply(cases m) apply (simp add: T_snd_FAILT limitO_def )  
   apply(simp add: T_pw limitO_def limitF_def mii_alt limit_def ) 
@@ -3072,7 +3090,281 @@ lemma T_specifies_rev: "(m \<le> SPECT Q) \<Longrightarrow> T_f Q m \<ge> Some 0
 
 
 
+lemma T_specifies_I: " T Q m \<ge> Some 0 \<Longrightarrow> (m \<le> SPECT Q)"
+  unfolding T_pw apply (cases m) apply (auto simp: miiFailt le_fun_def mii_def mm_def split: option.splits)
+  subgoal for M x apply(cases "Q x"; cases "M x")
+    subgoal by (auto split: if_splits)
+    subgoal by force  
+    subgoal by (auto split: if_splits)
+    subgoal by (auto split: if_splits)
+    done
+  done
+ 
 
+lemma T_g_specifies_I: 
+  fixes Q :: "('a \<Rightarrow> ('b::{complete_lattice,infinity,minus,zero}) option)" 
+  shows "T_g Q m \<ge> Some 0 \<Longrightarrow> (m \<le> SPECT Q)"
+  unfolding T_g_pw apply (cases m)
+   apply (auto simp: mii_gFailt le_fun_def mii_g_def mm_g_def split: option.splits)
+  subgoal for M x apply(cases "Q x"; cases "M x")
+        subgoal by (auto split: if_splits)[1]
+        subgoal by force 
+        subgoal by (auto split: if_splits)[1]
+        subgoal by (auto split: if_splits)
+        done
+      done
+
+lemma T_specifies_rev: "(m \<le> SPECT Q) \<Longrightarrow> T Q m \<ge> Some 0" 
+  unfolding T_pw apply (cases m)
+  subgoal by auto
+   apply (auto simp: miiFailt le_fun_def mii_alt mm2_def split: option.splits)
+  subgoal for M x t apply(cases "Q x"; cases "M x") apply (auto split: if_splits)
+    by (metis less_eq_option_Some_None)
+  subgoal  
+    by (metis less_eq_option_Some) 
+  done
+
+lemma T_g_specifies_rev:
+  fixes Q :: "('a \<Rightarrow> ('b::{complete_lattice,infinity,minus,zero}) option)" 
+  assumes "(0::'b) \<le> \<infinity>"
+    and "\<And>a b. (a::'b)\<le>b \<Longrightarrow> 0 \<le> b - a"
+  shows "(m \<le> SPECT Q) \<Longrightarrow> T_g Q m \<ge> Some 0" 
+  using assms(1) unfolding T_g_pw apply (cases m)
+  subgoal by auto
+   apply (auto simp: mii_gFailt le_fun_def mii_g_def mm_g_def split: option.splits)
+  subgoal for M x t apply(cases "Q x"; cases "M x") apply (auto split: if_splits)
+    by (metis less_eq_option_Some_None)
+  subgoal using assms(2) by (metis  )
+  subgoal  
+    by (metis less_eq_option_Some)   
+  done
+
+lemma T_g_specifies:
+  fixes Q :: "('a \<Rightarrow> ('b::{complete_lattice,infinity,minus,zero}) option)" 
+  assumes "(0::'b) \<le> \<infinity>"
+    and "\<And>a b. (a::'b)\<le>b \<Longrightarrow> 0 \<le> b - a"
+  shows "T_g Q m \<ge> Some 0 = (m \<le> SPECT Q)"
+  using assms T_g_specifies_I T_g_specifies_rev by metis
+
+
+lemma "((\<lambda>x. T_g Q (m x)) \<ge> P) = (bindT (SPECT P) m \<le> SPECT Q)"
+  oops
+
+
+definition "gwp c Q = (\<lambda>s. T_g Q (c s))"
+
+(* adjunction
+  between strongest postcondition and generalized wp
+ *)
+lemma "(bindT (SPECT P) m \<le> SPECT Q) \<longleftrightarrow> (P \<le> gwp c Q) "
+  oops
+
+lemma p:
+  assumes "SPECT P \<bind> m \<le> SPECT Q" 
+  shows "\<forall>t1. P x = Some t1 \<longrightarrow> (case m x of FAILi \<Rightarrow> FAILT | REST m2 \<Rightarrow> SPECT (map_option ((+) t1) \<circ> m2)) \<le> SPECT Q"
+  using assms unfolding bindT_def apply(simp add: Sup_le_iff) by auto
+
+
+lemma enat_cancle: "\<And>t1 t2 t. (t1::enat) + t2 \<le> t \<Longrightarrow> t2 \<le> t" 
+              using dual_order.trans enat_le_plus_same(2) by blast  
+lemma enat_adjoint: "\<And>a b c. (a::enat) + b \<le> c \<Longrightarrow> a \<le> c - b"
+              by (smt ab_semigroup_add_class.add_ac(1) add_diff_assoc_enat le_iff_add)
+
+
+lemma FFF_enat:
+  fixes Q :: "('a \<Rightarrow> enat option)"  
+  shows "(bindT (SPECT P) m \<le> SPECT Q) \<Longrightarrow> (P \<le> gwp m Q)"
+ unfolding gwp_def le_fun_def T_g_pw
+  apply safe
+  subgoal for x s'
+    apply(drule p[where x=x])
+    apply(cases "m x") apply simp
+    apply simp
+    unfolding mii_g_def mm_g_def apply simp
+    subgoal for x2 apply(cases "x2 s'")
+      subgoal  apply simp 
+        apply(cases "P x")  by simp_all
+      subgoal for t2
+        apply(cases "P x")
+         apply simp
+        apply simp
+      proof (goal_cases)
+        case (1 t1)
+        then have "(map_option ((+) t1) \<circ> x2) s' \<le> Q s'" unfolding le_fun_def by fast
+        with 1(2-4) show ?case              
+          apply(cases "Q s'")
+          subgoal by simp  
+          subgoal for t apply simp
+            apply auto
+            subgoal  by (simp add: enat_cancle)  
+            subgoal   by (simp add: enat_adjoint)
+            done
+          done
+      qed
+      done
+    done 
+  done
+
+lemma FFF:
+  fixes Q :: "('a \<Rightarrow> 'b::{complete_lattice,minus,plus} option)" 
+  assumes 
+     adjoint: "\<And>a b c. (a::'b) + b \<le> c \<Longrightarrow> a \<le> c - b"
+    and cancle: "\<And>t1 t2 t. (t1::'b) + t2 \<le> t \<Longrightarrow> t2 \<le> t"
+  shows "(bindT (SPECT P) m \<le> SPECT Q) \<Longrightarrow> (P \<le> gwp m Q)"
+ unfolding gwp_def le_fun_def T_g_pw
+  apply safe
+  subgoal for x s'
+    apply(drule p[where x=x])
+    apply(cases "m x") apply simp
+    apply simp
+    unfolding mii_g_def mm_g_def apply simp
+    subgoal for x2 apply(cases "x2 s'")
+      subgoal  apply simp 
+        apply(cases "P x") using assms(2) by simp_all
+      subgoal for t2
+        apply(cases "P x")
+         apply simp
+        apply simp
+      proof (goal_cases)
+        case (1 t1)
+        then have "(map_option ((+) t1) \<circ> x2) s' \<le> Q s'" unfolding le_fun_def by fast
+        with 1(2-4) show ?case              
+          apply(cases "Q s'")
+          subgoal by simp  
+          subgoal for t apply simp
+            apply auto
+            subgoal  by (simp add: cancle)
+            subgoal by (simp add: adjoint)
+            done
+          done
+      qed
+      done
+    done 
+  done
+
+lemma GGG:
+  fixes Q :: "('a \<Rightarrow> 'b::{complete_lattice,minus,plus} option)" 
+  assumes 
+     adjoint_rev: "\<And>a b c. c \<ge> b \<Longrightarrow> a \<le> c - b \<Longrightarrow> (a::'b) + b \<le> c"
+  shows "(P \<le> gwp m Q) \<Longrightarrow> (bindT (SPECT P) m \<le> SPECT Q)"
+  unfolding gwp_def le_fun_def T_g_pw mii_g_def
+  unfolding bindT_def apply simp
+  apply(rule Sup_least) apply simp apply safe
+  subgoal for r x t1
+  proof(goal_cases)
+    case 1
+    then have "\<forall>xa. P x \<le> (case m x of FAILi \<Rightarrow> None | REST Mf \<Rightarrow> mm_g Q Mf xa)" by fast
+    with 1(2) show ?case 
+      apply(cases "m x") apply simp
+      apply simp unfolding le_fun_def apply simp apply safe
+    proof (goal_cases)
+      case (1 M x')
+      then have "Some t1 \<le> mm_g Q M x'" by auto         
+      then show ?case by (auto simp: mm_g_def elim: adjoint_rev split: option.splits if_splits) 
+    qed
+  qed
+  done
+
+
+
+lemma " (a::enat) + b \<ge>c \<Longrightarrow> a \<ge> c - b"
+  apply(cases a; cases b; cases c) apply auto oops
+
+lemma " (a::enat) + b \<le>c \<Longrightarrow> a \<le> c - b"
+    apply(cases a; cases b; cases c) by auto  
+
+lemma  
+  fixes Q :: "('a \<Rightarrow> enat option)"  
+  shows "(bindT (SPECT P) m \<le> SPECT Q) \<Longrightarrow> (P \<le> gwp m Q)"
+  apply(rule FFF) apply simp_all
+  subgoal for a b c apply(cases a; cases b; cases c) by auto
+  subgoal for a b c apply(cases a; cases b; cases c) by auto
+  done
+
+
+lemma T_specifies: "T Q m \<ge> Some 0 = (m \<le> SPECT Q)"
+  using T_specifies_I T_specifies_rev by metis
+
+lemma lst_specifies: "lst m Q \<ge> (\<lambda>s. Some 0) = (\<forall>s. m s \<le> SPECT Q)"
+  unfolding lst_def le_fun_def unfolding T_specifies by metis
+
+lemma zz: "map_option ((+) (0::enat)) = id" apply (rule ext) by simp
+
+lemma pffa: "(case m x of FAILi \<Rightarrow> FAILT | REST m2 \<Rightarrow> SPECT (id \<circ> m2)) = m x" by (auto split: nrest.splits)
+
+lemma knatz: "(bindT (SPECT (\<lambda>s. Some (0::enat))) m \<le> SPECT Q) = (\<forall>s. m s \<le> SPECT Q)"
+  unfolding bindT_def apply simp unfolding zz 
+  unfolding Sup_le_iff unfolding pffa by auto
+
+lemma lst_specifies': "lst m Q \<ge> (\<lambda>s. Some 0) = (bindT (SPECT (\<lambda>s. Some (0::enat))) m \<le> SPECT Q)"
+  using knatz lst_specifies by metis
+
+
+lemma enat_adjoint_rev: "\<And>a b c. c\<ge>b \<Longrightarrow> a \<le> c - b \<Longrightarrow> (a::enat) + b \<le> c"
+  subgoal for a b c apply(cases a; cases b; cases c) by auto  
+  done
+  
+
+lemma GGG_enat:
+  fixes Q :: "('a \<Rightarrow> enat option)"  
+  shows "(P \<le> lst m Q) \<Longrightarrow> (bindT (SPECT P) m \<le> SPECT Q)"
+  unfolding lst_def le_fun_def T_pw mii_def
+  unfolding bindT_def apply simp
+  apply(rule Sup_least) apply simp apply safe
+  subgoal for r x t1
+  proof(goal_cases)
+    case 1
+    then have "\<forall>xa. P x \<le> (case m x of FAILi \<Rightarrow> None | REST Mf \<Rightarrow> mm Q Mf xa)" by fast
+    with 1(2) show ?case 
+      apply(cases "m x") apply simp
+      apply simp unfolding le_fun_def apply simp apply safe
+    proof (goal_cases)
+      case (1 M x')
+      then have "Some t1 \<le> mm Q M x'" by auto         
+      then show ?case apply (auto simp: mm_def  split: option.splits if_splits) 
+        subgoal for a b apply(cases a; cases b; cases t1) by auto
+        done
+    qed
+  qed
+  done
+
+thm FFF_enat
+lemma FFF_enat':
+  fixes Q :: "('a \<Rightarrow> enat option)"  
+  shows "(bindT (SPECT P) m \<le> SPECT Q) \<Longrightarrow> (P \<le> lst m Q)"
+ unfolding lst_def le_fun_def T_pw
+  apply safe
+  subgoal for x s'
+    apply(drule p[where x=x])
+    apply(cases "m x") apply simp
+    apply simp
+    unfolding mii_def mm_def apply simp
+    subgoal for x2 apply(cases "x2 s'")
+      subgoal  by simp 
+      subgoal for t2
+        apply(cases "P x")
+         apply simp
+        apply simp
+      proof (goal_cases)
+        case (1 t1)
+        then have "(map_option ((+) t1) \<circ> x2) s' \<le> Q s'" unfolding le_fun_def by fast
+        with 1(2-4) show ?case              
+          apply(cases "Q s'")
+          subgoal by simp  
+          subgoal for t apply simp
+            apply auto
+            subgoal  by (simp add: enat_cancle)  
+            subgoal   by (simp add: enat_adjoint)
+            done
+          done
+      qed
+      done
+    done 
+  done
+
+lemma lst_adjunction: "(bindT (SPECT P) m \<le> SPECT Q) \<longleftrightarrow> (P \<le> lst m Q)"
+  using FFF_enat' GGG_enat 
+        by metis  
 
 (*
 
