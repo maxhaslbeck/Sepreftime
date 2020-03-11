@@ -7,8 +7,10 @@ theory AbstractSepreftime
 
 begin
 
-
-
+definition myminus where "myminus x y = (if x=\<infinity> \<and> y=\<infinity> then 0 else x - y)"
+lemma "(a::enat) + x \<ge> b  \<longleftrightarrow> x \<ge> myminus b a "
+  unfolding myminus_def
+  apply(cases a; cases b; cases x) apply auto
 
 
 section "Auxiliaries"
