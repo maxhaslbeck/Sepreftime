@@ -94,8 +94,7 @@ proof(induct "r-l" arbitrary: l r rule: less_induct)
         using binarysearch_mono[OF avg_diff1] 
         by (simp add: le_SucI)
     subgoal by(simp add: avg_def)    
-    subgoal by(simp add: avg_def)   
-    subgoal by(simp add: avg_def)
+    subgoal by(simp add: avg_def) 
     subgoal 
       apply (rule allI conjI) apply auto2  
         using binarysearch_mono[OF avg_diff2] 

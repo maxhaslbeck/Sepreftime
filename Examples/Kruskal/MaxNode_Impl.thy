@@ -257,26 +257,21 @@ lemma freeze_smallerrule: "length xs \<le> S \<Longrightarrow> <a \<mapsto>\<^su
 lemma distinct_sort: "distinct a \<Longrightarrow> distinct (sort a)"   
   by simp  
 
+
+lemma wrap_distinct_length_le:
+  "W ` set l = set ra \<Longrightarrow> distinct ra \<Longrightarrow> length ra \<le> length l"
+  by (metis distinct_length_le length_map set_map)  
+
 lemma sortEdges'_rule: "<timeCredit_assn(sortEdges'_time (length l))>
            sortEdges' l 
       <\<lambda>(sl, mn). \<up>(sorted_wrt edges_less_eq sl \<and> set l = set sl \<and> distinct sl \<and> max_node l = mn)>\<^sub>t"
   unfolding sortEdges'_def  sortEdges'_time_def
-  apply(sep_auto heap: remdup_map_rule) 
-   apply(rule fi_rule[where F="timeCredit_assn(7 + (3 * length l + ( merge_sort_time (length l))))", OF  ht_cons_rule[OF _ _ remdup_map_rule]])
-     apply (rule ent_refl) apply (rule ent_refl)
-  subgoal by (simp add: norm_assertion_simps dollarD)
-  apply(simp add: da_assn_id)                               
-  apply(sep_auto heap: destroy_rule remdup_map_rule mergeSort_map_rule maxn_sort_maprule of_list_map_rule  freeze_sort_maprule simp: sorted_wrap )
-   apply(sep_auto heap: mergeSort_smaller_rule[where ll="length l"])
-  subgoal  
-    by (metis distinct_length_le length_map set_map)  
-  apply(sep_auto heap: maxn_sort_smallerrule[where S="length l"])
-  subgoal 
-    by (metis distinct_length_le length_map set_map)  
-  apply(sep_auto heap: freeze_smallerrule[where S="length l"])
-  subgoal 
-    by (metis distinct_length_le length_map set_map)  
-  apply (sep_auto simp: sorted_wrap )
+  apply(sep_auto  simp: da_assn_id sorted_wrap wrap_distinct_length_le
+                  heap: remdup_map_rule destroy_rule freeze_sort_maprule
+                        mergeSort_map_rule maxn_sort_maprule of_list_map_rule                         
+                        mergeSort_smaller_rule[where ll="length l"]
+                        maxn_sort_smallerrule[where S="length l"]
+                        freeze_smallerrule[where S="length l"])
   subgoal 
     using extrW by blast 
   subgoal  

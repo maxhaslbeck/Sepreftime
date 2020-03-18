@@ -846,11 +846,9 @@ qed
             nf_invar.finite_succ
             nf_invar.invar_N_ss_Vis)  
     subgoal apply(subst (asm) Te_decr_succ_step(2)) by auto   
-    subgoal apply(subst (asm) Te_decr_succ_step(2)) by auto   
-    subgoal by (auto intro:   nf_invar'.invar_shift  nf_invar.invar_succ_step )  
-    subgoal   by (auto intro!: Te_decr_succ_step)  
-    subgoal by (auto intro:   nf_invar'.invar_shift  nf_invar.invar_succ_step )  
-    subgoal  by (auto intro!: Te_decr_succ_step) 
+    subgoal apply(subst (asm) Te_decr_succ_step(2)) by auto    
+    subgoal by (auto intro!: Te_decr_succ_step)   
+    subgoal by (auto intro!: Te_decr_succ_step)  
     subgoal by (auto intro: Te_decr_level_step(2))
     subgoal by (auto intro: Te_decr_level_step(2))
     subgoal by (auto intro:   nf_invar'.invar_restore   nf_invar.invar_succ_step )  

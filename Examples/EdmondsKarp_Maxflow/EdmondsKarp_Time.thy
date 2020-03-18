@@ -1,6 +1,6 @@
 theory EdmondsKarp_Time
   imports EdmondsKarp_Impl 
-begin
+begin          
  
 lemma "(\<lambda>x::nat. real ((3 ))) \<in> \<Theta>(\<lambda>(x). real 1)" 
   by auto2 

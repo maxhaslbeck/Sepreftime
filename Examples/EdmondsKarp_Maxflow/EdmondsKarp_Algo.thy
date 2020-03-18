@@ -54,7 +54,7 @@ print_locale FoFu
 definition (in -) edka_time_aux   where
   "edka_time_aux shortestpath_time augment_with_path_time init_graph cE cV  = init_graph cV +  (shortestpath_time+augment_with_path_time) * (2 * cV * cE + cV + 1)"
 
-interpretation edka: FoFu c s t "edka_measure:: (nat \<times> nat \<Rightarrow> 'capacity) \<Rightarrow> nat" shortestpath_time augment_with_path_time init_graph "info :: (nat \<times> nat \<Rightarrow> 'capacity) \<Rightarrow> (nat \<times> nat) list \<Rightarrow> bool"
+interpretation edka: FoFu c s t "edka_measure:: (nat \<times> nat \<Rightarrow> 'capacity) \<Rightarrow> nat" shortestpath_time augment_with_path_time "init_graph (card V)" "info :: (nat \<times> nat \<Rightarrow> 'capacity) \<Rightarrow> (nat \<times> nat) list \<Rightarrow> bool"
   apply standard
   subgoal using NFlow.augmenting_path_imp_shortest info_def by blast 
   subgoal using edka_measure_decreases info_def augments by simp
