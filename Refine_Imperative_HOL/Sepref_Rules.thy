@@ -1,6 +1,6 @@
 section \<open>Refinement Rule Management\<close>
 theory Sepref_Rules
-imports Sepref_Basic Sepref_Constraints Sepref_Additional
+imports Sepref_Basic Sepref_Constraints 
 begin
   text \<open>This theory contains tools for managing the refinement rules used by Sepref\<close>
 
@@ -230,6 +230,49 @@ lemma fref_to_pure_hfref':
     subgoal by (simp add: relH_def)
     done 
 *)
+
+  subsubsection \<open>Conversion from hfrefb to hnr\<close>  
+  definition hfrefb 
+    :: "
+      ('a \<Rightarrow> bool)
+   \<Rightarrow>
+      ('a \<Rightarrow> nat)  
+   \<Rightarrow> (('a \<Rightarrow> 'ai \<Rightarrow> assn) \<times> ('a \<Rightarrow> 'ai \<Rightarrow> assn)) 
+   \<Rightarrow> ('b \<Rightarrow> 'bi \<Rightarrow> assn) 
+   \<Rightarrow> (('ai \<Rightarrow> 'bi Heap) \<times> (('a\<Rightarrow>nat) \<Rightarrow> 'a \<Rightarrow>'b nrest)) set"
+   ("[_,_]\<^sub>b _ \<rightarrow> _" [0,0,60,60] 60)
+   where
+    "[P,D]\<^sub>b RS \<rightarrow> T \<equiv> { (f,g) . \<forall>t c a.  P a \<longrightarrow> D a \<le> t a \<longrightarrow> hn_refine (fst RS a c) (f c) (snd RS a c) T (g t a)}"
+
+  
+  lemma hfrefbI[intro?]: 
+    assumes "\<And>c a t. P a \<Longrightarrow> D a \<le> t a \<Longrightarrow> hn_refine (fst RS a c) (f c) (snd RS a c) T (g t a)"
+    shows "(f,g)\<in>hfrefb P D RS T"
+    using assms unfolding hfrefb_def by blast
+
+
+  lemma hfb2hnr:
+    assumes "(f,g) \<in> [P,D]\<^sub>b R \<rightarrow> S"
+    shows "\<forall>t x xi. P x \<and> D x \<le> t x \<longrightarrow>  hn_refine (emp * hn_ctxt (fst R) x xi) (APP f xi) (emp * hn_ctxt (snd R) x xi) S (APP (APP g t) x)"
+    using assms
+    unfolding hfrefb_def 
+    by (auto simp: hn_ctxt_def)
+
+
+  definition noparam_t :: "('d \<Rightarrow> 'c) \<Rightarrow> 'd \<Rightarrow>  unit \<Rightarrow> 'c" where
+    "noparam_t f \<equiv> \<lambda>t _. f t"
+
+  definition oneparam_t :: "('d \<Rightarrow>  'b \<Rightarrow> 'c) \<Rightarrow> 'd \<Rightarrow>  'b \<Rightarrow> 'c" where
+    "oneparam_t f \<equiv> \<lambda>t a. f t a"
+
+  definition uncurry_t :: "('d \<Rightarrow> 'a \<Rightarrow> 'b \<Rightarrow> 'c) \<Rightarrow> 'd \<Rightarrow> 'a \<times> 'b \<Rightarrow> 'c" where
+    "uncurry_t f \<equiv> \<lambda>t (a,b). f t a b"
+  
+  lemma APP_uncurry_t_uncurry: 
+    "APP (noparam_t Z) g= uncurry0 (PR_CONST (Z g))"
+    "APP (oneparam_t Y) t= (PR_CONST(Y t))"
+    "APP (uncurry_t X) t = (uncurry (PR_CONST(X t)))"
+    by (auto simp add: uncurry_def uncurry0_def uncurry_t_def oneparam_t_def noparam_t_def )
 
   subsubsection \<open>Conversion from hfref to hnr\<close>  
   text \<open>This section contains the lemmas. The ML code is further down. \<close>
@@ -990,6 +1033,9 @@ lemma entails_pure''': "(emp \<Longrightarrow>\<^sub>A \<up> B) = B"
       (* Convert theorem in hfref-form to hnr-form *)
       val to_hnr : Proof.context -> thm -> thm
 
+      (* Convert theorem in hfrefb-form to hnr-form *)
+      val hfrefb_to_hnr : Proof.context -> thm -> thm
+
       (* Convert theorem in hnr-form to hfref-form *)
       val to_hfref: Proof.context -> thm -> thm
 
@@ -1153,6 +1199,19 @@ lemma entails_pure''': "(emp \<Longrightarrow>\<^sub>A \<up> B) = B"
             Parametricity.fo_rule thm
         | _ => raise THM("Expected parametricity or fref theorem",~1,[thm])
       end
+
+
+      fun hfrefb_to_hnr ctxt thm =
+        (thm RS @{thm hfb2hnr})
+        |> Local_Defs.unfold0 ctxt @{thms to_hnr_prod_fst_snd keep_drop_sels} (* Resolve fst and snd over *\<^sub>a and R\<^sup>k, R\<^sup>d *)
+        |> Local_Defs.unfold0 ctxt @{thms APP_uncurry_t_uncurry} (* hide the time parameter *)
+        |> Local_Defs.unfold0 ctxt @{thms hnr_uncurry_unfold} (* Resolve products for uncurried parameters *)
+        |> Local_Defs.unfold0 ctxt @{thms uncurry_apply uncurry_APP assn_one_left split} (* Remove the uncurry modifiers, the emp-dummy, and unfold product cases *)
+        |> Local_Defs.unfold0 ctxt @{thms hn_ctxt_ctxt_fix_conv} (* Remove duplicate hn_ctxt tagging *)
+        |> Local_Defs.unfold0 ctxt @{thms all_to_meta imp_to_meta HOL.True_implies_equals HOL.implies_True_equals Pure.triv_forall_equality cnv_conj_to_meta} (* Convert to meta-level, remove vacuous condition *)
+        |> Local_Defs.unfold0 ctxt (Named_Theorems.get ctxt @{named_theorems to_hnr_post}) (* Post-Processing *)
+        |> Goal.norm_result ctxt
+        |> Conv.fconv_rule Thm.eta_conversion
 
       fun to_hnr ctxt thm =
         (thm RS @{thm hf2hnr})
@@ -1854,6 +1913,11 @@ lemma entails_pure''': "(emp \<Longrightarrow>\<^sub>A \<up> B) = B"
 
   attribute_setup to_hnr = \<open>
     Scan.succeed (Thm.rule_attribute [] (Sepref_Rules.to_hnr o Context.proof_of))
+\<close> "Convert hfref-rule to hnr-rule"
+
+
+  attribute_setup hfb_to_hnr = \<open>
+    Scan.succeed (Thm.rule_attribute [] (Sepref_Rules.hfrefb_to_hnr o Context.proof_of))
 \<close> "Convert hfref-rule to hnr-rule"
   
   attribute_setup to_hfref = \<open>Scan.succeed (

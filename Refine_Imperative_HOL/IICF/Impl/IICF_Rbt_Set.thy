@@ -2,12 +2,9 @@ theory IICF_Rbt_Set
   imports "SepLogicTime_RBTreeBasic.RBTree_Impl" 
       "../Intf/IICF_Set"  "NREST.RefineMonadicVCG" "NREST.NREST"
 begin
-
 hide_const R B
-
 subsection "library for some set implementation"
-
-
+term R
 subsubsection "interface"
  
 
@@ -274,19 +271,12 @@ lemma inZ_conv: "(M, S) \<in> Z \<longleftrightarrow> (S = keys_of M)" unfolding
 
 lemma set_ins_hnr_abs:
   "hn_refine (rbt_set_assn S p * hn_val Id x x') (rbt_set_insert x' p) (hn_val Id x x') rbt_set_assn (set_ins_SPEC x S)"
-
   unfolding set_ins_SPEC_def
-  apply (rule extract_cost_otherway[OF _  rbt_insert_rule_abs ]) unfolding mult.assoc
-    apply(rule match_first)
-    apply rotatel apply(rule match_first) apply (rule entails_triv)
-
-   apply rotatel apply rotatel apply takel apply taker apply(rule isolate_first)
-  unfolding gr_def apply(simp only: ex_distrib_star')
-    apply(rule inst_ex_assn)
-    apply rotater unfolding hn_ctxt_def pure_def 
-    apply(rule fl') apply (simp ) apply safe
-  prefer 4  apply(rule entails_triv) 
-  by (auto simp: set_ins_t_def) 
+  apply (rule extract_cost_otherway[OF _  rbt_insert_rule_abs ])
+    apply (sep_auto)
+   apply (sep_auto simp: hn_ctxt_def pure_def)
+  apply(auto simp: set_ins_t_def)
+  done
 
 subsubsection "set membership via rbtree"
 
@@ -313,134 +303,64 @@ thm set_ins_hnr_abs set_ins_SPEC_def
 (* thm set_mem_hnr_abs set_mem_SPEC_def *)
 
 subsubsection "implement the interface"
-
-lemma mop_set_empty_rule[sepref_fr_rules]:
-  "1\<le>n \<Longrightarrow> hn_refine (emp) set_empty emp rbt_set_assn (PR_CONST (mop_set_empty n))"
-
-  unfolding autoref_tag_defs mop_set_empty_def  
-  apply (rule extract_cost_otherway[OF _ set_empty_rule, where Cost_lb=1 and F=emp])
-  apply simp  
-  subgoal 
-    apply(rule ent_true_drop(2))
-    by (auto intro!: inst_ex_assn fl entails_triv simp:   rbt_map_assn'_def )  
-   by (auto intro: entails_triv simp: set_init_t_def)
+                        
+context 
+  notes [intro!] = hfref_to_hoare_triple
+  notes [simp] = pure_def hn_ctxt_def invalid_assn_def uncurry_t_def
+                noparam_t_def oneparam_t_def
+begin  
 
 
-lemma mop_set_insert_rule[sepref_fr_rules]:
-  "rbt_insert_logN (card S + 1) \<le> t S \<Longrightarrow> 
-      hn_refine (hn_val Id x x' * hn_ctxt rbt_set_assn S p)
-       (rbt_set_insert x' p)
-       (hn_val Id x x' * hn_invalid rbt_set_assn S p) rbt_set_assn ( PR_CONST (mop_set_insert t) $ x $ S)"
+  lemma mop_set_empty_rule_aux:
+  "(uncurry0 set_empty, noparam_t mop_set_empty) \<in> [\<lambda>_. True, \<lambda>_. 1]\<^sub>b unit_assn\<^sup>k \<rightarrow> rbt_set_assn"
+    by(sep_auto heap: set_empty_rule simp: mop_set_empty_def)
 
-  unfolding mop_set_insert_def autoref_tag_defs
-  apply (rule extract_cost_otherway[OF _  rbt_insert_rule_abs, where F="hn_val Id x x' * hn_invalid rbt_set_assn S p" ])
-  unfolding mult.assoc
-    apply(rotatel)
-    apply rotater  apply rotater  apply rotater   apply taker apply(rule isolate_first)
-  apply (simp add: gr_def hn_ctxt_def)  apply(rule invalidate_clone)
-  unfolding hn_ctxt_def
-    apply(rule match_first)  apply (rule entails_triv)
-
-   apply rotatel apply rotatel apply swapl apply takel apply swapr apply taker 
-   apply(rule isolate_first) 
-  unfolding gr_def apply(simp only: ex_distrib_star' pure_def)
-    apply(rule inst_ex_assn) apply simp apply safe prefer 4 
-     apply(rule entails_triv) 
-  by (auto) 
+  lemmas mop_set_empty_rule[sepref_fr_rules] = mop_set_empty_rule_aux[hfb_to_hnr]
 
 
-lemma mop_set_delete_rule[sepref_fr_rules]:
-  "rbt_delete_time_logN (card S + 1) \<le> t S \<Longrightarrow> 
-      hn_refine (hn_val Id x x' * hn_ctxt rbt_set_assn S p)
-       (rbt_set_delete p x')
-       (hn_val Id x x' * hn_invalid rbt_set_assn S p) rbt_set_assn ( PR_CONST (mop_set_del t) $ S $ x)"
+  lemma mop_set_insert_rule_aux: "(uncurry rbt_set_insert, uncurry_t mop_set_insert)
+       \<in> [\<lambda>_. True, \<lambda>(_, S). rbt_insert_logN (card S + 1)]\<^sub>b (id_assn\<^sup>k *\<^sub>a rbt_set_assn\<^sup>d) \<rightarrow> rbt_set_assn"
+    by (sep_auto heap: rbt_insert_rule_abs simp: mop_set_insert_def)
 
-  unfolding mop_set_del_def autoref_tag_defs
-  apply (rule extract_cost_otherway[OF _  rbt_delete_rule_abs, where F="hn_val Id x x' * hn_invalid rbt_set_assn S p" ])
-  unfolding mult.assoc
-    apply(rotatel)
-    apply rotater  apply rotater  apply rotater   apply taker apply(rule isolate_first)
-  apply (simp add: gr_def hn_ctxt_def)  apply(rule invalidate_clone)
-  unfolding hn_ctxt_def
-    apply(rule match_first)  apply (rule entails_triv)
-
-   apply rotatel apply rotatel apply swapl apply takel apply swapr apply taker 
-   apply(rule isolate_first) 
-  unfolding gr_def apply(simp only: ex_distrib_star' pure_def)
-    apply(rule inst_ex_assn) apply simp apply safe prefer 4 
-     apply(rule entails_triv) 
-  by (auto) 
+  lemmas mop_set_insert_rule[sepref_fr_rules] = mop_set_insert_rule_aux[hfb_to_hnr]
 
 
+  lemma mop_set_delete_rule_aux: "(uncurry rbt_set_delete, uncurry_t mop_set_del)
+       \<in> [\<lambda>_. True, \<lambda>(S,_). rbt_delete_time_logN (card S + 1)]\<^sub>b (rbt_set_assn\<^sup>d *\<^sub>a id_assn\<^sup>k) \<rightarrow> rbt_set_assn"
+    by (sep_auto heap: rbt_delete_rule_abs simp: mop_set_del_def)
 
-lemma mop_mem_set_rule[sepref_fr_rules]:
-  "rbt_search_time_logN (card S + 1) + 1 \<le> t S \<Longrightarrow>
-    hn_refine (hn_val Id x x' * hn_ctxt rbt_set_assn S p)
-     (rbt_mem (x') p)
-     (hn_ctxt (pure Id) x x' * hn_ctxt rbt_set_assn S p) id_assn ( PR_CONST (mop_set_member t) $  x $ S)"
-
-  unfolding autoref_tag_defs mop_set_member_def
-  apply (rule extract_cost_otherway[OF _  rbt_mem_rule]) unfolding mult.assoc
-  unfolding hn_ctxt_def
-    apply rotatel apply(rule match_first) apply(rule match_first)       
-   apply (rule entails_triv)
-  apply rotater
-   apply(rule match_first) apply (simp add: pure_def)   apply safe
-    apply(rule inst_ex_assn[where x="x \<in> S"])  by auto 
+  lemmas mop_set_delete_rule[sepref_fr_rules] = mop_set_delete_rule_aux[hfb_to_hnr]
 
 
-thm rbt_set_isempty_rule
+  lemma mop_set_member_rule_aux: "(uncurry rbt_mem, uncurry_t mop_set_member)
+       \<in> [\<lambda>_. True, \<lambda>(_, S). rbt_search_time_logN (card S + 1) + 1]\<^sub>b (id_assn\<^sup>k *\<^sub>a rbt_set_assn\<^sup>k) \<rightarrow> bool_assn"
+    by (sep_auto heap: rbt_mem_rule simp: mop_set_member_def)
 
+  lemmas mop_set_member_rule[sepref_fr_rules] = mop_set_member_rule_aux[hfb_to_hnr]
 
-lemma mop_set_isempty_rule[sepref_fr_rules]:
-  "1 \<le> t S \<Longrightarrow>
-    hn_refine (hn_ctxt rbt_set_assn S p)
-     (rbt_set_isempty  p)
-     (hn_ctxt rbt_set_assn S p) id_assn ( PR_CONST (mop_set_isempty t) $ S)"
-
-  unfolding autoref_tag_defs mop_set_isempty_def             
-  apply (rule extract_cost_otherway[OF _  rbt_set_isempty_rule, where F="emp" ]) unfolding mult.assoc
-  unfolding hn_ctxt_def  apply(rule match_first) apply simp      
-     apply (rule entails_triv)
-   apply(rule match_first)   apply clarsimp   
-   apply (simp add: pure_def)    
-    apply(rule inst_ex_assn[where x="S = {}"]) apply (simp add: dom_emb'_eq)
-  by (auto split: if_splits simp add: ran_def emb'_def)
-
-
-
-lemma mop_set_pick_rule[sepref_fr_rules]:
-  "4 \<le> t S \<Longrightarrow>
-    hn_refine (hn_ctxt rbt_set_assn S p)
-     (rbt_set_pick  p)
-     (hn_ctxt rbt_set_assn S p) id_assn ( PR_CONST (mop_set_pick t) $ S)"
-
-  unfolding autoref_tag_defs mop_set_pick_def
-  apply(rule hnr_ASSERT)
-  apply (rule extract_cost_otherway[OF _  rbt_set_pick_rule, where F = emp]) unfolding mult.assoc
-  unfolding hn_ctxt_def  apply(rule match_first) apply simp      
-     apply (rule entails_triv)
-  apply simp 
-   apply(rule match_first) apply clarsimp
-   
-   apply (simp add: pure_def)   subgoal for r
-    apply(rule inst_ex_assn[where x="r"]) by (simp add: dom_emb'_eq)
-  by (auto split: if_splits simp add: ran_def emb'_def)
-
-thm mop_set_pick_rule[to_hfref]
-
-lemma "(rbt_set_pick, PR_CONST (mop_set_pick t)) \<in> [\<lambda>S. 4 \<le> t S]\<^sub>a rbt_set_assn\<^sup>k \<rightarrow> id_assn"
-  apply sepref_to_hoare
-  unfolding autoref_tag_defs mop_set_pick_def
-  apply(rule hnr_ASSERT)
-  apply (rule extract_cost_otherway'[OF _ rbt_set_pick_rule])
-     apply solve_entails apply auto[]
-  oops
   
+  lemma mop_set_isempty_rule_aux: "(rbt_set_isempty, oneparam_t mop_set_isempty)
+       \<in> [\<lambda>_. True, \<lambda>_. 1]\<^sub>b rbt_set_assn\<^sup>k \<rightarrow> bool_assn"
+    by (sep_auto heap: rbt_set_isempty_rule simp: mop_set_isempty_def)
 
+  lemmas mop_set_isempty_rule[sepref_fr_rules] = mop_set_isempty_rule_aux[hfb_to_hnr]
+  
+  lemma mop_set_pick_rule_aux: "(rbt_set_pick, oneparam_t mop_set_pick)
+       \<in> [\<lambda>_. True, \<lambda>_. 4]\<^sub>b rbt_set_assn\<^sup>k \<rightarrow> id_assn"
+    apply (sep_auto heap: rbt_set_pick_rule simp:  mop_set_pick_def)     
+    by (auto split: if_splits simp: bind_ASSERT_eq_if emb'_def ran_def)
+
+  lemmas mop_set_pick_rule[sepref_fr_rules] = mop_set_pick_rule_aux[hfb_to_hnr]
+
+end
+
+
+paragraph "implement pick extract"
+
+text \<open>Therefore use sepref to implement pick extract by pick and delete.\<close>
 
 definition "rbt_set_pick_extract S = do { v \<leftarrow> mop_set_pick (\<lambda>_. 4) S;
-                              C \<leftarrow> mop_set_del (\<lambda>S. rbt_delete_time_logN (card S + 1)) S v;
+                              C \<leftarrow> mop_set_del (\<lambda>(S,_). rbt_delete_time_logN (card S + 1)) S v;
                               RETURNT (v,C) }"
 
 lemma rbt_set_pick_extract_refines: "rbt_delete_time_logN (card S + 1) + 4 \<le> t S \<Longrightarrow> rbt_set_pick_extract S \<le> mop_set_pick_extract t S"
@@ -454,23 +374,14 @@ lemma rbt_set_pick_extract_refines': "(rbt_set_pick_extract, PR_CONST (mop_set_p
   apply(rule nrest_relI) using rbt_set_pick_extract_refines by auto
 
 schematic_goal mop_set_pick_extract_rule':
-      notes [id_rules] = 
-        itypeI[Pure.of S "TYPE('a set)"] 
-      shows
-  "hn_refine (hn_ctxt rbt_set_assn S p) (?c::?'c Heap) ?\<Gamma>' ?R (rbt_set_pick_extract S)"
+  notes [id_rules] = itypeI[Pure.of S "TYPE('a set)"] 
+  shows "hn_refine (hn_ctxt rbt_set_assn S p) (?c::?'c Heap) ?\<Gamma>' ?R (rbt_set_pick_extract S)"
   unfolding rbt_set_pick_extract_def
-  apply sepref done
+  by sepref 
 
 concrete_definition (in -) set_pick_extract uses mop_set_pick_extract_rule'
-print_theorems
-
-    sepref_register "set_pick_extract " 
- 
 
 lemmas kruskal_ref_spec[sepref_fr_rules] = set_pick_extract.refine[FCOMP rbt_set_pick_extract_refines']
- 
-
-
 
 
 end

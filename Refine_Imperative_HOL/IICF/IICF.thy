@@ -3,7 +3,21 @@ theory IICF
 imports        
   (* Sets *)
   "Intf/IICF_Set"
- (* "Impl/IICF_List_SetO" *)
+
+  "Impl/IICF_Rbt_Set"
+  "Impl/IICF_List_Set"
+
+  (* Maps *)
+  "Intf/IICF_Map"
+
+  "Impl/IICF_ArrayMap_Map"
+  "Impl/IICF_RbtMap_Map"
+  (*
+  "Intf/IICF_Prio_Map"
+
+  "Impl/Heaps/IICF_Impl_Heapmap" 
+  *)
+
 (*
   (* Multisets *)
   "Intf/IICF_Multiset"
@@ -14,14 +28,12 @@ imports
 
   "Impl/Heaps/IICF_Impl_Heap"
 
-  (* Maps *)
-  "Intf/IICF_Map"
-  "Intf/IICF_Prio_Map"
-
-  "Impl/Heaps/IICF_Impl_Heapmap"
 *)
   (* Lists *)
   "Intf/IICF_List"
+
+  "Impl/IICF_Array_ListN"
+  "Impl/IICF_DArray_List"
 
  (* "Impl/IICF_Array" *)
 (*
@@ -39,5 +51,5 @@ imports
   "Impl/IICF_Sepl_Binding"
 *)
 begin
-  thy_deps
+thy_deps
 end

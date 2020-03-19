@@ -1,6 +1,7 @@
 theory OutputSensitive
-  imports "../Sepreftime" "../RefineMonadicVCG"
-"../Refine_Imperative_HOL/IICF/Impl/IICF_Array_ListN" 
+  imports "NREST.NREST"
+    "NREST.RefineMonadicVCG"
+    "../Refine_Imperative_HOL/IICF/IICF" 
 begin
 
 definition "divide_SPEC n d = REST [ (n div d, n mod d) \<mapsto> n div d ]"

@@ -1,5 +1,5 @@
 theory Sepref_Additional
-imports Sepref_Basic
+imports Sepref_Basic Sepref_Rules
 begin
 
 lemma hoare_alt: 
@@ -82,6 +82,32 @@ lemma extract_cost_otherway':
   apply(rule extract_cost_otherway)
   using assms by auto
 
+
+lemmas extr = extract_cost_otherway[where F=emp, simplified, OF ent_refl _ ent_refl]
+
+lemma extr': "(\<And>M. m = SPECT M \<Longrightarrow> <\<Gamma> * timeCredit_assn Cost_lb> c <\<lambda>r. \<exists>\<^sub>Ara. \<Gamma>' * (R ra r * \<up> (ra \<in> dom M)) * true>) \<Longrightarrow>
+(\<And>c M. m = SPECT M \<Longrightarrow> c \<in> ran M \<Longrightarrow> enat Cost_lb \<le> c) \<Longrightarrow> hn_refine \<Gamma> c \<Gamma>' R m"
+  apply(cases m)
+    subgoal by simp
+  subgoal premises prems for M
+    using extr[OF prems(1)[OF prems(3)] prems(2)[OF prems(3)]]  prems(3) by simp
+  done
+
+lemma hfref_to_hoare_triple:
+   assumes
+  "(\<And>M h c a t. P a \<Longrightarrow> D a \<le> t a \<Longrightarrow>  h\<Turnstile>fst RS a c \<Longrightarrow> g t a = SPECT M
+       \<Longrightarrow> <fst RS a c * timeCredit_assn (D a)> f c <\<lambda>r. \<exists>\<^sub>Ara. snd RS a c * (T ra r * \<up> (ra \<in> dom M)) * true>)"
+  "(\<And>co M h c a t. P a \<Longrightarrow> D a \<le> t a \<Longrightarrow> h\<Turnstile>fst RS a c \<Longrightarrow> g t a = SPECT M \<Longrightarrow> co \<in> ran M
+       \<Longrightarrow> enat (D a) \<le> co)"
+shows "(f,g)\<in>hfrefb P D RS T"
+  apply(rule hfrefbI)
+  apply(rule hn_refine_preI)
+  subgoal for c a t h
+    apply(rule extr'[where Cost_lb="D a"])
+     apply (rule assms(1)) apply simp_all
+    apply (rule assms(2)) apply simp_all
+    done
+  done
 
 
 

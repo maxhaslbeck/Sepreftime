@@ -1,7 +1,6 @@
 theory Augmenting_Path_BFS_Impl
   imports
-          "../../Refine_Imperative_HOL/IICF/Impl/IICF_List_Set"
-          "../../Refine_Imperative_HOL/IICF/Impl/IICF_ArrayMap_Map"
+          "../../Refine_Imperative_HOL/IICF/IICF"
           Augmenting_Path_BFS 
 begin
 
@@ -46,12 +45,12 @@ lemma [simp]: "map_lookup_time cf > 0" unfolding map_lookup_time_def by simp
 
 definition init_state :: "nat \<Rightarrow> (bool \<times> (nat \<Rightarrow> nat option) \<times> nat set \<times> nat set \<times> nat) nrest" where
   "init_state  src  = do {
-        m \<leftarrow> mop_map_empty (N+3);
+        m \<leftarrow> mop_map_empty (\<lambda>_. N+3);
         m \<leftarrow> mop_map_update (\<lambda>M. 6) m src src;
-        C \<leftarrow> mop_set_empty (1::nat);
+        C \<leftarrow> mop_set_empty (\<lambda>_. 1::nat);
         ASSERT (C={});
         C \<leftarrow> mop_set_insert (\<lambda>_. 2) src C;
-        N \<leftarrow> mop_set_empty (1::nat);
+        N \<leftarrow> mop_set_empty (\<lambda>_. 1::nat);
         RETURNT (False, m, C, N, 0::nat)
       }"
     

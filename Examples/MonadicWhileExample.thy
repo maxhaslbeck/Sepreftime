@@ -1,6 +1,9 @@
 theory MonadicWhileExample
-imports "../Refine_Imperative_HOL/Sepref" "../RefineMonadicVCG"
-    "../Refine_Imperative_HOL/IICF/Impl/IICF_Rbt_Set"   Complex_Main "HOL-Decision_Procs.Approximation"
+  imports "../Refine_Imperative_HOL/Sepref"
+    "NREST.RefineMonadicVCG"
+    "../Refine_Imperative_HOL/IICF/IICF"
+    Complex_Main
+    "HOL-Decision_Procs.Approximation"
 begin
 
 

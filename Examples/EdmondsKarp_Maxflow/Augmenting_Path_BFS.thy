@@ -5,9 +5,7 @@ imports
   Graph_Impl
   "../../Refine_Foreach"
 (*  "NREST.RefineMonadicVCG" *)
-  "../../Refine_Imperative_HOL/IICF/Intf/IICF_Set"
-  "../../Refine_Imperative_HOL/IICF/Intf/IICF_Map"
-  "../../Refine_Imperative_HOL/IICF/Intf/IICF_List"
+  "../../Refine_Imperative_HOL/IICF/IICF"
   "../../Refine_Heuristics"
 begin
 
@@ -148,7 +146,8 @@ begin
     finally show ?thesis .
   qed
 
-  abbreviation "bod \<equiv> (set_pick_extract_time+init_get_succs_list_time +2*set_isempty_time+ set_empty_time)"
+abbreviation "bod \<equiv> (set_pick_extract_time + init_get_succs_list_time
+                       + 2 * set_isempty_time + set_empty_time)"
 
 definition Te :: "node \<Rightarrow> bool \<times> (nat \<Rightarrow> nat option) \<times> nat set \<times> nat set \<times> nat
    \<Rightarrow> nat" where "Te src = (\<lambda>(f,PRED,C,N,d). if f then 0
@@ -182,7 +181,7 @@ definition Te :: "node \<Rightarrow> bool \<times> (nat \<Rightarrow> nat option
           b \<leftarrow> mop_set_isempty (\<lambda>_. set_isempty_time) C;
           if (b) then do {
             C \<leftarrow> RETURNT N; 
-            N \<leftarrow> mop_set_empty (set_empty_time);
+            N \<leftarrow> mop_set_empty (\<lambda>_. set_empty_time);
             d \<leftarrow> RETURNT (d+1);
             RETURNT (f,PRED,C,N,d)
           } else RETURNT (f,PRED,C,N,d)
@@ -743,14 +742,14 @@ qed
 *)
  
 
-  lemma if_splitI: "(b \<Longrightarrow> t \<le> A) \<Longrightarrow> (~b \<Longrightarrow> t \<le> B) \<Longrightarrow> t \<le> (if b then A else B)"
+  lemma if_splitI: "\<And>B. (b \<Longrightarrow> t \<le> A) \<Longrightarrow> (~b \<Longrightarrow> t \<le> B) \<Longrightarrow> t \<le> (if b then A else B)"
     by auto
   
   lemma GI: "(b \<Longrightarrow> t \<le> t') \<Longrightarrow> (b) \<Longrightarrow> Some t \<le> G b t'"
     by (auto simp: G_def)
   
   
-  lemma rr: "A \<le> B \<Longrightarrow> a \<le> A \<Longrightarrow> (A::enat)-a \<le> B -a"
+  lemma rr: "\<And>B. A \<le> B \<Longrightarrow> a \<le> A \<Longrightarrow> (A::enat)-a \<le> B -a"
     by (simp add: helper) 
   
   lemma r: "(a + enat b) - enat b = (a::enat)"  apply(cases a) by auto 
@@ -1147,7 +1146,7 @@ interpretation pre: Pre_BFS_Impl c set_insert_time map_dom_member_time
               b \<leftarrow> mop_set_isempty (\<lambda>_. set_isempty_time) C;
               if b then do {
                 C \<leftarrow> RETURNT N; 
-                N \<leftarrow> mop_set_empty set_empty_time; 
+                N \<leftarrow> mop_set_empty (\<lambda>_. set_empty_time); 
                 d \<leftarrow> RETURNT (d+(1::nat));
                 RETURNT (f,PRED,C,N,d)
               } else RETURNT (f,PRED,C,N,d)

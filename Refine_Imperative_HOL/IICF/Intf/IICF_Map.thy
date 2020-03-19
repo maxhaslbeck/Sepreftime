@@ -75,12 +75,12 @@ subsection \<open>Operations\<close>
 
 
 context
-  fixes t ::  " nat"
+  fixes t ::  "unit \<Rightarrow> nat"
 begin
-  definition "mop_map_empty  = SPECT [ Map.empty \<mapsto> t]"
+  definition "mop_map_empty  = SPECT [ Map.empty \<mapsto> t ()]"
 
 
-  lemma  mop_map_empty: "tt \<le> lst (SPECT [ Map.empty \<mapsto> t  ]) Q 
+  lemma  mop_map_empty: "tt \<le> lst (SPECT [ Map.empty \<mapsto> t () ]) Q 
         \<Longrightarrow> tt \<le> lst (mop_map_empty ) Q" unfolding mop_map_empty_def by simp
 
   sepref_register "mop_map_empty" 

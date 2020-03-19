@@ -22,7 +22,7 @@ theorem map_empty_rule [hoare_triple]:
   unfolding map_empty_def by auto2
 
 lemma mop_map_empty_rule[sepref_fr_rules]:
-  "1 \<le> n \<Longrightarrow> (uncurry0 map_empty, uncurry0 (PR_CONST (mop_map_empty n))) \<in> unit_assn\<^sup>k \<rightarrow>\<^sub>a rbt_map_map_assn"
+  "1 \<le> n () \<Longrightarrow> (uncurry0 map_empty, uncurry0 (PR_CONST (mop_map_empty n))) \<in> unit_assn\<^sup>k \<rightarrow>\<^sub>a rbt_map_map_assn"
   apply sepref_to_hoare
   unfolding mop_map_empty_def autoref_tag_defs
   apply (rule extract_cost_otherway'[OF _ map_empty_rule  ])

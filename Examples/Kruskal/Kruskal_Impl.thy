@@ -1,5 +1,6 @@
 theory Kruskal_Impl
-  imports Kruskal_Refine "../../Refine_Imperative_HOL/IICF/Impl/IICF_DArray_List"
+  imports Kruskal_Refine
+    "../../Refine_Imperative_HOL/IICF/IICF"
         UnionFind_Impl
 begin
 

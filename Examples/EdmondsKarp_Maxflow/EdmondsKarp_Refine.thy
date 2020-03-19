@@ -3,10 +3,11 @@ theory EdmondsKarp_Refine
 imports 
   EdmondsKarp_Algo
   Augmenting_Path_BFS
-  "../../Refine_Imperative_HOL/IICF/Intf/IICF_Matrix"
+  "../../Refine_Imperative_HOL/IICF/IICF"
   "../../Refine_Imperative_HOL/IICF/IICF_Misc"
 begin
-  
+  hide_const R B
+
   text \<open>We now implement the Edmonds-Karp algorithm.
     Note that, during the implementation, we explicitly write down the 
     whole refined algorithm several times. As refinement is modular, most 
@@ -311,7 +312,7 @@ begin
     }"
     abbreviation "augment_edge_impl == augment_edge_impl_aux matrix_lookup_time matrix_set_time" 
 
-    definition (in -) "augment_edge_impl_time_aux v1 v2 = 2* v1 + 2*v2+3"
+    definition (in -) "augment_edge_impl_time_aux v1 v2 = 2 * v1 + 2 * v2 + 3"
     abbreviation "augment_edge_impl_time == augment_edge_impl_time_aux matrix_lookup_time matrix_set_time"
     lemma augment_edge_impl_refine: 
       assumes "valid_edge e" "\<forall>u. e\<noteq>(u,u)"

@@ -1,8 +1,8 @@
 theory BinarySearch
-  imports "../Refine_Imperative_HOL/IICF/Impl/IICF_Array_ListN" 
+  imports "../Refine_Imperative_HOL/IICF/IICF" 
      "NREST.RefineMonadicVCG" "SepLogicTime_RBTreeBasic.Asymptotics_1D"
 begin
-section "Binary Search"
+section "Binary Search"                           
 
 definition avg :: "nat \<Rightarrow> nat \<Rightarrow> nat" where
   "avg l r = (l + r) div 2"

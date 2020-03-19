@@ -26,7 +26,7 @@ lemma list_set_empty_rule: "<$ 1> list_set_empty <list_set_assn {}>"
 
 lemma mop_set_empty_rule[sepref_fr_rules]:
   "(uncurry0 list_set_empty, uncurry0 (PR_CONST (mop_set_empty t)))
-     \<in> [\<lambda>_. 1 \<le> t]\<^sub>a unit_assn\<^sup>k \<rightarrow> list_set_assn"
+     \<in> [\<lambda>_. 1 \<le> t () ]\<^sub>a unit_assn\<^sup>k \<rightarrow> list_set_assn"
   apply sepref_to_hoare
   unfolding autoref_tag_defs mop_set_empty_def 
   apply (rule extract_cost_otherway'[OF _ list_set_empty_rule])
@@ -93,12 +93,11 @@ lemma list_set_insert_rule:
  
 lemma mop_set_insert_rule[sepref_fr_rules]:
   "(uncurry list_set_insert, uncurry (PR_CONST (mop_set_insert t)))
-     \<in> [\<lambda>(a, b). 2 \<le> t b \<and> a\<notin>b]\<^sub>a id_assn\<^sup>k *\<^sub>a list_set_assn\<^sup>d \<rightarrow> list_set_assn"
+     \<in> [\<lambda>(a, b). 2 \<le> t (a, b) \<and> a\<notin>b]\<^sub>a id_assn\<^sup>k *\<^sub>a list_set_assn\<^sup>d \<rightarrow> list_set_assn"
   apply sepref_to_hoare
   unfolding autoref_tag_defs mop_set_insert_def
   apply (rule extract_cost_otherway'[OF _ list_set_insert_rule])
-  apply solve_entails apply auto
-  by solve_entails   
+  by sep_auto+
 
 
 

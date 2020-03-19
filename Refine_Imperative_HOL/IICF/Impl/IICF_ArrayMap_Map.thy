@@ -34,7 +34,7 @@ lemma new_liam_rule: "<$(n+3)> new_liam n <is_liam n (Map.empty)>" unfolding new
     prefer 3 unfolding zero_time apply solve_entails by (auto simp: iam_of_list_def) 
 
 lemma mop_map_empty_rule:
-  "s+3\<le>t \<Longrightarrow> hn_refine (emp) (new_liam s) emp (is_liam s) (PR_CONST (mop_map_empty t))"
+  "s+3\<le>t () \<Longrightarrow> hn_refine (emp) (new_liam s) emp (is_liam s) (PR_CONST (mop_map_empty t))"
   unfolding autoref_tag_defs mop_map_empty_def  
   apply (rule extract_cost_otherway[OF _ new_liam_rule, where Cost_lb="s+3" and F=emp])
     apply solve_entails+
@@ -42,16 +42,16 @@ lemma mop_map_empty_rule:
 
 thm mop_map_empty_rule[to_hfref]
 
-definition "mop_map_empty_fs s t = SPECT [ Map.empty \<mapsto> t]"
+definition "mop_map_empty_fs s t = SPECT [ Map.empty \<mapsto> enat (t ())]"
 
 context
-  fixes s::nat and t ::  " nat"
+  fixes s::nat and t ::  "unit \<Rightarrow> nat"
 begin
   sepref_register "  (mop_map_empty_fs s t )" 
   print_theorems 
 end
 
-  lemma  mop_map_empty_fs: "tt \<le> lst (SPECT [ Map.empty \<mapsto> t  ])  Q
+  lemma  mop_map_empty_fs: "tt \<le> lst (SPECT [ Map.empty \<mapsto> t ()  ])  Q
         \<Longrightarrow> tt \<le> lst (mop_map_empty_fs s t ) Q" unfolding mop_map_empty_fs_def by simp
 
 
@@ -67,7 +67,7 @@ end
 lemma mop_map_empty_add_mn: "mop_map_empty = mop_map_empty_fs s"  by(auto simp: mop_map_empty_def mop_map_empty_fs_def)
 
 lemma mop_map_empty_rule'[sepref_fr_rules]:
-  "s+3\<le>n \<Longrightarrow> hn_refine (emp) (new_liam s) emp (is_liam s) (PR_CONST (mop_map_empty_fs s n))"
+  "s+3\<le>n () \<Longrightarrow> hn_refine (emp) (new_liam s) emp (is_liam s) (PR_CONST (mop_map_empty_fs s n))"
   unfolding mop_map_empty_fs_def apply(rule mop_map_empty_rule[unfolded mop_map_empty_def]) by simp
 
 term RECT

@@ -1,8 +1,10 @@
 theory Remdups
-  imports "../Refine_Imperative_HOL/Sepref" "SepLogicTime_RBTreeBasic.RBTree_Impl"
+  imports "../Refine_Imperative_HOL/Sepref"
+    "SepLogicTime_RBTreeBasic.RBTree_Impl"
     "../Refine_Imperative_HOL/IICF/Impl/IICF_Rbt_Set"  
-    "../Refine_Imperative_HOL/IICF/Impl/IICF_DArray_List"  
- "NREST.RefineMonadicVCG" "../Refine_Foreach"
+    "../Refine_Imperative_HOL/IICF/Impl/IICF_DArray_List" 
+    "NREST.RefineMonadicVCG"
+    "../Refine_Foreach"
 begin
         
 
@@ -24,7 +26,7 @@ definition rd_impl1 :: "('a::{heap,linorder}) list \<Rightarrow> ('a list) nrest
     ASSERT (card S \<le> length ys);
     x \<leftarrow> RETURNT (hd xs);
     xs \<leftarrow> RETURNT (tl xs);
-    b \<leftarrow> mop_set_member (\<lambda>S. rbt_search_time_logN (length as + 1) + 1) x S;
+    b \<leftarrow> mop_set_member (\<lambda>_. rbt_search_time_logN (length as + 1) + 1) x S;
     if b then
       RETURNT (xs,ys,S)
     else do {

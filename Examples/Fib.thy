@@ -1,5 +1,6 @@
 theory Fib  
-  imports "../Refine_Imperative_HOL/Sepref" "SepLogicTime_RBTreeBasic.RBTree_Impl"
+  imports "../Refine_Imperative_HOL/Sepref"
+    "SepLogicTime_RBTreeBasic.RBTree_Impl"
 begin
 
 
@@ -71,10 +72,10 @@ lemma hn_refine_zero[sepref_fr_rules]: " hn_refine
      (ureturn (0))
      (emp)
      (pure nat_rel) ( (op_zero))"
-  unfolding hn_refine_def apply (auto simp:   mult.assoc  execute_ureturn pure_def hn_ctxt_def )
-   apply(rule exI[where x=0]) apply (auto simp:  zero_enat_def op_zero_def one_enat_def relH_def  elim: pureD )      
-    using models_in_range top_assn_rule   
-    by (metis (full_types) SepLogic_Misc.mod_pure_star_dist assn_times_comm)+
+  unfolding hn_refine_def
+  using models_in_range top_assn_rule 
+  by (auto simp: execute_ureturn pure_def op_zero_def one_enat_def relH_def
+              elim: pureD )      
 
 
 lemma hn_refine_one[sepref_fr_rules]: " hn_refine
@@ -82,10 +83,10 @@ lemma hn_refine_one[sepref_fr_rules]: " hn_refine
      (ureturn (1))
      (emp)
      (pure nat_rel) ( (op_one))"
-  unfolding hn_refine_def apply (auto simp:   mult.assoc  execute_ureturn pure_def hn_ctxt_def )
-   apply(rule exI[where x=0]) apply (auto simp: zero_enat_def op_one_def one_enat_def relH_def  elim: pureD )      
-    using models_in_range top_assn_rule   
-    by (metis (full_types) SepLogic_Misc.mod_pure_star_dist assn_times_comm)+
+  unfolding hn_refine_def    
+  using models_in_range top_assn_rule
+  by (auto simp: execute_ureturn pure_def op_one_def one_enat_def relH_def
+              elim: pureD )
 
 (*
 
@@ -171,14 +172,8 @@ lemma "<$ (fib_time n)>
        <\<lambda>r. (\<exists>\<^sub>Ara. id_assn ra r * \<up> (ra \<in> dom [fib n \<mapsto> enat (fib_time n)]))>\<^sub>t"
   unfolding myfun_impl_def
   apply(rule extract_cost_ub'[where Cost_ub="fib_time n", OF hnr_refine[OF spec synth_myfun, unfolded fib_SPEC_def]])
-  apply safe
-  subgoal by auto  
-  subgoal by simp 
-  subgoal apply (auto intro!: ent_ex_preI)
-    apply(rule ent_ex_postI)
-    apply auto
-    apply(rule ent_true_drop(2)) by (rule entails_triv) 
-  done
+  by sep_auto+
+
 
   
 
