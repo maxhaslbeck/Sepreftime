@@ -197,10 +197,10 @@ begin
 
     definition (in Network) cf_get 
       :: "'capacity graph \<Rightarrow> edge \<Rightarrow> nat \<Rightarrow> 'capacity nrest"                   
-      where "cf_get cff e matrix_lookup_time \<equiv> ASSERT (valid_edge e) \<then> mop_matrix_get matrix_lookup_time cff e"  
+      where "cf_get cff e matrix_lookup_time \<equiv> ASSERT (valid_edge e) \<then> mop_matrix_get (\<lambda>_. matrix_lookup_time) cff e"  
     definition (in Network) cf_set 
       :: "'capacity graph \<Rightarrow> edge \<Rightarrow> 'capacity \<Rightarrow> nat \<Rightarrow> 'capacity graph nrest"
-      where "cf_set cff e cap matrix_set_time \<equiv> ASSERT (valid_edge e) \<then> mop_matrix_set matrix_set_time cff e cap"  
+      where "cf_set cff e cap matrix_set_time \<equiv> ASSERT (valid_edge e) \<then> mop_matrix_set (\<lambda>_. matrix_set_time) cff e cap"  
 
 
     definition (in Network) resCap_cf_impl_aux :: "nat \<Rightarrow> (nat \<times> nat \<Rightarrow> 'capacity) \<Rightarrow> (nat \<times> nat) list \<Rightarrow> 'capacity nrest"

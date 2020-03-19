@@ -2,9 +2,9 @@ theory IICF_Rbt_Set
   imports "SepLogicTime_RBTreeBasic.RBTree_Impl" 
       "../Intf/IICF_Set"  "NREST.RefineMonadicVCG" "NREST.NREST"
 begin
+  
 hide_const R B
 subsection "library for some set implementation"
-term R
 subsubsection "interface"
  
 
@@ -305,7 +305,7 @@ thm set_ins_hnr_abs set_ins_SPEC_def
 subsubsection "implement the interface"
                         
 context 
-  notes [intro!] = hfref_to_hoare_triple
+  notes [intro!] = hfrefb_to_hoare_triple
   notes [simp] = pure_def hn_ctxt_def invalid_assn_def uncurry_t_def
                 noparam_t_def oneparam_t_def
 begin  

@@ -1,11 +1,14 @@
+section \<open>Implementation of Maps by Red Black Trees\<close>
 theory IICF_RbtMap_Map
   imports  "SepLogicTime_RBTreeBasic.RBTree_Impl" "../Intf/IICF_Map"
 begin
 
+  hide_const(open) R B
+
 (* inspired by Separation_Logic_Imperative_HOL/Examples/Array_Map_Impl *)
 
-definition rbt_map_map_assn where [rewrite_ent]: "rbt_map_map_assn MM p =
-        (\<exists>\<^sub>AM. rbt_map_assn M p * \<up>(MM = meval M))"
+definition rbt_map_map_assn where [rewrite_ent]:
+  "rbt_map_map_assn MM p = (\<exists>\<^sub>AM. rbt_map_assn M p * \<up>(MM = meval M))"
 
 subsubsection "empty map init via rbtree"
  
@@ -26,7 +29,7 @@ lemma mop_map_empty_rule[sepref_fr_rules]:
   apply sepref_to_hoare
   unfolding mop_map_empty_def autoref_tag_defs
   apply (rule extract_cost_otherway'[OF _ map_empty_rule  ])
-  by (auto simp: emb'_def | solve_entails; auto)+ 
+  by (sep_auto simp: emb'_def)+ 
 
 subsubsection "update map via rbtree insert"
 
@@ -52,15 +55,11 @@ theorem map_update_rule [hoare_triple]:
 
 
 lemma mop_set_insert_rule[sepref_fr_rules]: "(uncurry2 map_update, uncurry2 (PR_CONST (mop_map_update t)))
-  \<in> [\<lambda>((a, b), x). rbt_insert_logN (sizeM1' a) \<le> t a]\<^sub>a rbt_map_map_assn\<^sup>d *\<^sub>a id_assn\<^sup>k *\<^sub>a id_assn\<^sup>k \<rightarrow> rbt_map_map_assn"
+  \<in> [\<lambda>((a, b), x). rbt_insert_logN (sizeM1' a) \<le> t ((a, b), x)]\<^sub>a rbt_map_map_assn\<^sup>d *\<^sub>a id_assn\<^sup>k *\<^sub>a id_assn\<^sup>k \<rightarrow> rbt_map_map_assn"
   apply sepref_to_hoare
   unfolding mop_map_update_def autoref_tag_defs
   apply (rule extract_cost_otherway'[OF _ map_update_rule  ])
     by (auto simp: emb'_def | solve_entails; auto)+ 
-
-thm mop_set_insert_rule[to_hnr]
-thm sepref_fr_rules
-
 
 subsubsection "dom_member map via rbtree search"
 
@@ -80,11 +79,11 @@ theorem map_dom_member_rule [hoare_triple]:
 
 lemma mop_mem_set_rule[sepref_fr_rules]:
   "(uncurry map_dom_member, uncurry (PR_CONST (mop_map_dom_member t)))
-   \<in> [\<lambda>(a, b). rbt_search_time_logN (sizeM1' a) + 1 \<le> t a]\<^sub>a rbt_map_map_assn\<^sup>k *\<^sub>a id_assn\<^sup>k \<rightarrow> bool_assn"
-    apply sepref_to_hoare
+   \<in> [\<lambda>(a, b). rbt_search_time_logN (sizeM1' a) + 1 \<le> t (a, b)]\<^sub>a rbt_map_map_assn\<^sup>k *\<^sub>a id_assn\<^sup>k \<rightarrow> bool_assn"
+  apply sepref_to_hoare
   unfolding mop_map_dom_member_def autoref_tag_defs 
   apply (rule extract_cost_otherway'[OF _ map_dom_member_rule  ])
-    by (auto simp: emb'_def | solve_entails; auto)+ 
+  by (auto simp: emb'_def | solve_entails; auto)+ 
 
 subsubsection "lookup map via rbtree search"
 
@@ -101,12 +100,12 @@ theorem map_lookup_rule [hoare_triple]:
  
 lemma mop_map_lookup_rule[sepref_fr_rules]:
   "(uncurry map_lookup, uncurry (PR_CONST (mop_map_lookup t)))
-     \<in> [\<lambda>(a, b). rbt_search_time_logN (sizeM1' a) + 1 \<le> t a]\<^sub>a rbt_map_map_assn\<^sup>k *\<^sub>a id_assn\<^sup>k \<rightarrow> id_assn"
+     \<in> [\<lambda>(a, b). rbt_search_time_logN (sizeM1' a) + 1 \<le> t (a, b)]\<^sub>a rbt_map_map_assn\<^sup>k *\<^sub>a id_assn\<^sup>k \<rightarrow> id_assn"
   apply sepref_to_hoare 
   unfolding mop_map_lookup_def autoref_tag_defs  
   apply(rule hnr_ASSERT)
   apply(rule extract_cost_otherway'[OF _ map_lookup_rule   ])
-    by (auto | solve_entails; auto)+ 
+  by sep_auto+ 
    
 
 

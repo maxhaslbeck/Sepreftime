@@ -10,7 +10,7 @@ begin
 definition myminus where "myminus x y = (if x=\<infinity> \<and> y=\<infinity> then 0 else x - y)"
 lemma "(a::enat) + x \<ge> b  \<longleftrightarrow> x \<ge> myminus b a "
   unfolding myminus_def
-  apply(cases a; cases b; cases x) apply auto
+  apply(cases a; cases b; cases x) apply auto oops
 
 
 section "Auxiliaries"
@@ -433,6 +433,18 @@ qed
 
 
 
+lemma assumes "R' \<le> R" "wfR R" shows "wfR R'"
+proof -                                    
+  from assms(1) have *: "\<And> a b. R' a b\<le> R a b"
+  unfolding le_fun_def   by auto
+  {fix  a b have "R a b  = 0 ==> R' a b = 0 "   
+      using * [of a b] by auto}
+  note f=this
+  show "wfR R'"
+    using \<open>wfR R\<close> unfolding wfR_def apply(rule rev_finite_subset)
+    apply safe using f by simp
+qed
+
 lemma wfn_timerefine: "wfn m \<Longrightarrow> wfR R \<Longrightarrow> wfn (timerefine R m)"
 proof -
   assume "wfR R"
@@ -744,13 +756,16 @@ lemma limit_limitO: "limit b S =  (case S of FAILi \<Rightarrow> FAILi | REST X 
 
 definition limitOF where "limitOF b X = (\<lambda>x. (limitO b (X x)))"
 
+thm Sup_fun_def
+lemma "(\<Squnion> A) x = (\<Squnion> ((\<lambda>f. f x) `A ))" unfolding Sup_fun_def by simp
+
 lemma limitOF: "limitOF b (Sup A) = Sup (limitOF b ` A)"
-  unfolding limitOF_def Sup_fun_def apply(rule ext) 
-  apply simp using limitO by (m etis image_image)
+  unfolding limitOF_def Sup_fun_def  apply(rule ext) 
+  apply(subst limitO) apply(subst image_image) apply(subst image_image) ..
 
 lemma limitOF_Inf: "limitOF b (Inf A) = Inf (limitOF b ` A)"
   unfolding limitOF_def Inf_fun_def apply(rule ext) 
-  apply simp using limitO_Inf by (me tis image_image)
+  apply(subst limitO_Inf) apply(subst image_image) apply(subst image_image) ..
 
 lemma limit_limitOF: "limit b S =  (case S of FAILi \<Rightarrow> FAILi | REST X \<Rightarrow> REST (limitOF b X))"
   unfolding limit_limitO limitOF_def by simp
@@ -1230,8 +1245,7 @@ lemma pff: "n\<noteq>0 \<Longrightarrow> xa * enat n = y * enat n \<Longrightarr
   apply(cases xa; cases y) by auto
  
 lemma enat_add_cont: "A\<noteq>{} \<Longrightarrow> Sup A + (c::enat) = Sup ((\<lambda>x. x+c)`A)"
-  using Sup_image_eadd2  
-  by auto  
+  using Sup_image_eadd1 by auto   
 
 
 lemma mult_Max_commute:
@@ -1289,10 +1303,9 @@ next
       by (smt aux11 finite.simps image_insert imult_is_infinity insert_commute mk_disjoint_insert mult_zero_right)  
     thus ?thesis using i infinity assms
       apply auto
-      subgoal by (metis ccpo_Sup_singleton imult_is_infinity) 
-      subgoal sorry
-          (* by (metis Sup_insert bot_enat_def ccSup_empty
-           ccpo_Sup_singleton imult_is_infinity)  *)
+      subgoal by (metis imult_is_infinity) 
+      subgoal  
+        by (metis Sup_enat_def ccSup_empty imult_is_infinity sup_bot.right_neutral)   
       done
   qed
 qed
@@ -1301,15 +1314,15 @@ qed
 lemma enat_mult_cont: "Sup A * (c::enat) = Sup ((\<lambda>x. x*c)`A)"
   apply(cases "A={}")
   subgoal unfolding Sup_enat_def by simp
-  using Sup_image_emult1  
-  sorry(*by (me tis mult_commute_abs) *)
+  using Sup_image_emult1
+  by (metis mult_commute_abs)
 
 lemma enat_mult_cont':
   fixes f :: "'a \<Rightarrow> enat"
   shows 
   "(SUPREMUM A f) * c = SUPREMUM A (\<lambda>x. f x * c)"
-  using enat_mult_cont by simp
- 
+  using enat_mult_cont[of "f`A" c] 
+  by (metis (mono_tags, lifting) SUP_cong   image_image)
 
 
 lemma enat_add_cont':

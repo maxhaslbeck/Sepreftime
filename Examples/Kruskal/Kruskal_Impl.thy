@@ -149,7 +149,7 @@ definition (in -) initState''_aux where
   "initState''_aux mn eft eut\<equiv> do {
     initial_union_find \<leftarrow> mop_per_init (\<lambda>_. eut) (mn + 1);
     ASSERT ( card (Domain initial_union_find) = mn + 1);
-    e \<leftarrow> mop_empty_list eft;
+    e \<leftarrow> mop_empty_list (\<lambda>_. eft);
     RETURNT (initial_union_find, e)      
     }" 
 

@@ -50,12 +50,12 @@ definition "binarysearch l r x xs \<equiv>
       if l \<ge> r then RETURNT False
     else if l + 1 \<ge> r then do {
               ASSERT (l < length xs);
-             xsi \<leftarrow> mop_lookup_list listlookup_time xs l;
+             xsi \<leftarrow> mop_lookup_list (\<lambda>_. listlookup_time) xs l;
                                 RETURNT (xsi = x) }
     else do {
         m \<leftarrow> RETURNT (avg l r);
         ASSERT (m < length xs);
-        xm \<leftarrow> mop_lookup_list listlookup_time xs m;
+        xm \<leftarrow> mop_lookup_list (\<lambda>_. listlookup_time) xs m;
       (if xm = x then RETURNT True
       else if xm < x then fw (m + 1, r)
       else fw (l, m))

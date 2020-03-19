@@ -93,7 +93,7 @@ lemma extr': "(\<And>M. m = SPECT M \<Longrightarrow> <\<Gamma> * timeCredit_ass
     using extr[OF prems(1)[OF prems(3)] prems(2)[OF prems(3)]]  prems(3) by simp
   done
 
-lemma hfref_to_hoare_triple:
+lemma hfrefb_to_hoare_triple:
    assumes
   "(\<And>M h c a t. P a \<Longrightarrow> D a \<le> t a \<Longrightarrow>  h\<Turnstile>fst RS a c \<Longrightarrow> g t a = SPECT M
        \<Longrightarrow> <fst RS a c * timeCredit_assn (D a)> f c <\<lambda>r. \<exists>\<^sub>Ara. snd RS a c * (T ra r * \<up> (ra \<in> dom M)) * true>)"

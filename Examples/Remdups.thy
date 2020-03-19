@@ -17,7 +17,7 @@ definition "rd_ta as = (\<lambda>(xs,ys,S). length xs * body_time (length as))"
 
 definition rd_impl1 :: "('a::{heap,linorder}) list \<Rightarrow> ('a list) nrest" where
 "rd_impl1 as = do {
-  ys \<leftarrow> mop_empty_list 12;
+  ys \<leftarrow> mop_empty_list (\<lambda>_. 12);
   S \<leftarrow> mop_set_empty 1;
   zs \<leftarrow> RETURNT as;
   (zs,ys,S) \<leftarrow> whileIET (rd_inv as) (rd_ta as) (\<lambda>(xs,ys,S). length xs > 0) (\<lambda>(xs,ys,S). do {                          
@@ -48,7 +48,8 @@ lemma enat_neq_Z_iff[simp]: "enat x \<noteq> 0 \<longleftrightarrow> x\<noteq>0"
 
 lemma rd_impl1_correct: "rd_impl1 as \<le> remdups_spec as"
   unfolding remdups_spec_def
-  unfolding rd_impl1_def mop_empty_list_def mop_set_empty_def mop_set_member_def mop_set_insert_def mop_push_list_def
+  unfolding rd_impl1_def mop_empty_list_def mop_set_empty_def
+      mop_set_member_def mop_set_insert_def mop_push_list_def
       rd_ta_def rd_inv_def
   apply(rule T_specifies_I)
   apply (vcg' \<open>simp\<close> )  

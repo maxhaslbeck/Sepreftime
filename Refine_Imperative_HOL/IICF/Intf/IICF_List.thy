@@ -1,3 +1,4 @@
+section \<open>List Interface\<close>
 theory IICF_List
 imports 
   "../../Sepref"
@@ -73,9 +74,6 @@ qed
 
 subsection \<open>Operations\<close>
 
-
-
-
 context
   fixes t ::  "'c list \<Rightarrow> nat"
 begin
@@ -88,7 +86,6 @@ begin
   lemma mop_append: "tt \<le> lst (SPECT [ (x#xs) \<mapsto> t xs]) Q \<Longrightarrow> tt
            \<le> lst (mop_append x xs) Q" unfolding mop_append_def by simp
 
-
   sepref_register "mop_append" 
 end
 
@@ -96,126 +93,28 @@ end
 
 
 context
-  fixes n::nat
+  fixes n::"unit \<Rightarrow> nat"
 begin
-  definition "mop_empty_list = SPECT [ [] \<mapsto> enat n ]"
+  definition "mop_empty_list = SPECT [ [] \<mapsto> enat (n ()) ]"
 
   sepref_register "mop_empty_list" 
-  print_theorems 
 end
 
 context
-  fixes t::"'a list \<Rightarrow>nat"
+  fixes t::"('a *'a list) \<Rightarrow> nat"
 begin
-  definition "mop_push_list  x xs = SPECT [ ( xs @ [x] ) \<mapsto> enat (t xs) ]"
+  definition "mop_push_list  x xs = SPECT [ ( xs @ [x] ) \<mapsto> enat (t (x, xs)) ]"
   
   sepref_register "mop_push_list" 
-  print_theorems
-  thm   mop_push_list.pat
 end
 
 
 context
-  fixes n::nat
+  fixes t:: "'a list \<times> nat \<Rightarrow> nat"
 begin
-  definition "mop_lookup_list xs i = SPECT [ xs ! i \<mapsto> enat n ]"
+  definition "mop_lookup_list xs i = SPECT [ xs ! i \<mapsto> enat (t (xs,i)) ]"
 
   sepref_register "mop_lookup_list" 
-  print_theorems 
 end
-
-
-(*
-sepref_decl_op list_empty: "[]" :: "\<langle>A\<rangle>list_rel" .
-context notes [simp] = eq_Nil_null begin
-  sepref_decl_op list_is_empty: "\<lambda>l. l=[]" :: "\<langle>A\<rangle>list_rel \<rightarrow>\<^sub>f bool_rel" .
-end
-sepref_decl_op list_replicate: replicate :: "nat_rel \<rightarrow> A \<rightarrow> \<langle>A\<rangle>list_rel" .
-definition op_list_copy :: "'a list \<Rightarrow> 'a list" where [simp]:  "op_list_copy l \<equiv> l"
-sepref_decl_op (no_def) list_copy: "op_list_copy" :: "\<langle>A\<rangle>list_rel \<rightarrow> \<langle>A\<rangle>list_rel" .
-sepref_decl_op list_prepend: "(#)" :: "A \<rightarrow> \<langle>A\<rangle>list_rel \<rightarrow> \<langle>A\<rangle>list_rel" .
-sepref_decl_op list_append: "\<lambda>xs x. xs@[x]" :: "\<langle>A\<rangle>list_rel \<rightarrow> A \<rightarrow> \<langle>A\<rangle>list_rel" .
-sepref_decl_op list_concat: "(@)" :: "\<langle>A\<rangle>list_rel \<rightarrow> \<langle>A\<rangle>list_rel \<rightarrow> \<langle>A\<rangle>list_rel" .
-sepref_decl_op list_length: length :: "\<langle>A\<rangle>list_rel \<rightarrow> nat_rel" .
-sepref_decl_op list_get: nth :: "[\<lambda>(l,i). i<length l]\<^sub>f \<langle>A\<rangle>list_rel \<times>\<^sub>r nat_rel \<rightarrow> A" .
-sepref_decl_op list_set: list_update :: "[\<lambda>((l,i),_). i<length l]\<^sub>f (\<langle>A\<rangle>list_rel \<times>\<^sub>r nat_rel) \<times>\<^sub>r A \<rightarrow> \<langle>A\<rangle>list_rel" .
-context notes [simp] = eq_Nil_null begin
-  sepref_decl_op list_hd: hd :: "[\<lambda>l. l\<noteq>[]]\<^sub>f \<langle>A\<rangle>list_rel \<rightarrow> A" .
-  sepref_decl_op list_tl: tl :: "[\<lambda>l. l\<noteq>[]]\<^sub>f \<langle>A\<rangle>list_rel \<rightarrow> \<langle>A\<rangle>list_rel" .
-  sepref_decl_op list_last: last :: "[\<lambda>l. l\<noteq>[]]\<^sub>f \<langle>A\<rangle>list_rel \<rightarrow> A" .
-  sepref_decl_op list_butlast: butlast :: "[\<lambda>l. l\<noteq>[]]\<^sub>f \<langle>A\<rangle>list_rel \<rightarrow> \<langle>A\<rangle>list_rel" .
-end
-sepref_decl_op list_contains: "\<lambda>x l. x\<in>set l" :: "A \<rightarrow> \<langle>A\<rangle>list_rel \<rightarrow> bool_rel" 
-  where "single_valued A" "single_valued (A\<inverse>)" .
-sepref_decl_op list_swap: swap :: "[\<lambda>((l,i),j). i<length l \<and> j<length l]\<^sub>f (\<langle>A\<rangle>list_rel \<times>\<^sub>r nat_rel) \<times>\<^sub>r nat_rel \<rightarrow> \<langle>A\<rangle>list_rel" .
-sepref_decl_op list_rotate1: rotate1 :: "\<langle>A\<rangle>list_rel \<rightarrow> \<langle>A\<rangle>list_rel" .
-sepref_decl_op list_rev: rev :: "\<langle>A\<rangle>list_rel \<rightarrow> \<langle>A\<rangle>list_rel" .
-sepref_decl_op list_index: index :: "\<langle>A\<rangle>list_rel \<rightarrow> A \<rightarrow> nat_rel" 
-  where "single_valued A" "single_valued (A\<inverse>)" .
-*)
-
-
-subsection \<open>Patterns\<close>
-(*
-lemma [def_pat_rules]:
-  "[] \<equiv> op_list_empty"
-  "(=) $l$[] \<equiv> op_list_is_empty$l"
-  "(=) $[]$l \<equiv> op_list_is_empty$l"
-  "replicate$n$v \<equiv> op_list_replicate$n$v"
-  "Cons$x$xs \<equiv> op_list_prepend$x$xs"
-  "(@) $xs$(Cons$x$[]) \<equiv> op_list_append$xs$x"
-  "(@) $xs$ys \<equiv> op_list_concat$xs$ys"
-  "op_list_concat$xs$(Cons$x$[]) \<equiv> op_list_append$xs$x"
-  "length$xs \<equiv> op_list_length$xs"
-  "nth$l$i \<equiv> op_list_get$l$i"
-  "list_update$l$i$x \<equiv> op_list_set$l$i$x"
-  "hd$l \<equiv> op_list_hd$l"
-  "hd$l \<equiv> op_list_hd$l"
-  "tl$l \<equiv> op_list_tl$l"
-  "tl$l \<equiv> op_list_tl$l"
-  "last$l \<equiv> op_list_last$l"
-  "butlast$l \<equiv> op_list_butlast$l"
-  "(\<in>) $x$(set$l) \<equiv> op_list_contains$x$l"
-  "swap$l$i$j \<equiv> op_list_swap$l$i$j"
-  "rotate1$l \<equiv> op_list_rotate1$l"
-  "rev$l \<equiv> op_list_rev$l"
-  "index$l$x \<equiv> op_list_index$l$x"
-  by (auto intro!: eq_reflection)
-
-text \<open>Standard preconditions are preserved by list-relation. These lemmas are used for
-  simplification of preconditions after composition.\<close>
-lemma list_rel_pres_neq_nil[fcomp_prenorm_simps]: "(x',x)\<in>\<langle>A\<rangle>list_rel \<Longrightarrow> x'\<noteq>[] \<longleftrightarrow> x\<noteq>[]" by auto
-lemma list_rel_pres_length[fcomp_prenorm_simps]: "(x',x)\<in>\<langle>A\<rangle>list_rel \<Longrightarrow> length x' = length x" by (rule list_rel_imp_same_length)
-*)
-
-(*
-locale list_custom_empty = 
-  fixes rel empty and op_custom_empty :: "'a list"
-  assumes customize_hnr_aux: "(uncurry0 empty,uncurry0 (RETURNT (op_list_empty::'a list))) \<in> unit_assn\<^sup>k \<rightarrow>\<^sub>a rel"
-  assumes op_custom_empty_def: "op_custom_empty = op_list_empty"
-begin
-  sepref_register op_custom_empty :: "'c list"
-
-  lemma fold_custom_empty:
-    "[] = op_custom_empty"
-    "op_list_empty = op_custom_empty"
-    "mop_list_empty = RETURNT op_custom_empty"
-    unfolding op_custom_empty_def by simp_all
-
-  lemmas custom_hnr[sepref_fr_rules] = customize_hnr_aux[folded op_custom_empty_def]
-end
-
-
-lemma gen_mop_list_swap: "mop_list_swap l i j = do {
-    xi \<leftarrow> mop_list_get l i;
-    xj \<leftarrow> mop_list_get l j;
-    l \<leftarrow> mop_list_set l i xj;
-    l \<leftarrow> mop_list_set l j xi;
-    RETURNT l
-  }"
-  unfolding mop_list_swap_def
-  by (auto simp: pw_eq_iff refine_pw_simps swap_def)
-
-*)
 
 end

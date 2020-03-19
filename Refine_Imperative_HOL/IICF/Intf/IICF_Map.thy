@@ -79,161 +79,55 @@ context
 begin
   definition "mop_map_empty  = SPECT [ Map.empty \<mapsto> t ()]"
 
-
   lemma  mop_map_empty: "tt \<le> lst (SPECT [ Map.empty \<mapsto> t () ]) Q 
         \<Longrightarrow> tt \<le> lst (mop_map_empty ) Q" unfolding mop_map_empty_def by simp
 
   sepref_register "mop_map_empty" 
-  print_theorems 
 end
 
 
 context
-  fixes t ::  "('a \<Rightarrow> 'b option) \<Rightarrow> nat"
+  fixes t ::  "(( 'a \<Rightarrow> 'b option) * 'a) * 'b \<Rightarrow> nat"
 begin
-  definition "mop_map_update m k v = SPECT [ m(k \<mapsto> v) \<mapsto> t m]"
+  definition "mop_map_update m k v = SPECT [ m(k \<mapsto> v) \<mapsto> t ((m,k),v)]"
 
 
-  lemma  mop_map_update: "tt \<le> lst (SPECT [ m(k \<mapsto> v) \<mapsto> t m])  Q
+  lemma  mop_map_update: "tt \<le> lst (SPECT [ m(k \<mapsto> v) \<mapsto> t ((m,k),v)])  Q
         \<Longrightarrow> tt \<le> lst (mop_map_update m k v) Q" unfolding mop_map_update_def by simp
 
   sepref_register "mop_map_update" 
-  print_theorems 
 end
 
 
 context
-  fixes t ::  "('a \<Rightarrow> 'b option) \<Rightarrow> nat"
+  fixes t ::  "('a \<Rightarrow> 'b option) * 'a \<Rightarrow> nat"
 begin
-  definition "mop_map_dom_member m x = SPECT (emb (\<lambda>b. b \<longleftrightarrow> x\<in>dom m) (t m))"
+  definition "mop_map_dom_member m x = SPECT (emb (\<lambda>b. b \<longleftrightarrow> x\<in>dom m) (t (m,x)))"
 
 
-  lemma  mop_map_dom_member: "tt \<le> lst (SPECT (emb (\<lambda>b. b \<longleftrightarrow> x\<in>dom m) (t m)))  Q
+  lemma  mop_map_dom_member: "tt \<le> lst (SPECT (emb (\<lambda>b. b \<longleftrightarrow> x\<in>dom m) (t (m,x))))  Q
         \<Longrightarrow> tt \<le> lst (mop_map_dom_member m x) Q" unfolding mop_map_dom_member_def by simp
 
   sepref_register "mop_map_dom_member" 
-  print_theorems 
 end
 
 context
-  fixes t ::  "('a \<Rightarrow> 'b option) \<Rightarrow> nat"
+  fixes t ::  "('a \<Rightarrow> 'b option) * 'a \<Rightarrow> nat"
 begin
-definition "mop_map_lookup m x = do {
+  definition "mop_map_lookup m x = do {
         ASSERT (x\<in>dom m);
-        SPECT [  (the (m x)) \<mapsto> t m]
+        SPECT [  (the (m x)) \<mapsto> t (m,x)]
       }"
 
 
-lemma  mop_map_lookup: "tt \<le> lst (SPECT [  (the (m x)) \<mapsto> t m]) Q
+  lemma  mop_map_lookup: "tt \<le> lst (SPECT [  (the (m x)) \<mapsto> t (m,x)]) Q
         \<Longrightarrow> x : dom m 
         \<Longrightarrow> tt \<le> lst (mop_map_lookup m x) Q" unfolding mop_map_lookup_def by simp
 
-  lemma progress_mop_map_lookup[progress_rules]: "t m > 0 \<Longrightarrow> progress (mop_map_lookup m x)"
+  lemma progress_mop_map_lookup[progress_rules]: "t (m,x) > 0 \<Longrightarrow> progress (mop_map_lookup m x)"
       unfolding mop_map_lookup_def by (auto intro!: progress_rules simp add:   zero_enat_def) 
-  sepref_register "mop_map_lookup" 
-  print_theorems 
+
+  sepref_register "mop_map_lookup"
 end
-
-
-(*
-  sepref_decl_op map_empty: "Map.empty" :: "\<langle>K,V\<rangle>map_rel" .
-  
-  sepref_decl_op map_is_empty: "(=) Map.empty" :: "\<langle>K,V\<rangle>map_rel \<rightarrow> bool_rel"
-    apply (rule fref_ncI)
-    apply parametricity
-    apply (rule fun_relI; auto)
-    done
-
-  sepref_decl_op map_update: "\<lambda>k v m. m(k\<mapsto>v)" :: "K \<rightarrow> V \<rightarrow> \<langle>K,V\<rangle>map_rel \<rightarrow> \<langle>K,V\<rangle>map_rel"
-    where "single_valued K" "single_valued (K\<inverse>)"
-    apply (rule fref_ncI)
-    apply parametricity
-    unfolding map_rel_def
-    apply (intro fun_relI)
-    apply (elim IntE; rule IntI)
-    apply (intro fun_relI)
-    apply parametricity
-    apply (simp add: pres_eq_iff_svb)
-    apply auto
-    done
-    
-  sepref_decl_op map_delete: "\<lambda>k m. fun_upd m k None" :: "K \<rightarrow> \<langle>K,V\<rangle>map_rel \<rightarrow> \<langle>K,V\<rangle>map_rel"
-    where "single_valued K" "single_valued (K\<inverse>)"
-    apply (rule fref_ncI)
-    apply parametricity
-    unfolding map_rel_def
-    apply (intro fun_relI)
-    apply (elim IntE; rule IntI)
-    apply (intro fun_relI)
-    apply parametricity
-    apply (simp add: pres_eq_iff_svb)
-    apply auto
-    done
-
-  sepref_decl_op map_lookup: "\<lambda>k (m::'k\<rightharpoonup>'v). m k" :: "K \<rightarrow> \<langle>K,V\<rangle>map_rel \<rightarrow> \<langle>V\<rangle>option_rel"
-    apply (rule fref_ncI)
-    apply parametricity
-    unfolding map_rel_def
-    apply (intro fun_relI)
-    apply (elim IntE)
-    apply parametricity
-    done
-    
-  lemma in_dom_alt: "k\<in>dom m \<longleftrightarrow> \<not>is_None (m k)" by (auto split: option.split)
-
-  sepref_decl_op map_contains_key: "\<lambda>k m. k\<in>dom m" :: "K \<rightarrow> \<langle>K,V\<rangle>map_rel \<rightarrow> bool_rel"
-    unfolding in_dom_alt
-    apply (rule fref_ncI)
-    apply parametricity
-    unfolding map_rel_def
-    apply (elim IntE)
-    apply parametricity
-    done
-*)
-subsection \<open>Patterns\<close>
-(*
-lemma pat_map_empty[pat_rules]: "\<lambda>\<^sub>2_. None \<equiv> op_map_empty" by simp
-
-lemma pat_map_is_empty[pat_rules]: 
-  "(=) $m$(\<lambda>\<^sub>2_. None) \<equiv> op_map_is_empty$m" 
-  "(=) $(\<lambda>\<^sub>2_. None)$m \<equiv> op_map_is_empty$m" 
-  "(=) $(dom$m)${} \<equiv> op_map_is_empty$m"
-  "(=) ${}$(dom$m) \<equiv> op_map_is_empty$m"
-  unfolding atomize_eq
-  by (auto dest: sym)
-
-lemma pat_map_update[pat_rules]: 
-  "fun_upd$m$k$(Some$v) \<equiv> op_map_update$'k$'v$'m"
-  by simp
-lemma pat_map_lookup[pat_rules]: "m$k \<equiv> op_map_lookup$'k$'m"
-  by simp
-
-lemma op_map_delete_pat[pat_rules]: 
-  "(|`) $ m $ (uminus $ (insert $ k $ {})) \<equiv> op_map_delete$'k$'m"
-  "fun_upd$m$k$None \<equiv> op_map_delete$'k$'m"
-  by (simp_all add: map_upd_eq_restrict)
-
-lemma op_map_contains_key[pat_rules]: 
-  "(\<in>) $ k $ (dom$m) \<equiv> op_map_contains_key$'k$'m"
-  "Not$((=) $(m$k)$None) \<equiv> op_map_contains_key$'k$'m"
-   by (auto intro!: eq_reflection)
-
-*)
-subsection \<open>Parametricity\<close>
-(*
-locale map_custom_empty = 
-  fixes op_custom_empty :: "'k\<rightharpoonup>'v"
-  assumes op_custom_empty_def: "op_custom_empty = op_map_empty"
-begin
-  sepref_register op_custom_empty :: "('kx,'vx) i_map"
-
-  lemma fold_custom_empty:
-    "Map.empty = op_custom_empty"
-    "op_map_empty = op_custom_empty"
-    "mop_map_empty = RETURNT op_custom_empty"
-    unfolding op_custom_empty_def by simp_all
-end
-*)
-
 
 end

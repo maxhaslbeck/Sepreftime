@@ -1,127 +1,71 @@
+section "Implementing List Interface with DynamicArrays"
 theory IICF_DArray_List  
   imports "../Intf/IICF_List" "SepLogicTime_RBTreeBasic.DynamicArray2"
 begin
 
-section "Implementing List Interface with DynamicArrays"
 
-
-lemma new' : "12 \<le> n \<Longrightarrow> 
-      hn_refine emp dyn_array_new emp dyn_array (PR_CONST (mop_empty_list n))"
-  unfolding mop_empty_list_def autoref_tag_defs
-  apply (rule extract_cost_otherway[OF _ dyn_array_new_rule, where Cost_lb=7 and F=emp])
-    apply auto
-  apply(rule ent_ex_postI[where x="[]"]) by simp
-
-
-
-
-(* concrete and abstract operations have to have the same order of parameters *)
-                         
-
-
-subsection "get parametricity in element for 'free'"
-thm param
-term REST
-lemma [param]: "(REST,REST) \<in> (A \<rightarrow> Id) \<rightarrow> \<langle>A\<rangle>nrest_rel" oops           (* ? gilt das ? *)                                                                
-lemma pl_param: "(PR_CONST (mop_push_list n),PR_CONST (mop_push_list n)) \<in> A \<rightarrow> \<langle>A\<rangle>list_rel \<rightarrow> \<langle>\<langle>A\<rangle>list_rel\<rangle>nrest_rel"
-  unfolding mop_push_list_def autoref_tag_defs (* apply parametricity *) oops
-
-
-(* thm pl_param[to_fref] *)
 definition "da_assn R \<equiv> hr_comp dyn_array (\<langle>the_pure R\<rangle>list_rel)"
 
 lemma hn_refine_ex: "(\<And>b. hn_refine (R b) c Q RR a) \<Longrightarrow> hn_refine (\<exists>\<^sub>Ab. R b) c Q RR a" 
    unfolding hn_refine_def mod_ex_dist by blast
 
+context 
+  notes [intro!] = hfrefb_to_hoare_triple
+  notes [simp] = pure_def hn_ctxt_def invalid_assn_def uncurry_t_def
+                noparam_t_def oneparam_t_def
+begin  
+
+  lemma mop_list_empty_rule_aux:
+    "(uncurry0 dyn_array_new, noparam_t mop_empty_list)
+         \<in> [\<lambda>_. True, \<lambda>_. 12]\<^sub>b unit_assn\<^sup>k \<rightarrow> (da_assn (R))"
+    by (sep_auto heap: dyn_array_new_rule
+                simp: mop_empty_list_def da_assn_def hr_comp_def)
+
+  lemmas mop_list_empty_rule[sepref_fr_rules] = mop_list_empty_rule_aux[hfb_to_hnr]
 
 
-lemma new[sepref_fr_rules]: "12 \<le> n \<Longrightarrow>  CONSTRAINT is_pure R \<Longrightarrow>
-      hn_refine emp dyn_array_new emp (da_assn (R)) (PR_CONST (mop_empty_list n))"
-  unfolding mop_empty_list_def autoref_tag_defs
-  apply (rule extract_cost_otherway[OF _ dyn_array_new_rule, where Cost_lb=7 and F=emp])
-    apply auto
-  apply(rule ent_ex_postI[where x="[]"]) by (auto intro!: inst_ex_assn simp add: da_assn_def hr_comp_def)
+  lemma models_impl_elem_in_is_pure:
+    "is_pure R \<Longrightarrow> h1 \<Turnstile> R aa a \<Longrightarrow> (a, aa) \<in> the_pure R"
+    by (metis pure_assn_rule pure_def pure_the_pure)
+
+  lemma mop_list_push_rule_aux: "(uncurry push_array, uncurry_t mop_push_list)
+       \<in> [\<lambda>_. CONSTRAINT is_pure R, \<lambda>_. 23]\<^sub>b (R\<^sup>k *\<^sub>a (da_assn (R))\<^sup>d) \<rightarrow> (da_assn (R))"
+    supply param_append' = param_append[THEN fun_relD, THEN fun_relD]
+    by (sep_auto heap: push_array_rule dest!: mod_starD
+                    simp:  da_assn_def hr_comp_def  mop_push_list_def
+                    intro!: models_impl_elem_in_is_pure param_append')
+    
+  lemmas mop_list_push_rule[sepref_fr_rules] = mop_list_push_rule_aux[hfb_to_hnr]
 
 
-lemma push':  "23  \<le> t xs' ==>
-       hn_refine (hn_ctxt (da_assn (pure R)) xs' p * hn_ctxt (pure R) x' x) (push_array x p)
-         (hn_invalid (da_assn (pure R)) xs' p * hn_ctxt (pure R) x' x)  
-             (da_assn (pure R)) (PR_CONST (mop_push_list t) $  x' $   xs')"  
-  unfolding mop_push_list_def autoref_tag_defs
-  unfolding da_assn_def hr_comp_def hn_ctxt_def invalid_assn_def  apply simp
-  apply(rule hn_refine_ex) subgoal for b
-  apply (rule extract_cost_otherway[OF _ push_array_rule, where F="(pure R) x' x * hn_invalid dyn_array b p * \<up> ((b, xs') \<in> \<langle>the_pure (pure R)\<rangle>list_rel)" ])
-    apply(simp ) apply safe apply (simp only: mult.assoc)  apply rotater apply rotater  apply (swapr) apply(taker) apply (rule isolate_first)
-  apply (simp add: gr_def hn_ctxt_def)   apply(rule invalidate_clone)   apply(rule entails_triv)
-     apply auto
-    apply(rule ent_ex_postI[where x="xs' @ [x']"])
-    apply(rule ent_ex_postI[where x="b @ [x]"]) apply (auto simp: hn_ctxt_def pure_def)
-    subgoal by(auto simp: invalid_assn_def mod_starD  )
-    subgoal by (meson list_relI(2) list_rel_append1 refine_list(1))
-  apply(simp only: mult.assoc) apply (rule match_first) 
-  by (auto simp: invalid_assn_def)   
-  done
-
-lemma push''[sepref_fr_rules]:  "23  \<le> t xs' ==> CONSTRAINT is_pure R \<Longrightarrow>
-       hn_refine (hn_ctxt (da_assn (R)) xs' p * hn_ctxt (R) x' x) (push_array x p)
-         (hn_invalid (da_assn (R)) xs' p * hn_ctxt (R) x' x)  
-             (da_assn (R)) (PR_CONST (mop_push_list t) $  x' $   xs')"  
-  unfolding CONSTRAINT_def using push'[where R="the_pure R"] by auto
-
-thm push''[to_hfref]
-
-
+end 
 
 lemma dyn_da: "dyn_array = da_assn (pure Id)" unfolding da_assn_def by auto
 
-lemma push_ :  "23  \<le> t xs' ==> hn_refine (hn_ctxt dyn_array xs' p * hn_ctxt (pure Id) x' x) (push_array x p)
-         (hn_invalid dyn_array xs' p * hn_ctxt (pure Id) x' x)  
-             dyn_array (PR_CONST (mop_push_list t) $  x' $   xs')" 
-  unfolding dyn_da
-  apply(rule push') by simp
-
-
-lemma push :  "23  \<le> t xs' ==> hn_refine (hn_ctxt dyn_array xs' p * hn_ctxt (pure Id) x' x) (push_array x p)
-         (hn_invalid dyn_array xs' p * hn_ctxt (pure Id) x' x)  
-             dyn_array (PR_CONST (mop_push_list t) $  x' $   xs')" 
-  unfolding mop_push_list_def autoref_tag_defs
-  apply (rule extract_cost_otherway[OF _ push_array_rule, where F="hn_val Id x' x * hn_invalid dyn_array xs' p" ])
-    apply(simp ) apply (simp only: mult.assoc)  apply rotater apply rotater  apply (swapr) apply(taker) apply (rule isolate_first)
-  apply (simp add: gr_def hn_ctxt_def)   apply(rule invalidate_clone)   apply(rule entails_triv)
-  apply auto
-  apply(rule ent_ex_postI[where x="xs' @ [x]"]) apply (auto simp: hn_ctxt_def pure_def)
-  apply(simp only: mult.assoc)
-  apply rotatel apply (rule match_first) apply rotatel apply rotater  
-  by (auto simp: invalid_assn_def)   
-
-
 declare da_assn_def[symmetric, fcomp_norm_unfold]
-
- 
-
-(* thm push[FCOMP pl_param] *)
-
-
-
 
 subsection "casting functions by tags"
 
-thm push[to_hfref,to_hnr]
-thm push[to_hfref]
-thm new[to_hfref,to_hnr]
-thm new[to_hfref]
+thm mop_list_empty_rule[to_hfref,to_hnr]
+thm mop_list_empty_rule[to_hfref]
+thm mop_list_push_rule[to_hfref,to_hnr]
+thm mop_list_push_rule[to_hfref]
 
 
 subsection "synthesize some programs"
 
-sepref_definition test is "uncurry0 (do { xs \<leftarrow>mop_empty_list 7;  mop_push_list (\<lambda>_. 10) (0::nat) xs })" :: "unit_assn\<^sup>k \<rightarrow>\<^sub>a da_assn (pure Id)"
+experiment
+begin
+
+sepref_definition test is "uncurry0 (do { xs \<leftarrow>mop_empty_list (\<lambda>_. 7);  mop_push_list (\<lambda>_. 10) (0::nat) xs })" :: "unit_assn\<^sup>k \<rightarrow>\<^sub>a da_assn (pure Id)"
   apply sepref_dbg_keep                   
   apply sepref_dbg_trans_keep                  
         apply sepref_dbg_trans_step_keep oops
 
-sepref_definition test is "uncurry0 (do { xs \<leftarrow>mop_empty_list 12;  mop_push_list (\<lambda>_. 23) (0::nat) xs })" :: "unit_assn\<^sup>k \<rightarrow>\<^sub>a da_assn (pure Id)"
+sepref_definition test is "uncurry0 (do { xs \<leftarrow>mop_empty_list (\<lambda>_. 12);  mop_push_list (\<lambda>_. 23) (0::nat) xs })" :: "unit_assn\<^sup>k \<rightarrow>\<^sub>a da_assn (pure Id)"
   apply sepref_dbg_keep   done
- 
+
+end
 
 
 
@@ -135,8 +79,6 @@ lemma [simp]: "dyn_array_assn R [] r = dyn_array [] r"
   subgoal by (simp add: entails_def)
   subgoal apply(rule ent_ex_postI[where x="[]"]) by simp
   done
-
-thm new
 
    
 end

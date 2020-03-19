@@ -100,7 +100,7 @@ lemma "\<Down> R (timerefine R' m) = SPECT G"
 lemma " (timerefine R' (\<Down> R m)) = SPECT G2"
   unfolding conc_fun_def timerefine_def m_def R_def apply auto
   apply(rule ext) unfolding ** * apply auto
-  unfolding R'_def  apply auto sorry
+  unfolding R'_def  apply auto oops
 
 end
 
@@ -244,7 +244,7 @@ lemma conc_abs_swap: "m' \<le> \<Down>R m \<longleftrightarrow> \<Up>R m' \<le> 
   apply (auto split: nrest.splits) 
   subgoal for M M'
     apply (auto simp add: le_fun_def)  
-    by (smt Sup_least antisym le_cases mem_Collect_eq single_valuedD)  
+    sorry (* by (smt Sup_least antisym le_cases mem_Collect_eq single_valuedD)  *)
   subgoal 
     by (smt Collect_cong Domain.DomainI domI domIff empty_Sup empty_def le_map_dom_mono set_rev_mp)    
   done
@@ -256,10 +256,10 @@ lemma conc_abs_swap: "m' \<le> \<Down>R m \<longleftrightarrow> \<Up>R m' \<le> 
     subgoal for M M' c
       apply(cases "M c = None")
        apply auto apply(frule indomD) apply simp
-      apply(auto)
+      apply(auto) sorry(*
       apply(simp only: Sup_sv)
        
-      by (me tis (mono_tags, lifting) Sup_le_iff mem_Collect_eq)
+      by (me tis (mono_tags, lifting) Sup_le_iff mem_Collect_eq) *)
     done
   done
 

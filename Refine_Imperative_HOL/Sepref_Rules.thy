@@ -267,12 +267,17 @@ lemma fref_to_pure_hfref':
 
   definition uncurry_t :: "('d \<Rightarrow> 'a \<Rightarrow> 'b \<Rightarrow> 'c) \<Rightarrow> 'd \<Rightarrow> 'a \<times> 'b \<Rightarrow> 'c" where
     "uncurry_t f \<equiv> \<lambda>t (a,b). f t a b"
+
+  definition uncurry2_t :: "('t \<Rightarrow> 'a \<Rightarrow> 'b \<Rightarrow> 'c \<Rightarrow> 'd) \<Rightarrow> 't \<Rightarrow> (('a \<times> 'b) \<times> 'c) \<Rightarrow> 'd" where
+    "uncurry2_t f \<equiv> \<lambda>t ((a,b),c). f t a b c"
   
   lemma APP_uncurry_t_uncurry: 
     "APP (noparam_t Z) g= uncurry0 (PR_CONST (Z g))"
     "APP (oneparam_t Y) t= (PR_CONST(Y t))"
-    "APP (uncurry_t X) t = (uncurry (PR_CONST(X t)))"
-    by (auto simp add: uncurry_def uncurry0_def uncurry_t_def oneparam_t_def noparam_t_def )
+    "\<And>X t. APP (uncurry_t X) t = (uncurry (PR_CONST(X t)))"
+    "\<And>X t. APP (uncurry2_t X) t = (uncurry2 (PR_CONST(X t)))"
+    by (auto simp add: uncurry_def uncurry0_def uncurry_t_def oneparam_t_def noparam_t_def
+                uncurry2_t_def)
 
   subsubsection \<open>Conversion from hfref to hnr\<close>  
   text \<open>This section contains the lemmas. The ML code is further down. \<close>

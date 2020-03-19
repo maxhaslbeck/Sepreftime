@@ -1,3 +1,4 @@
+section \<open>Implementation of Maps by Arrays\<close>
 theory IICF_ArrayMap_Map
   imports "../Intf/IICF_Map" "SepLogicTime_RBTreeBasic.RBTree_Impl"
 begin
@@ -22,16 +23,18 @@ begin
   definition new_liam :: "nat \<Rightarrow> (('a::{heap}) array_map \<times> 'b::{heap,zero} ref) Heap"  where
     "new_liam n = do { a \<leftarrow> Array_Time.new n None; s\<leftarrow>Ref_Time.ref 0; return (a,s) } "
 
-lemma return_rule':
-  "<$1> return x <\<lambda>r. \<up>(r = x)>" by auto2
 
 
 schematic_goal "\<And>x xa. x \<mapsto>\<^sub>a replicate n None * xa \<mapsto>\<^sub>r 0 * $0\<Longrightarrow>\<^sub>A xa \<mapsto>\<^sub>r 0 * x \<mapsto>\<^sub>a ?f51 x xa  * $0"
   apply solve_entails oops
  
-lemma new_liam_rule: "<$(n+3)> new_liam n <is_liam n (Map.empty)>" unfolding new_liam_def is_liam_def
-    apply(sep_auto heap: ref_rule return_rule' )
-    prefer 3 unfolding zero_time apply solve_entails by (auto simp: iam_of_list_def) 
+lemma new_liam_rule: "<$(n+3)> new_liam n <is_liam n (Map.empty)>"
+  unfolding new_liam_def is_liam_def
+  apply(sep_auto heap: ref_rule SepAuto_Time.return_rule)
+    prefer 3
+  unfolding zero_time
+  by (sep_auto simp: iam_of_list_def)+
+
 
 lemma mop_map_empty_rule:
   "s+3\<le>t () \<Longrightarrow> hn_refine (emp) (new_liam s) emp (is_liam s) (PR_CONST (mop_map_empty t))"
@@ -47,32 +50,25 @@ definition "mop_map_empty_fs s t = SPECT [ Map.empty \<mapsto> enat (t ())]"
 context
   fixes s::nat and t ::  "unit \<Rightarrow> nat"
 begin
-  sepref_register "  (mop_map_empty_fs s t )" 
-  print_theorems 
+  sepref_register "(mop_map_empty_fs s t )"
 end
 
-  lemma  mop_map_empty_fs: "tt \<le> lst (SPECT [ Map.empty \<mapsto> t ()  ])  Q
-        \<Longrightarrow> tt \<le> lst (mop_map_empty_fs s t ) Q" unfolding mop_map_empty_fs_def by simp
+lemma  mop_map_empty_fs: "tt \<le> lst (SPECT [ Map.empty \<mapsto> t ()  ])  Q
+      \<Longrightarrow> tt \<le> lst (mop_map_empty_fs s t ) Q"
+  unfolding mop_map_empty_fs_def by simp
 
 
-  definition "mop_map_empty_fixed_length s = mop_map_empty "
-  context fixes s :: nat begin
-      sepref_register " (mop_map_empty_fixed_length s)"
-  print_theorems 
+definition "mop_map_empty_fixed_length s = mop_map_empty "
 
-  (*    lemma [def_pat_rules]: "mop_map_empty_fixed_length$s \<equiv> UNPROTECT (mop_map_empty_fixed_length s)"
-      by simp *)
-  end
+context fixes s :: nat begin
+    sepref_register " (mop_map_empty_fixed_length s)"
+end
 
 lemma mop_map_empty_add_mn: "mop_map_empty = mop_map_empty_fs s"  by(auto simp: mop_map_empty_def mop_map_empty_fs_def)
 
 lemma mop_map_empty_rule'[sepref_fr_rules]:
   "s+3\<le>n () \<Longrightarrow> hn_refine (emp) (new_liam s) emp (is_liam s) (PR_CONST (mop_map_empty_fs s n))"
   unfolding mop_map_empty_fs_def apply(rule mop_map_empty_rule[unfolded mop_map_empty_def]) by simp
-
-term RECT
-thm sep_heap_rules
-thm sep_decon_rules
 
 definition update_liam where
     "update_liam m k v = do {
@@ -85,16 +81,7 @@ definition update_liam where
             } else return (a, snd m))
         }
       "
-
-
- 
-
-thm return_rule
-thm return_rule
 lemma zz: "xs!i = n \<Longrightarrow> xs[i:=n] = xs" by auto
-
-lemma "<$2> if c=0 then return d else return 0 <\<lambda>r. \<up>(r = 0)>\<^sub>t"
-  apply(sep_auto) oops
 
 lemma knotin_dom_iam_of_listI: "l ! k = None \<Longrightarrow> k \<notin> dom (iam_of_list l)"
   by(auto simp: iam_of_list_def split: if_splits)
@@ -108,17 +95,17 @@ lemma iam_of_list_update: "k < length l \<Longrightarrow> iam_of_list (l[k := So
 
 lemma update_liam_rule: "k<n \<Longrightarrow> <is_liam n M m * $6> update_liam m k v <\<lambda>r. is_liam n (M(k:=Some v)) r >\<^sub>t"
   unfolding update_liam_def is_liam_def
-  apply(sep_auto heap: nth_rule lookup_rule update_rule return_rule')
+  apply(sep_auto heap: nth_rule lookup_rule update_rule SepAuto_Time.return_rule)
     apply(auto simp:   zz  card_insert finite_dom_iam_of_list
               set_minus_singleton_eq knotin_dom_iam_of_listI iam_of_list_update )
-  apply(sep_auto heap: return_rule')    
+  apply(sep_auto heap: SepAuto_Time.return_rule)    
    apply(auto intro!: card_Suc_Diff1   simp:    iam_of_list_update finite_dom_iam_of_list )
   by(auto simp: iam_of_list_def) 
 
 
 lemma mop_set_insert_rule[sepref_fr_rules]:
   "(uncurry2 update_liam, uncurry2 (PR_CONST (mop_map_update t)))
-     \<in> [\<lambda>((a, b), x). 6 \<le> t a \<and> b < mn]\<^sub>a (is_liam mn)\<^sup>d *\<^sub>a nat_assn\<^sup>k *\<^sub>a id_assn\<^sup>k \<rightarrow> is_liam mn"
+     \<in> [\<lambda>((a, b), x). 6 \<le> t ((a, b), x) \<and> b < mn]\<^sub>a (is_liam mn)\<^sup>d *\<^sub>a nat_assn\<^sup>k *\<^sub>a id_assn\<^sup>k \<rightarrow> is_liam mn"
   apply sepref_to_hoare 
   unfolding mop_map_update_def autoref_tag_defs
   apply (rule extract_cost_otherway'[OF _  update_liam_rule ])
@@ -131,12 +118,12 @@ definition dom_member_liam where
 
 lemma dom_member_liam_rule: "k<n  \<Longrightarrow> <is_liam n M m * $2> dom_member_liam m k <\<lambda>r. is_liam n M m * \<up>(r\<longleftrightarrow>k\<in>dom M)  >\<^sub>t"
   unfolding dom_member_liam_def is_liam_def
-  apply(sep_auto heap: nth_rule return_rule' )
+  apply(sep_auto heap: nth_rule SepAuto_Time.return_rule )
   by(auto simp: iam_of_list_def)
 
 
 lemma mop_mem_set_rule[sepref_fr_rules]:
-  "2 \<le> t M \<Longrightarrow> x < n \<Longrightarrow>
+  "2 \<le> t (M,x) \<Longrightarrow> x < n \<Longrightarrow>
     hn_refine (hn_val Id x x' * hn_ctxt (is_liam n) M p)
      (dom_member_liam p x')
      (hn_ctxt (pure Id) x x' * hn_ctxt (is_liam n) M p) id_assn ( PR_CONST (mop_map_dom_member t) $ M $ x)"
@@ -156,7 +143,7 @@ definition nth_liam where
 
 lemma nth_liam_rule: "k<n \<Longrightarrow> k \<in> dom M \<Longrightarrow> <is_liam n M m * $2> nth_liam m k <\<lambda>r. is_liam n M m * \<up>(r=the (M k))>\<^sub>t"
   unfolding nth_liam_def is_liam_def
-  apply(sep_auto heap: nth_rule return_rule' )
+  apply(sep_auto heap: nth_rule SepAuto_Time.return_rule )
   by(auto simp: iam_of_list_def)
 
 
@@ -164,7 +151,7 @@ lemma nth_liam_rule: "k<n \<Longrightarrow> k \<in> dom M \<Longrightarrow> <is_
 
 
 lemma mop_map_lookup_rule[sepref_fr_rules]:
-  "2 \<le> t M \<Longrightarrow> x < n \<Longrightarrow> 
+  "2 \<le> t (M,x) \<Longrightarrow> x < n \<Longrightarrow> 
     hn_refine (hn_val Id x x' * hn_ctxt (is_liam n) M p)
      (nth_liam p x')
      (hn_ctxt (pure Id) x x' * hn_ctxt (is_liam n) M p) id_assn ( PR_CONST (mop_map_lookup t) $ M $ x)"

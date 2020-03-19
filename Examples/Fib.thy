@@ -2,7 +2,7 @@ theory Fib
   imports "../Refine_Imperative_HOL/Sepref"
     "SepLogicTime_RBTreeBasic.RBTree_Impl"
 begin
-
+hide_const R B
 
 definition "op_zero = SPECT [(0::nat) \<mapsto> 1]"
 

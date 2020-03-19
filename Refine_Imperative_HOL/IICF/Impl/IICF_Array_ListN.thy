@@ -1,27 +1,26 @@
+section "Implement the List Interface with an array"
 theory IICF_Array_ListN
 imports "../Intf/IICF_List"
 begin
 
-section "Implement the List Interface with an array"
 
 definition "array_assn xs p = p \<mapsto>\<^sub>a xs"
 
 lemmas [safe_constraint_rules] = CN_FALSEI[of is_pure "array_assn" for A]
 
-lemma mop_lookup_list_as_array_rule[sepref_fr_rules]:
-  "1 \<le> n \<Longrightarrow> x < length xs \<Longrightarrow>
-    hn_refine (hn_ctxt array_assn xs p * hn_val Id x x')
-     (Array_Time.nth p (x'::nat))
-     (hn_ctxt array_assn xs p * hn_ctxt (pure Id) x x') id_assn ( PR_CONST (mop_lookup_list n) $  xs $ x)"
-  unfolding autoref_tag_defs mop_lookup_list_def
-  apply (rule extract_cost_otherway[OF _  nth_rule, where F="nat_assn x x'"]) unfolding mult.assoc
-  unfolding hn_ctxt_def array_assn_def
-      apply(rule match_first) apply rotatel apply(rule match_first) apply (simp add: pure_def)  
-   apply(rule match_first) apply (simp add: pure_def)   apply safe 
-    apply(rule inst_ex_assn[where x="xs ! x"]) apply simp apply simp  done
+context 
+  notes [intro!] = hfrefb_to_hoare_triple
+  notes [simp] = pure_def hn_ctxt_def invalid_assn_def uncurry_t_def
+                noparam_t_def oneparam_t_def
+begin  
 
+  lemma mop_list_lookup_rule_aux:
+    "(uncurry Array_Time.nth, uncurry_t mop_lookup_list)
+                      \<in> [\<lambda>(a, b). b < length a,\<lambda>_. 1]\<^sub>b array_assn\<^sup>k *\<^sub>a nat_assn\<^sup>k \<rightarrow> id_assn"
+    by (sep_auto simp: array_assn_def mop_lookup_list_def)
 
-thm mop_lookup_list_as_array_rule[to_hfref]
+  lemmas mop_list_lookup_rule[sepref_fr_rules] = mop_list_lookup_rule_aux[hfb_to_hnr]
 
+end
 
 end
