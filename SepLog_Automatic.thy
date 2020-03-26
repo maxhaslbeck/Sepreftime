@@ -1,5 +1,5 @@
 theory SepLog_Automatic
-imports "SepLogicTime_RBTreeBasic.SepAuto" 
+imports "Imperative_HOL_Time.SepAuto" 
   "HOL-Eisbach.Eisbach" "SepLog_Misc"   Automatic_Refinement.Automatic_Refinement
  
 begin

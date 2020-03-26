@@ -1,6 +1,6 @@
 section \<open>Implementation of Maps by Arrays\<close>
 theory IICF_ArrayMap_Map
-  imports "../Intf/IICF_Map" "SepLogicTime_RBTreeBasic.RBTree_Impl"
+  imports "../Intf/IICF_Map" "Imperative_HOL_Time.RBTree_Impl"
 begin
 
 (* inspired by Separation_Logic_Imperative_HOL/Examples/Array_Map_Impl *)
@@ -30,10 +30,8 @@ schematic_goal "\<And>x xa. x \<mapsto>\<^sub>a replicate n None * xa \<mapsto>\
  
 lemma new_liam_rule: "<$(n+3)> new_liam n <is_liam n (Map.empty)>"
   unfolding new_liam_def is_liam_def
-  apply(sep_auto heap: ref_rule SepAuto_Time.return_rule)
-    prefer 3
-  unfolding zero_time
-  by (sep_auto simp: iam_of_list_def)+
+  by (sep_auto heap: ref_rule SepAuto_Time.return_rule
+        simp: iam_of_list_def)
 
 
 lemma mop_map_empty_rule:

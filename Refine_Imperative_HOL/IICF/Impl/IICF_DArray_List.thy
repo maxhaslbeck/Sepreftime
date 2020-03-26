@@ -1,6 +1,6 @@
 section "Implementing List Interface with DynamicArrays"
 theory IICF_DArray_List  
-  imports "../Intf/IICF_List" "SepLogicTime_RBTreeBasic.DynamicArray2"
+  imports "../Intf/IICF_List" "Imperative_HOL_Time.DynamicArray2"
 begin
 
 

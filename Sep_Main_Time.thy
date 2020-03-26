@@ -1,6 +1,6 @@
 theory Sep_Main_Time
   imports
-    "SepLogicTime_RBTreeBasic.SepAuto_Time" 
+    "Imperative_HOL_Time.SepAuto_Time" 
   "SepAuto_Time.SepLog_Automatic"
 begin
 

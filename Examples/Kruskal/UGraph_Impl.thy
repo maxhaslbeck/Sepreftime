@@ -1,6 +1,6 @@
 theory UGraph_Impl
 imports
- Kruskal_Impl "../../../Kruskal/UGraph" "SepLogicTime_RBTreeBasic.Asymptotics_2D" 
+ Kruskal_Impl "../../../Kruskal/UGraph" "Imperative_HOL_Time.Asymptotics_2D" 
 begin
 
 abbreviation "subforest' EE F \<equiv> forest F \<and> F \<subseteq> EE"

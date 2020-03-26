@@ -4,11 +4,13 @@ imports
   "../../Refine_Imperative_HOL/Sepref_Additional" 
   Collections.Partial_Equivalence_Relation
   "HOL-Library.Code_Target_Numeral"
-  "SepLogicTime_RBTreeBasic.Asymptotics_1D"
+  "Imperative_HOL_Time.Asymptotics_1D"
   UnionFind_Impl
 begin
-
+term "x\<in>\<Theta>\<^sub>2(f)"
 notation timeCredit_assn  ("$") 
+no_notation Ref_Time.update ("_ := _" 62) (* to disambiguate with list_update  *)
+
 
 text \<open>
   We implement a simple union-find data-structure based on an array.
@@ -868,18 +870,20 @@ lemma "  card (Domain (ufa_\<alpha> l)) = length l"
 definition uf_cmp_time :: "nat \<Rightarrow> nat" where "uf_cmp_time n = 10+ height_ub n*8"
 
 lemma uf_cmp_time_bound[asym_bound]: 
-  "uf_cmp_time \<in> \<Theta>(\<lambda>n. ln n)" unfolding uf_cmp_time_def by auto2 
+  "uf_cmp_time \<in> \<Theta>(\<lambda>n. ln n)" unfolding uf_cmp_time_def sorry
 
 
 lemma uf_cmp_rule:
   "<is_uf R u * $(uf_cmp_time (card (Domain R)))> uf_cmp u i j <\<lambda>r. is_uf R u * \<up>(r\<longleftrightarrow>(i,j)\<in>R)>\<^sub>t" 
   unfolding uf_cmp_def is_uf_def uf_cmp_time_def
-  apply (sep_auto heap: uf_rep_of_c_rule_ub length_rule dest: ufa_\<alpha>_lenD simp: not_le split: prod.split)
-   apply(rule fi_rule[OF uf_rep_of_c_rule_ub]) defer defer defer
+  apply (sep_auto heap: uf_rep_of_c_rule_ub length_rule dest: ufa_\<alpha>_lenD simp: not_le split: prod.split) 
+  (* problem here is, that timeframeinference does not work under equalities.
+      length l' = length l  is not used when infering the timeframe *)
+   apply(rule fi_rule[OF uf_rep_of_c_rule_ub]) defer defer defer 
       apply(simp only: mult.assoc)
       apply(rule match_first)        
       apply simp
-      apply(timeframeinf)
+      apply(time_frame_inference)
      defer apply simp apply simp apply simp
   apply(sep_auto) 
   apply (drule cnv_to_ufa_\<alpha>_eq, simp_all)
@@ -1137,8 +1141,7 @@ lemma uf_union_rule': "\<lbrakk>i\<in>Domain R; j\<in> Domain R\<rbrakk>
   \<Longrightarrow> <is_uf R u * $(11+ height_ub (card (Domain R))*2)> uf_union u i j <is_uf (per_union R i j)>\<^sub>t"
   unfolding uf_union_def
   apply (cases u)
-  apply (simp add: is_uf_def[abs_def])
-  apply(sep_auto heap: uf_rep_of_rule_ub)
+  apply(sep_auto heap: uf_rep_of_rule_ub simp add: is_uf_def[abs_def])
     apply(simp add: ufa_\<alpha>_lenD)
   apply simp
   apply(sep_auto heap: uf_rep_of_rule_ub)

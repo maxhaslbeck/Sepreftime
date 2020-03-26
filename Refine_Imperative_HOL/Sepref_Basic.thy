@@ -153,7 +153,7 @@ lemma invalid_assn_cong[cong]:
 subsection \<open>Constraints in Refinement Relations\<close>
 
 lemma mod_pure_conv[simp]: "pHeap h as n \<Turnstile>pure R a b \<longleftrightarrow> (as={} \<and> n=0 \<and> (b,a)\<in>R)"
-  by (auto simp: pure_def pure_assn_rule)
+  by (auto simp: pure_def)
 
 definition rdomp :: "('a \<Rightarrow> 'c \<Rightarrow> assn) \<Rightarrow> 'a \<Rightarrow> bool" where
   "rdomp R a \<equiv> \<exists>h c. h \<Turnstile> R a c"
@@ -164,14 +164,14 @@ lemma rdomp_ctxt[simp]: "rdomp (hn_ctxt R) = rdomp R"
   by (simp add: hn_ctxt_def[abs_def])  
 
 lemma rdomp_pure[simp]: "rdomp (pure R) a \<longleftrightarrow> a\<in>Range R"
-  unfolding rdomp_def pure_def apply (auto simp: pure_assn_rule)  
+  unfolding rdomp_def pure_def apply auto
   using pheap.sel(2) pheap.sel(3) pure_assn_rule by blast  
 
 lemma pureD: "h \<Turnstile> \<up>B \<Longrightarrow> B"  
-  by (simp add: pure_assn_rule)
+  by simp
 
 lemma rdom_pure[simp]: "rdom (pure R) = Range R"
-  unfolding rdomp_def[abs_def] pure_def apply (auto dest: pureD simp: pure_assn_rule)
+  unfolding rdomp_def[abs_def] pure_def apply (auto dest: pureD)
   by (meson pheap.sel(2) pheap.sel(3))
 
 lemma Range_of_constraint_conv[simp]: "Range (A\<inter>UNIV\<times>C) = Range A \<inter> C"
@@ -180,10 +180,10 @@ lemma Range_of_constraint_conv[simp]: "Range (A\<inter>UNIV\<times>C) = Range A 
 
 subsection \<open>Heap-NresT Refinement Calculus\<close>
 
-text {* Predicate that expresses refinement. Given a heap
+text \<open> Predicate that expresses refinement. Given a heap
   @{text "\<Gamma>"}, program @{text "c"} produces a heap @{text "\<Gamma>'"} and
   a concrete result that is related with predicate @{text "R"} to some
-  abstract result from @{text "m"}*}
+  abstract result from @{text "m"}\<close>
 definition "hn_refine \<Gamma> c \<Gamma>' R m \<equiv> nofailT m \<longrightarrow> 
     (\<forall>h as  n   M. pHeap h as n \<Turnstile> \<Gamma>  \<longrightarrow> m = REST M \<longrightarrow>
     (\<exists>h' t r. execute c h = Some (r, h', t) \<and>
@@ -304,7 +304,7 @@ proof clarsimp
     by(simp only: n' ne)
   then have 31: "pHeap h' (new_addrs h as h') (n + Ca - t) \<Turnstile> F * Q' * R ra r * true"
     apply(rule entailsD[rotated]) 
-    by (simp add: assn_times_assoc entails_def mult.left_commute top_assn_reduce)   
+    by (simp add: assn_times_assoc entails_def mult.left_commute)   
     
   have 41: "relH {a. a < heap.lim h \<and> a \<notin> as} h h'"
     apply(rule relH_subset) apply fact
@@ -362,7 +362,7 @@ lemma hn_refine_cons_pre':
   assumes R: "hn_refine P' c Q R m"
   shows "hn_refine P c Q R m"
   apply(rule hn_refine_cons'[OF I R])  
-    by (auto simp add: entt_refl')   
+    by auto   
 
 lemma hn_refine_preI: 
   assumes "\<And>h. h\<Turnstile>\<Gamma> \<Longrightarrow> hn_refine \<Gamma> c \<Gamma>' R a"
@@ -432,7 +432,7 @@ lemma hn_refine_frame:
 lemma hn_refine_cons_res: 
   "\<lbrakk> hn_refine \<Gamma> f \<Gamma>' R g; \<And>a c. R a c \<Longrightarrow>\<^sub>t R' a c \<rbrakk> \<Longrightarrow> hn_refine \<Gamma> f \<Gamma>' R' g"
   apply (erule hn_refine_cons[OF entt_refl])   
-  by (auto simp add: entt_refl)
+  by auto
 
 lemma hn_refine_ref:
   assumes LE: "m\<le>m'"
@@ -642,7 +642,7 @@ proof (goal_cases)
 
   have disj: "new_addrs h' as1 h'' \<inter> as2 = {}"  
     using a models_in_range[OF Fr'] hl2
-    by (auto simp: in_range.simps new_addrs_def)
+    by (auto simp: new_addrs_def)
 
   have k: "{a. a < Heap.lim h' \<and> a \<notin> (new_addrs h as h')} \<subseteq> {a. a < Heap.lim h' \<and> a \<notin> as1}"
     using uni  by auto
@@ -906,7 +906,7 @@ lemma hnr_If:
 
 
 subsection \<open>ML-Level Utilities\<close>
-ML {*
+ML \<open>
   signature SEPREF_BASIC = sig
     (* Destroy lambda term, return function to reconstruct. Bound var is replaced by free. *)
     val dest_lambda_rc: Proof.context -> term -> ((term * (term -> term)) * Proof.context)
@@ -1354,7 +1354,7 @@ ML {*
       msg ^ "\n" ^ Pretty.string_of (Pretty.chunks (Goal_Display.pretty_goals ctxt st))
 
   end
-*}
+\<close>
 
 
 ML \<open>

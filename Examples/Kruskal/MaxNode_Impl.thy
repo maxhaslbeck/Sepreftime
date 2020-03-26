@@ -1,5 +1,5 @@
 theory MaxNode_Impl
-  imports Union_Find_Time Kruskal_Impl "SepLogicTime_RBTreeBasic.MergeSort_Impl"
+  imports  Kruskal_Impl "Imperative_HOL_Time.MergeSort_Impl"
   "../Remdups"
 begin  
 
@@ -228,12 +228,12 @@ lemma mergeSort_smaller_rule:
   "length ra \<le>  ll \<Longrightarrow>
   <p \<mapsto>\<^sub>a ra * timeCredit_assn(merge_sort_time ll)>
    merge_sort_impl p
-   <\<lambda>_. p \<mapsto>\<^sub>a sort ra>\<^sub>t"  
+   <\<lambda>_. p \<mapsto>\<^sub>a sort ra>\<^sub>t" 
   apply(rule ht_cons_rule[where P'="p \<mapsto>\<^sub>a ra * timeCredit_assn (merge_sort_time (length ra)) * true"])
     apply(simp only: mult.assoc)
     apply(rule match_first)  apply(rule gc_time)
   apply(rule merge_sort_time_mono) apply simp
-  defer  apply(rule fi_rule[where F=true]) apply(rule mergeSort_correct[where xs="ra"])
+  defer  apply(rule fi_rule[of _ _ _ _ true]) apply(rule mergeSort_correct[where xs="ra"])
    apply sep_auto+
   done
 
@@ -241,7 +241,7 @@ lemma maxn_sort_smallerrule: "length xs \<le> S \<Longrightarrow> <p\<mapsto>\<^
   apply(rule ht_cons_rule[where P'="p \<mapsto>\<^sub>a xs * timeCredit_assn (2*(length xs)+2) * true"])
     apply(simp only: mult.assoc)
     apply(rule match_first)  apply(rule gc_time)  apply simp
-  defer  apply(rule fi_rule[where F=true]) apply(rule maxn_rule[where xs="xs"])
+  defer  apply(rule fi_rule[of _ _ _ _ true]) apply(rule maxn_rule[where xs="xs"])
    apply sep_auto+
   done 
 
@@ -249,7 +249,7 @@ lemma freeze_smallerrule: "length xs \<le> S \<Longrightarrow> <a \<mapsto>\<^su
   apply(rule ht_cons_rule[where P'="a \<mapsto>\<^sub>a xs * timeCredit_assn (1+(length xs)) * true"])
     apply(simp only: mult.assoc)
     apply(rule match_first)  apply(rule gc_time)  apply simp
-  defer  apply(rule fi_rule[where F=true]) apply(rule freeze_rule[where xs="xs"])
+  defer  apply(rule fi_rule[of _ _ _ _ true]) apply(rule freeze_rule[where xs="xs"])
    apply sep_auto+
   done 
  

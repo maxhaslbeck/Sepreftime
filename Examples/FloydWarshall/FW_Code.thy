@@ -4,7 +4,7 @@ theory FW_Code
     Recursion_Combinators
     Floyd_Warshall.Floyd_Warshall
   "../../Refine_Imperative_HOL/IICF/IICF_Misc"
-  "SepLogicTime_RBTreeBasic.Asymptotics_1D" 
+  "Imperative_HOL_Time.Asymptotics_1D" 
 begin
  
 section \<open>Refinement to Efficient Imperative Code\<close>

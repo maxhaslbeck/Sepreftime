@@ -1,6 +1,6 @@
 section \<open>Implementation of Maps by Red Black Trees\<close>
 theory IICF_RbtMap_Map
-  imports  "SepLogicTime_RBTreeBasic.RBTree_Impl" "../Intf/IICF_Map"
+  imports  "Imperative_HOL_Time.RBTree_Impl" "../Intf/IICF_Map"
 begin
 
   hide_const(open) R B

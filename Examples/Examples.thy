@@ -135,5 +135,7 @@ lemma "edka_cost \<in> \<Theta>\<^sub>2(\<lambda>(V::nat,E::nat). (V * E) * (V +
 
 end
 
+thy_deps (Sepref_Basic|Akra_Bazzi_Method|NREST|SepAuto_Time)
+
 
 end

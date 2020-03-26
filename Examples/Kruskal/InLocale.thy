@@ -1,5 +1,5 @@
 theory InLocale
-imports "SepLogicTime_RBTreeBasic.Asymptotics_2D" 
+imports "Imperative_HOL_Time.Asymptotics_2D" 
 begin
 
 

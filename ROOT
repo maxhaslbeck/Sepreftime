@@ -1,6 +1,6 @@
 chapter Sepreftime
                                             
-session SeprefTime_Base = SepLogicTime_RBTreeBasic +
+session SeprefTime_Base = Imperative_HOL_Time +
   sessions
     Flow_Networks
     EdmondsKarp_Maxflow

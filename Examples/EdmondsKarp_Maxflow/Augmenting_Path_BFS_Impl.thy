@@ -16,8 +16,8 @@ lemma mop_lookup_list_as_array_rule[sepref_fr_rules]:
   unfolding hn_refine_def
   apply (auto simp: execute_return pure_def hn_ctxt_def invalid_assn_def relH_def top_assn_rule)
   apply(rule exI[where x=1] ) apply auto
-  subgoal    
-    by (metis mod_star_trueI pf) 
+  subgoal
+    by (metis mod_star_trueI assn_times_comm) 
   subgoal using mod_starD by auto 
   subgoal using mod_starD by blast
   done

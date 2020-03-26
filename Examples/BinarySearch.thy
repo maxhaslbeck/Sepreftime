@@ -1,6 +1,6 @@
 theory BinarySearch
   imports "../Refine_Imperative_HOL/IICF/IICF" 
-     "NREST.RefineMonadicVCG" "SepLogicTime_RBTreeBasic.Asymptotics_1D"
+     "NREST.RefineMonadicVCG" "Imperative_HOL_Time.Asymptotics_1D"
 begin
 section "Binary Search"                           
 
