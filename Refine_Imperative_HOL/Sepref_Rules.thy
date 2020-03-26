@@ -409,14 +409,14 @@ lemma fref_to_pure_hfref':
   lemma hr_comp_Id1[simp]: "hr_comp (pure Id) R = pure R"  
     unfolding hr_comp_def[abs_def] pure_def
     apply (intro ext ent_iffI)    
-     apply (smt BNF_Greatest_Fixpoint.IdD SepLog_Misc.mod_pure_star_dist entails_def entails_ex move_back_pure)
+     apply (smt BNF_Greatest_Fixpoint.IdD Sep_Time_Misc.mod_pure_star_dist entails_def entails_ex move_back_pure)
     by (smt IdI entails_equiv_backward entails_ex pure_conj)
     
 
   lemma hr_comp_Id2[simp]: "hr_comp R Id = R"  
     unfolding hr_comp_def[abs_def]
     apply (intro ext ent_iffI)
-    apply (smt BNF_Greatest_Fixpoint.IdD SepLog_Misc.mod_pure_star_dist entails_def entails_ex)
+    apply (smt BNF_Greatest_Fixpoint.IdD Sep_Time_Misc.mod_pure_star_dist entails_def entails_ex)
     by (simp add: entailsI mod_ex_dist)
  
   (*lemma hr_comp_invalid[simp]: "hr_comp (\<lambda>a c. true) R a c = true * \<up>(\<exists>b. (b,a)\<in>R)"
@@ -514,7 +514,7 @@ lemma entails_pure''': "(emp \<Longrightarrow>\<^sub>A \<up> B) = B"
       sep_auto/solve_entails is too eager splitting the subgoal here! *)
     apply sep_auto
     done *) 
-    subgoal by (smt SepLog_Misc.mod_pure_star_dist entailsI mod_ex_dist relcomp.relcompI) 
+    subgoal by (smt Sep_Time_Misc.mod_pure_star_dist entailsI mod_ex_dist relcomp.relcompI) 
     subgoal 
       apply (clarsimp intro!: ent_ex_preI entails_pure'' simp:  pure_conj[symmetric] del: pure_conj)
       apply (rule ent_ex_postI)

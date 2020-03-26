@@ -870,7 +870,7 @@ lemma "  card (Domain (ufa_\<alpha> l)) = length l"
 definition uf_cmp_time :: "nat \<Rightarrow> nat" where "uf_cmp_time n = 10+ height_ub n*8"
 
 lemma uf_cmp_time_bound[asym_bound]: 
-  "uf_cmp_time \<in> \<Theta>(\<lambda>n. ln n)" unfolding uf_cmp_time_def sorry
+  "uf_cmp_time \<in> \<Theta>(\<lambda>n. ln n)" unfolding uf_cmp_time_def by auto2
 
 
 lemma uf_cmp_rule:
