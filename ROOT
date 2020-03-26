@@ -31,7 +31,6 @@ session SeprefTime_Base = Imperative_HOL_Time +
 
 session SeprefTime = SeprefTime_Base + 
   sessions
-    SepAuto_Time
     NREST
   theories
      "Examples/Examples"

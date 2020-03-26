@@ -1,6 +1,6 @@
 theory Union_Find_Time
 imports 
-  "SepAuto_Time.SepLog_Automatic" 
+  "Imperative_HOL_Time.Sep_Time_Main" 
   "../../Refine_Imperative_HOL/Sepref_Additional" 
   Collections.Partial_Equivalence_Relation
   "HOL-Library.Code_Target_Numeral"
