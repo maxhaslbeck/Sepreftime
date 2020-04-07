@@ -109,20 +109,14 @@ definition "invalid_assn R x y \<equiv> \<up>(\<exists>h. h\<Turnstile>R x y) * 
 
 abbreviation "hn_invalid R \<equiv> hn_ctxt (invalid_assn R)"
 
-lemma invalidate_clone: "R x y \<Longrightarrow>\<^sub>A invalid_assn R x y * R x y"
-  apply (rule entailsI)
-  unfolding invalid_assn_def
-  by (metis mod_pure_star_dist abel_semigroup.commute entailsD entt_refl' linordered_field_class.sign_simps(4) mult.abel_semigroup_axioms)
+lemma invalidate_clone: "R x y \<Longrightarrow>\<^sub>A invalid_assn R x y * R x y" 
+  by (auto simp: invalid_assn_def intro: mod_star_trueI entailsI)
 
 lemma invalidate_clone': "R x y \<Longrightarrow>\<^sub>A invalid_assn R x y * R x y * true"
-  apply (rule entailsI)
-  unfolding invalid_assn_def  
-  by (metis (full_types) assn_times_comm mod_star_trueI monoid.left_neutral mult.monoid_axioms pure_true)  
+  by (auto simp: invalid_assn_def intro: mod_star_trueI entailsI)
 
 lemma invalidate: "R x y \<Longrightarrow>\<^sub>A invalid_assn R x y"
-  apply (rule entailsI)
-  unfolding invalid_assn_def 
-  using assn_times_comm entails_def entails_true by auto  
+  by (auto simp: invalid_assn_def)
 
 lemma invalid_pure_recover: "invalid_assn (pure R) x y = pure R x y * true"
   apply (rule ent_iffI) 

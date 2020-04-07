@@ -1,6 +1,6 @@
 chapter Sepreftime
                                             
-session SeprefTime_Base = Imperative_HOL_Time +
+session SeprefTime_Prereq in "SeprefTime_Prereq" = Imperative_HOL_Time +
   sessions
     Flow_Networks
     EdmondsKarp_Maxflow
@@ -29,8 +29,20 @@ session SeprefTime_Base = Imperative_HOL_Time +
     "Automatic_Refinement.Refine_Lib"
     "Automatic_Refinement.Automatic_Refinement" 
 
-session SeprefTime = SeprefTime_Base + 
+session SeprefTime = SeprefTime_Prereq + 
   sessions
     NREST
+  directories
+    "Examples"
+    "Examples/EdmondsKarp_Maxflow"
+    "Examples/FloydWarshall"
+    "Examples/Kruskal"
+
+    "Refine_Imperative_HOL"
+    "Refine_Imperative_HOL/Lib"
+    "Refine_Imperative_HOL/IICF"
+    "Refine_Imperative_HOL/IICF/Intf"
+    "Refine_Imperative_HOL/IICF/Impl"
+
   theories
      "Examples/Examples"
