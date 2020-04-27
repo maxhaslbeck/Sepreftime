@@ -99,8 +99,8 @@ lemma "\<Down> R (timerefine R' m) = SPECT G"
 
 lemma " (timerefine R' (\<Down> R m)) = SPECT G2"
   unfolding conc_fun_def timerefine_def m_def R_def apply auto
-  apply(rule ext) unfolding ** * apply auto
-  unfolding R'_def  apply auto oops
+  apply(rule ext) unfolding ** * 
+  unfolding R'_def    oops
 
 end
 
@@ -114,9 +114,44 @@ lemma datarefine_timerefine_commute:
   done
 
 
-experiment
-begin
+lemma pw_conc_nofail[refine_pw_simps]: 
+  "nofailT (\<Down>R S) = nofailT S"
+  by (cases S) (auto simp: conc_fun_RES)
 
+lemma "single_valued A \<Longrightarrow> single_valued B \<Longrightarrow> single_valued (A O B)"
+  by (simp add: single_valued_relcomp)
+
+lemma Sup_enatoption_less2: " Sup X = Some \<infinity> \<Longrightarrow> (\<exists>x. Some x \<in> X \<and> enat t < x)"
+  using Sup_enat_less2
+  by (metis Sup_option_def in_these_eq option.distinct(1) option.sel)
+
+lemma pw_conc_inres[refine_pw_simps]:
+  "inresT (\<Down>R S') s t = (nofailT S' 
+  \<longrightarrow> ((\<exists>s'. (s,s')\<in>R \<and> inresT S' s' t) \<comment> \<open> \<and> (\<forall>s' t'. (s,s')\<in>R \<longrightarrow> inresT S' s' t' \<longrightarrow> t' \<le> t )\<close> ))"
+  apply (cases S')
+  subgoal by simp
+  subgoal  for m'
+    apply rule
+    subgoal 
+      apply (auto simp: conc_fun_RES  )
+      subgoal for t' 
+        apply(cases t')
+         apply auto
+        subgoal for n apply(auto dest!: Sup_finite_enat) 
+          subgoal for a apply(rule exI[where x=a]) apply auto
+            apply(rule exI[where x="enat n"]) by auto  
+          done
+        subgoal apply(drule Sup_enatoption_less2[where t=t])
+          apply auto subgoal for x a apply(rule exI[where x=a]) apply auto
+            apply(rule exI[where x=x]) by auto 
+          done
+        done
+      done
+    subgoal 
+      apply (auto simp: conc_fun_RES)
+      by (smt Sup_upper dual_order.trans le_some_optE mem_Collect_eq)
+    done
+  done 
 
 lemma bindT_refine':
   fixes R' :: "('a\<times>'b) set" and R::"('c\<times>'d) set"
@@ -126,8 +161,12 @@ lemma bindT_refine':
   \<rbrakk> \<Longrightarrow> f x \<le> \<Down> R (f' x')"
   shows "bindT M (\<lambda>x. f x) \<le> \<Down> R (bindT M' (\<lambda>x'. f' x'))"
   using assms
-  apply (simp add: pw_le_iff refine_pw_simps)  
-  sorry
+  apply (simp add: pw_le_iff refine_pw_simps)
+  by blast 
+
+experiment
+begin
+
 
 
 
@@ -322,7 +361,7 @@ lemma Sup_enatoption_less2: " Sup X = Some \<infinity> \<Longrightarrow> (\<exis
 
 lemma pw_conc_inres[refine_pw_simps]:
   "inresT (\<Down>R S') s t = (nofailT S' 
-  \<longrightarrow> ((\<exists>s'. (s,s')\<in>R \<and> inresT S' s' t) (* \<and> (\<forall>s' t'. (s,s')\<in>R \<longrightarrow> inresT S' s' t' \<longrightarrow> t' \<le> t ) *) ))"
+  \<longrightarrow> ((\<exists>s'. (s,s')\<in>R \<and> inresT S' s' t) \<comment> \<open> \<and> (\<forall>s' t'. (s,s')\<in>R \<longrightarrow> inresT S' s' t' \<longrightarrow> t' \<le> t ) \<close> ))"
   apply (cases S')
   subgoal by simp
   subgoal  for m'

@@ -3,14 +3,13 @@ theory AbstractSepreftime
   "HOL-Library.Monad_Syntax"   "HOL-Library.Groups_Big_Fun"
   Complex_Main
   Coinductive.CCPO_Topology
- 
+
+"HOL-Library.Function_Algebras"
 
 begin
 
-definition myminus where "myminus x y = (if x=\<infinity> \<and> y=\<infinity> then 0 else x - y)"
-lemma "(a::enat) + x \<ge> b  \<longleftrightarrow> x \<ge> myminus b a "
-  unfolding myminus_def
-  apply(cases a; cases b; cases x) apply auto oops
+
+
 
 
 section "Auxiliaries"
@@ -57,17 +56,17 @@ lemma aux2: "(\<lambda>f. f x) ` {[x \<mapsto> t1] |x t1. M x = Some t1} = {None
 lemma aux3: "(\<lambda>f. f x) ` {[x \<mapsto> t1] |x t1. M x = Some t1} = {Some t1 | t1. M x = Some t1} \<union> ({None | y. y\<noteq>x \<and> M y \<noteq> None })"
   by (fastforce split: if_splits simp: image_iff) 
 
-lemma Sup_pointwise_eq_fun: "(SUP f:{[x \<mapsto> t1] |x t1. M x = Some t1}. f x) = M x"
+lemma Sup_pointwise_eq_fun: "(SUP f\<in>{[x \<mapsto> t1] |x t1. M x = Some t1}. f x) = M x"
   unfolding Sup_option_def  
   apply (simp add: aux2) 
   apply (auto simp: aux3)
   by (metis (mono_tags, lifting) Some_image_these_eq Sup_least in_these_eq mem_Collect_eq sup_absorb1 these_image_Some_eq)
 
 
-lemma SUP_eq_None_iff: "(SUP f:X. f x) = None \<longleftrightarrow> X={} \<or> (\<forall>f\<in>X. f x = None)"
+lemma SUP_eq_None_iff: "(SUP f\<in>X. f x) = None \<longleftrightarrow> X={} \<or> (\<forall>f\<in>X. f x = None)"
   by (smt SUP_bot_conv(2) SUP_empty Sup_empty empty_Sup)
 
-lemma SUP_eq_Some_iff: "(SUP f:X. f x) = Some t \<longleftrightarrow> (\<exists>f\<in>X. f x \<noteq> None) \<and> (t=Sup {t' | f t'. f\<in>X \<and> f x = Some t' })"
+lemma SUP_eq_Some_iff: "(SUP f\<in>X. f x) = Some t \<longleftrightarrow> (\<exists>f\<in>X. f x \<noteq> None) \<and> (t=Sup {t' | f t'. f\<in>X \<and> f x = Some t' })"
   apply auto
   subgoal 
     by (smt Sup_bot_conv(1) Sup_empty Sup_option_def Sup_pointwise_eq_fun imageE option.distinct(1))
@@ -107,6 +106,138 @@ lemma Sup_enat_less: "X \<noteq> {} \<Longrightarrow> enat t \<le> Sup X \<longl
 
 lemma fixes Q P  shows
     "Inf { P x \<le> Q x |x. True}  \<longleftrightarrow> P \<le> Q" unfolding le_fun_def by simp
+
+
+subsection \<open>continuous\<close>
+term sup_continuous  
+
+text \<open>That might by Scott continuity;
+      
+     https://en.wikipedia.org/wiki/Scott_continuity \<close>
+
+
+text \<open>There is scott_continuous in Complete_Non_Orders.Fixed_Points\<close>
+
+definition continuous :: "('a::{Sup} \<Rightarrow> 'b::{Sup}) \<Rightarrow> bool"  where
+  "continuous f \<longleftrightarrow> (\<forall>A. Sup (f ` A) = f (Sup A) )"
+
+
+term sup_continuous
+thm continuous_at_Sup_mono
+
+lemma "continuous (f::'a::{complete_lattice}\<Rightarrow>'b::{complete_lattice})
+         \<longleftrightarrow> (\<forall>A. Inf (f ` A) = f (Inf A) )" (* wrong conjecture *) oops
+  
+lemma continuousI: "(\<And>A. f (Sup A) = Sup (f ` A)) \<Longrightarrow> continuous f" by (auto simp: continuous_def)
+lemma continuousD: "continuous f \<Longrightarrow> f (Sup A) = Sup (f ` A)" by (auto simp: continuous_def)
+
+
+lemma continuous_Domain: "continuous Domain"
+  apply(rule continuousI) by (fact Domain_Union)
+
+lemma continuous_Range: "continuous Range"
+  apply(rule continuousI) by (fact Range_Union)
+  
+
+
+subsubsection \<open>combinations are continuous\<close>
+
+
+lemma continuous_app: "continuous (\<lambda>f. f x)"
+  apply(rule continuousI)
+  by simp
+
+
+lemma 
+  continuous_fun:
+  assumes *: "continuous f" shows "continuous  (\<lambda>X x. (f (X x)))"
+  apply(rule continuousI)
+  unfolding Sup_fun_def  apply(rule ext) 
+  apply(subst continuousD[OF *]) apply(subst image_image) apply(subst image_image) ..
+
+
+
+lemma SupD: "Sup A = Some f \<Longrightarrow> A \<noteq> {} \<and> A\<noteq>{None}"
+  unfolding Sup_option_def by auto
+
+
+lemma ffF: "Option.these (case_option None (\<lambda>e. Some (f e)) ` A)
+        = f `(Option.these A)"
+  unfolding Option.these_def apply (auto split: option.splits)
+   apply force   
+  using image_iff by fastforce 
+
+lemma zzz: "Option.these A \<noteq> {}
+ \<Longrightarrow> Sup ( (\<lambda>x. case x of None \<Rightarrow> None | Some e \<Rightarrow> Some (f e)) ` A)
+        = Some (Sup ( f ` Option.these A))"
+  apply(subst Sup_option_def)
+  apply simp
+  apply safe
+  subgoal  
+    by simp  
+  subgoal  
+    by (metis SupD aux11 empty_Sup in_these_eq option.simps(5))  
+  subgoal apply(subst ffF) by simp 
+  done
+
+
+lemma assumes "continuous f"
+  shows "continuous (case_option None (Some o f))" (* TODO: generalize to adding top/bottom element *)
+  apply(rule continuousI)
+  apply(auto split: option.splits)
+  subgoal unfolding Sup_option_def by (auto split: if_splits)
+proof -
+  fix A   and a :: "'a::{complete_lattice}"
+  assume a: "Sup A = Some a"
+  with SupD have A: "A \<noteq> {} \<and> A \<noteq> {None}" by auto
+
+  then have a': "a= Sup (Option.these A)"  
+    by (metis Sup_option_def a option.inject)
+
+  from A have oA: "Option.these A \<noteq> {}" unfolding Option.these_def by auto
+
+  have *: "\<And>x. Some (f x) = (Some o f) x" by simp
+  have "(\<Squnion>x\<in>A. case x of None \<Rightarrow> None | Some x \<Rightarrow> (Some \<circ> f) x)
+        = (SUP x\<in>A. case x of None \<Rightarrow> None | Some s \<Rightarrow> Some (f s))"
+    by(simp only: *) 
+  also have "\<dots> = Some (SUP s\<in>(Option.these A). (f s))"
+   using oA zzz by metis 
+        
+  also have "(SUP s\<in>(Option.these A). (f s)) = f a"
+    using a' assms(1)[THEN continuousD] by metis 
+
+  finally show "Some (f a) = (\<Squnion>x\<in>A. case x of None \<Rightarrow> None | Some x \<Rightarrow> (Some \<circ> f) x)"  by simp
+qed  
+  
+text \<open>a shorter proof\<close>
+
+lemma my_these_def: "Option.these M = {f. Some f \<in> M}"
+  unfolding  Option.these_def by (auto intro: rev_image_eqI)  
+
+lemma option_Some_image: 
+    "A \<noteq> {} \<Longrightarrow> A \<noteq> {None} \<Longrightarrow> case_option None (Some \<circ> f) ` A \<noteq> {None}" 
+  by (metis (mono_tags, hide_lams) comp_apply empty_iff everywhereNone
+                  imageI in_these_eq option.exhaust option.simps(5) these_insert_None)
+
+lemma continuous_option: (* or generally, adding a bottom element *)
+  assumes *: "continuous f"
+  shows "continuous (case_option None (Some o f))"
+  apply(rule continuousI)
+  unfolding Sup_option_def[unfolded my_these_def] 
+  apply (simp add: option_Some_image continuousD[OF *])
+  apply rule+
+  apply(rule arg_cong[where f=Sup]) 
+    by  (auto split: option.splits  intro: rev_image_eqI)   
+
+
+abbreviation (input) "SUPREMUM S f \<equiv> Sup (f ` S)" 
+
+definition myminus where "myminus x y = (if x=\<infinity> \<and> y=\<infinity> then 0 else x - y)"
+lemma "(a::enat) + x \<ge> b  \<longleftrightarrow> x \<ge> myminus b a "
+  unfolding myminus_def
+  apply(cases a; cases b; cases x) apply auto oops
+
+
 
 
 section "NREST"
@@ -208,14 +339,14 @@ definition zero_unit where "0 = ()"
 instance
   apply(intro_classes) .
 end
-
+(*
 instantiation "fun" :: (type, zero) zero
 begin 
 fun zero_fun where "zero_fun x = 0"
 instance
   apply(intro_classes) .
 end
-
+*)
 
 instantiation unit :: ordered_ab_semigroup_add
 begin 
@@ -224,7 +355,7 @@ instance
 end 
 
 
-
+(*
 instantiation "fun" :: (type, ordered_ab_semigroup_add) ordered_ab_semigroup_add
 begin 
 
@@ -241,7 +372,7 @@ instance
   subgoal by (simp add: add_left_mono le_fun_def)  
   done
 end 
-
+*)
 lemma RETURNT_alt: "RETURNT x = REST [x\<mapsto>0]"
   unfolding RETURNT_def by auto
 
@@ -329,7 +460,7 @@ lemma case_option_refine: (* obsolete ? *)
 section "time refine"
 
 
-definition timerefine ::"('b \<Rightarrow> 'b \<Rightarrow> enat)  \<Rightarrow> ('a, 'b \<Rightarrow> enat) nrest \<Rightarrow> ('a, 'b \<Rightarrow> enat) nrest"  where
+definition timerefine ::"('b \<Rightarrow> 'c \<Rightarrow> enat)  \<Rightarrow> ('a, 'b \<Rightarrow> enat) nrest \<Rightarrow> ('a, 'c \<Rightarrow> enat) nrest"  where
   "timerefine R m = (case m of FAILi \<Rightarrow> FAILi |
                 REST M \<Rightarrow> REST (\<lambda>r. case M r of None \<Rightarrow> None |
                   Some cm \<Rightarrow> Some (\<lambda>cc. Sum_any (\<lambda>ac. cm ac * R ac cc))))"
@@ -338,7 +469,7 @@ definition wfn :: "('a, 'b \<Rightarrow> enat) nrest \<Rightarrow> bool" where
   "wfn m = (case m of FAILi \<Rightarrow> True |
                 REST M \<Rightarrow> \<forall>r\<in>dom M. (case M r of None \<Rightarrow> True | Some cm \<Rightarrow> finite {x. cm x \<noteq> 0}))"
 
-definition wfR :: "('b \<Rightarrow> 'b \<Rightarrow> enat) \<Rightarrow> bool" where
+definition wfR :: "('b \<Rightarrow> 'c \<Rightarrow> enat) \<Rightarrow> bool" where
   "wfR R = (finite {(s,f). R s f \<noteq> 0})"
 
 
@@ -677,12 +808,19 @@ lemma inresT_SPEC[refine_pw_simps]: "inresT (SPEC a b) = (\<lambda>x t. a x \<an
 subsection "pw reasoning for 'b => enat" 
 
 
+definition inresT2 :: "('a,'b \<Rightarrow> enat) nrest \<Rightarrow> 'a \<Rightarrow> ('b \<Rightarrow> nat) \<Rightarrow> bool" where 
+  "inresT2 S x t \<equiv> (case S of FAILi \<Rightarrow> True | REST X \<Rightarrow> (\<exists>t'. X x = Some t' \<and>  enat o t\<le>t'))"
+
+
 definition limitF :: "'b \<Rightarrow> ('b\<Rightarrow>enat) \<Rightarrow> enat" where
   "limitF b f  \<equiv> f b"
 
 lemma limitF: "limitF b (Sup A)  = Sup (limitF b ` A)"
   unfolding limitF_def by simp
 
+
+lemma continuous_limitF: "continuous (limitF b)"
+  apply(rule continuousI) by (fact limitF)
 
 lemma limitF_Inf: "limitF b (Inf A)  = Inf (limitF b ` A)"
   unfolding limitF_def by simp
@@ -691,31 +829,9 @@ definition limitO :: "'b \<Rightarrow> ( ('b \<Rightarrow> enat) option) \<Right
   "limitO b F = (case F of None \<Rightarrow> None | Some f \<Rightarrow> Some (limitF b f) )"
 
 
-lemma SupD: "Sup A = Some f \<Longrightarrow> A \<noteq> {} \<and> A\<noteq>{None}"
-    unfolding Sup_option_def by auto
                                              
-lemma "(SUP e:A. (f e)) = Sup (f ` A)" by simp
-
-
-lemma ffF: "Option.these (case_option None (\<lambda>e. Some (f e)) ` A)
-        = f `(Option.these A)"
-  unfolding Option.these_def apply (auto split: option.splits)
-   apply force   
-  using image_iff by fastforce 
-
-lemma zzz: "Option.these A \<noteq> {}
- \<Longrightarrow> Sup ( (\<lambda>x. case x of None \<Rightarrow> None | Some e \<Rightarrow> Some (f e)) ` A)
-        = Some (Sup ( f ` Option.these A))"
-  apply(subst Sup_option_def)
-  apply simp
-  apply safe
-  subgoal  
-    by simp  
-  subgoal  
-    by (metis SupD aux11 empty_Sup in_these_eq option.simps(5))  
-  subgoal apply(subst ffF) by simp 
-  done
-
+lemma "(SUP e\<in>A. (f e)) = Sup (f ` A)" by simp
+ 
 lemma limitO: "limitO b (Sup A) = Sup (limitO b ` A)"
   unfolding limitO_def apply(auto split: option.splits)
   subgoal unfolding Sup_option_def by (auto split: if_splits)
@@ -728,14 +844,14 @@ proof -
 
   from A have oA: "Option.these A \<noteq> {}" unfolding Option.these_def by auto
 
-  have "(SUP x:A. case x of None \<Rightarrow> None | Some f \<Rightarrow> Some (limitF b f))
-        = Some (SUP f:(Option.these A). (limitF b f))"
+  have "(SUP x\<in>A. case x of None \<Rightarrow> None | Some f \<Rightarrow> Some (limitF b f))
+        = Some (SUP f\<in>(Option.these A). (limitF b f))"
    using oA zzz by metis 
         
-  also have "(SUP f:(Option.these A). (limitF b f)) = limitF b a"
+  also have "(SUP f\<in>(Option.these A). (limitF b f)) = limitF b a"
     using a' limitF by metis 
 
-  finally show "Some (limitF b a) = (SUP x:A. case x of None \<Rightarrow> None | Some f \<Rightarrow> Some (limitF b f))"  by simp
+  finally show "Some (limitF b a) = (SUP x\<in>A. case x of None \<Rightarrow> None | Some f \<Rightarrow> Some (limitF b f))"  by simp
 qed  
 
 lemma limitO_Inf: "limitO b (Inf A) = Inf (limitO b ` A)"
@@ -756,6 +872,8 @@ lemma limit_limitO: "limit b S =  (case S of FAILi \<Rightarrow> FAILi | REST X 
 
 definition limitOF where "limitOF b X = (\<lambda>x. (limitO b (X x)))"
 
+
+
 thm Sup_fun_def
 lemma "(\<Squnion> A) x = (\<Squnion> ((\<lambda>f. f x) `A ))" unfolding Sup_fun_def by simp
 
@@ -771,6 +889,20 @@ lemma limit_limitOF: "limit b S =  (case S of FAILi \<Rightarrow> FAILi | REST X
   unfolding limit_limitO limitOF_def by simp
 
  
+lemma continuous_nrest: (* or generally, adding a top element *)
+  assumes *: "continuous f"
+  shows "continuous (case_nrest FAILi (REST o f))"
+  apply(rule continuousI)
+  unfolding Sup_nrest_def apply (auto split: nrest.splits)
+  apply(subst continuousD[OF *])
+  apply(rule arg_cong[where f=Sup]) 
+  apply  (auto split: nrest.splits)    
+  using image_iff by fastforce   
+thm Option.these_def
+
+
+
+
 
 lemma limit_Sup: "limit b (Sup A) = Sup (limit b ` A)"
   unfolding limit_limitOF Sup_nrest_def apply (auto split: nrest.splits)
@@ -1018,7 +1150,7 @@ lemma bindT_alt: "bindT M f = (case M of
 
 
 lemma "bindT (REST X) f = 
-  (SUP x:dom X. consume (f x) (the (X x)))"
+  (SUP x\<in>dom X. consume (f x) (the (X x)))"
 proof -
   have *: "\<And>f X. { f x t |x t. X x = Some t}
       = (\<lambda>x. f x (the (X x))) ` (dom X)"
@@ -1320,25 +1452,25 @@ lemma enat_mult_cont: "Sup A * (c::enat) = Sup ((\<lambda>x. x*c)`A)"
 lemma enat_mult_cont':
   fixes f :: "'a \<Rightarrow> enat"
   shows 
-  "(SUPREMUM A f) * c = SUPREMUM A (\<lambda>x. f x * c)"
+  "(Sup (f ` A)) * c = Sup ((\<lambda>x. f x * c) ` A)"
   using enat_mult_cont[of "f`A" c] 
   by (metis (mono_tags, lifting) SUP_cong   image_image)
 
 
 lemma enat_add_cont':
   fixes f g :: "'a \<Rightarrow> enat"
-  shows "(SUP b:B. f b) + (SUP b:B. g b) \<ge> (SUP b:B. f b + g b)"  
+  shows "(SUP b\<in>B. f b) + (SUP b\<in>B. g b) \<ge> (SUP b\<in>B. f b + g b)"  
   by (auto intro: Sup_least add_mono Sup_upper) 
 
 
 lemma enat_add_cont_not: 
-  shows "~(\<forall>f g B. (SUP b:B. (f::(enat\<Rightarrow>enat)) b) + (SUP b:B. g b) \<le> (SUP b:B. f b + g b))"   
+  shows "~(\<forall>f g B. (SUP b\<in>B. (f::(enat\<Rightarrow>enat)) b) + (SUP b\<in>B. g b) \<le> (SUP b\<in>B. f b + g b))"   
 proof -
   let ?B = "{0::enat, 1}"
   let ?f = "\<lambda>x. x::enat"
   let ?g = "\<lambda>x. 1-x" 
 
-  have "\<exists>f g B. \<not>(SUP b:B. (f::(enat\<Rightarrow>enat)) b) + (SUP b:B. g b) \<le> (SUP b:B. f b + g b)"
+  have "\<exists>f g B. \<not>(SUP b\<in>B. (f::(enat\<Rightarrow>enat)) b) + (SUP b\<in>B. g b) \<le> (SUP b\<in>B. f b + g b)"
     apply(rule exI[where x="?f"])
     apply(rule exI[where x="?g"])
     apply(rule exI[where x="?B"])
@@ -1350,10 +1482,9 @@ qed
 
 lemma enat_add_cont:
   fixes f g :: "'a \<Rightarrow> enat"
-  shows "(SUP b:B. f b) + (SUP b:B. g b) \<le> (SUP b:B. f b + g b)" 
+  shows "(SUP b\<in>B. f b) + (SUP b\<in>B. g b) \<le> (SUP b\<in>B. f b + g b)" 
   unfolding Sup_enat_def (* let B = {1,10} and f=%x.x and g=%x.10-x, dann links 10+9, rechts MAX{10,10} *)
   apply simp oops
-
 lemma enat_Sum_any_cont:
   fixes f :: "'a \<Rightarrow> 'b \<Rightarrow> enat"
   assumes f: "finite {x. \<exists>y. f x y \<noteq> 0}"
@@ -1366,19 +1497,19 @@ proof -
 
   { fix S :: "'a set"
     assume "finite S"
-    then have "(SUP y:B. \<Sum>x\<in>S. f x y) \<le> (\<Sum>x\<in>S. SUPREMUM B (f x))"
+    then have "(SUP y\<in>B. \<Sum>x\<in>S. f x y) \<le> (\<Sum>x\<in>S. SUPREMUM B (f x))"
     proof (induct rule: finite_induct)
       case empty
       then show ?case apply auto  
       by (metis SUP_bot_conv(2) bot_enat_def) 
     next
       case (insert a A) 
-      have "(SUP y:B. (\<Sum>x\<in>insert a A. f x y)) =  (SUP y:B. f a y + (\<Sum>x\<in>A. f x y))"
+      have "(SUP y\<in>B. (\<Sum>x\<in>insert a A. f x y)) =  (SUP y\<in>B. f a y + (\<Sum>x\<in>A. f x y))"
         using sum.insert insert by auto   
-      also have "\<dots> \<le> (SUP b:B. f a b) + (SUP y:B. \<Sum>x\<in>A. f x y)"
+      also have "\<dots> \<le> (SUP b\<in>B. f a b) + (SUP y\<in>B. \<Sum>x\<in>A. f x y)"
         apply(subst enat_add_cont') by simp
-      also have "\<dots> \<le> (SUP b:B. f a b) + (\<Sum>x\<in>A. SUP b:B. f x b)" using insert by auto
-      also have "\<dots> = (\<Sum>x\<in>insert a A. SUP a:B. f x a)" 
+      also have "\<dots> \<le> (SUP b\<in>B. f a b) + (\<Sum>x\<in>A. SUP b\<in>B. f x b)" using insert by auto
+      also have "\<dots> = (\<Sum>x\<in>insert a A. SUP a\<in>B. f x a)" 
         using sum.insert insert by auto                          
       finally show ?case .
     qed
@@ -1399,7 +1530,8 @@ proof -
 lemma pl:
   fixes R ::"'a \<Rightarrow> 'a \<Rightarrow> enat"
   assumes "Ra \<noteq> {}" and "wfR R"
-shows  " Sup { Some (Sum_any (\<lambda>ac. x ac * R ac b)) |x. x \<in> Ra} \<le> Some (Sum_any (\<lambda>ac. (SUP f:Ra. f ac) * R ac b))"
+  shows  " Sup { Some (Sum_any (\<lambda>ac. x ac * R ac b)) |x. x \<in> Ra}
+             \<le> Some (Sum_any (\<lambda>ac. (SUP f\<in>Ra. f ac) * R ac b))"
 proof -
   have *: "{ Some (Sum_any (\<lambda>ac. x ac * R ac b)) |x. x \<in> Ra} =
 Some ` {  (Sum_any (\<lambda>ac. x ac * R ac b)) |x. x \<in> Ra}" by blast
@@ -1407,7 +1539,7 @@ Some ` {  (Sum_any (\<lambda>ac. x ac * R ac b)) |x. x \<in> Ra}" by blast
           = SUPREMUM { (Sum_any (\<lambda>ac. x ac * R ac b)) |x. x \<in> Ra} Some " 
     unfolding * by simp
  
-  have a: "\<And>ac. (SUP f:Ra. f ac) * R ac b = (SUP f:Ra. f ac * R ac b)" 
+  have a: "\<And>ac. (SUP f\<in>Ra. f ac) * R ac b = (SUP f\<in>Ra. f ac * R ac b)" 
     apply(subst enat_mult_cont') by simp
 
   have e: "finite {x.  R x b \<noteq> 0}" apply(rule wfR_fst) by fact
@@ -1431,7 +1563,7 @@ lemma kkk:
   fixes R ::"'a \<Rightarrow> 'a \<Rightarrow> enat"
   assumes "wfR R"
 shows 
-" (case SUP x:Ra. x of None \<Rightarrow> None | Some cm \<Rightarrow> Some (Sum_any (\<lambda>ac. cm ac * R ac b)))
+" (case SUP x\<in>Ra. x of None \<Rightarrow> None | Some cm \<Rightarrow> Some (Sum_any (\<lambda>ac. cm ac * R ac b)))
    \<ge> Sup {case x of None \<Rightarrow> None | Some cm \<Rightarrow> Some (Sum_any (\<lambda>ac. cm ac * R ac b)) |x. x \<in>  Ra}"
   apply(cases "Ra={} \<or> Ra = {None}")
   subgoal by (auto split: option.splits simp: bot_option_def)
@@ -1457,7 +1589,8 @@ shows
       = Sup ({  Some (\<Sum>ac. x ac * R ac b) |x. x\<in>Option.these Ra})" .
 
 
-    show "Sup {case x of None \<Rightarrow> None | Some cm \<Rightarrow> Some (\<Sum>ac. cm ac * R ac b) |x. x \<in> Ra} \<le> Some (\<Sum>ac. (SUP f:Option.these Ra. f ac) * R ac b)"
+  show "Sup {case x of None \<Rightarrow> None | Some cm \<Rightarrow> Some (\<Sum>ac. cm ac * R ac b) |x. x \<in> Ra}
+         \<le> Some (\<Sum>ac. (SUP f\<in>Option.these Ra. f ac) * R ac b)"
       unfolding rrr apply(subst pl)
       subgoal using x unfolding Option.these_def by auto
       subgoal by fact
@@ -1471,14 +1604,14 @@ lemma
   ***: fixes R ::"'a \<Rightarrow> 'a \<Rightarrow> enat"
 assumes "wfR R"
 shows 
-"(case SUP x:Ra. x r of None \<Rightarrow> None | Some cm \<Rightarrow> Some (Sum_any (\<lambda>ac. cm ac * R ac b)))
+"(case SUP x\<in>Ra. x r of None \<Rightarrow> None | Some cm \<Rightarrow> Some (Sum_any (\<lambda>ac. cm ac * R ac b)))
     \<ge> Sup {case x r of None \<Rightarrow> None | Some cm \<Rightarrow> Some (Sum_any (\<lambda>ac. cm ac * R ac b)) |x. x\<in>Ra}"
 proof -
   have *: "{case x r of None \<Rightarrow> None | Some cm \<Rightarrow> Some (\<Sum>ac. cm ac * R ac b) |x. x \<in> Ra}
       = {case x  of None \<Rightarrow> None | Some cm \<Rightarrow> Some (\<Sum>ac. cm ac * R ac b) |x. x \<in> (\<lambda>f. f r) ` Ra}"
     by auto
-  have **: "\<And>f. (case SUP x:Ra. x r of None \<Rightarrow> None | Some cm \<Rightarrow> f cm)
-      = (case SUP x:(\<lambda>f. f r) ` Ra. x of None \<Rightarrow> None | Some cm \<Rightarrow> f cm)"    
+  have **: "\<And>f. (case SUP x\<in>Ra. x r of None \<Rightarrow> None | Some cm \<Rightarrow> f cm)
+      = (case SUP x\<in>(\<lambda>f. f r) ` Ra. x of None \<Rightarrow> None | Some cm \<Rightarrow> f cm)"    
     by auto       
 
   show ?thesis unfolding * ** apply(rule kkk) by fact
@@ -1601,7 +1734,8 @@ lemma ff: "c\<le>a \<Longrightarrow> inresT c  x t \<Longrightarrow> inresT a x 
   by (metis dual_order.trans le_fun_def le_some_optE)   
 
                                                                 
-lemma assumes wfR: "wfR R"
+lemma fixes R :: "'a \<Rightarrow> 'a \<Rightarrow> enat"
+  assumes wfR: "wfR R"
   shows timerefine_bindT_ge: "timerefine R (bindT m f) \<ge> bindT (timerefine R m) (\<lambda>x. timerefine R (f x))"
   unfolding  pw_f_le_iff'
   apply safe
@@ -1861,6 +1995,7 @@ qed
  
 
 lemma bindT_mono_under_timerefine:
+  fixes R :: "'a \<Rightarrow> 'a \<Rightarrow> enat"
   assumes wfR: "wfR R"
   shows "m \<le> timerefine R m' \<Longrightarrow> (\<And>x. f x \<le> timerefine R (f' x)) \<Longrightarrow> bindT m f \<le> timerefine R (bindT m' f')"
   apply(rule order.trans) defer apply(subst timerefine_bindT_ge) using assms apply simp apply simp
