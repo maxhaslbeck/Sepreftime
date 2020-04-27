@@ -1,6 +1,6 @@
 chapter Sepreftime
                                             
-session SeprefTime_Prereq in "SeprefTime_Prereq" = Imperative_HOL_Time +
+session SeprefTime_Prereq in "SeprefTime_Prereq" = Imperative_HOL_Time_Entry +
   sessions
     Flow_Networks
     EdmondsKarp_Maxflow
@@ -11,6 +11,7 @@ session SeprefTime_Prereq in "SeprefTime_Prereq" = Imperative_HOL_Time +
     "HOL-Library"
     Matroids
     "Automatic_Refinement"
+  "Imperative_HOL_Time"
   theories
     (* theory for Floyd Warshall *)
     "Floyd_Warshall.Floyd_Warshall"
@@ -28,6 +29,7 @@ session SeprefTime_Prereq in "SeprefTime_Prereq" = Imperative_HOL_Time +
     "HOL-Library.Code_Target_Numeral"
     "Automatic_Refinement.Refine_Lib"
     "Automatic_Refinement.Automatic_Refinement" 
+    "Imperative_HOL_Time.SLTC_Main"
 
 session SeprefTime = SeprefTime_Prereq + 
   sessions

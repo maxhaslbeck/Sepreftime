@@ -1,6 +1,6 @@
 theory Remdups
   imports "../Refine_Imperative_HOL/Sepref"
-    "Imperative_HOL_Time.RBTree_Impl"
+    "Imperative_HOL_Time.IHT_Red_Black_Tree"
     "../Refine_Imperative_HOL/IICF/Impl/IICF_Rbt_Set"  
     "../Refine_Imperative_HOL/IICF/Impl/IICF_DArray_List" 
     "NREST.RefineMonadicVCG"

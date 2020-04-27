@@ -1,5 +1,5 @@
 theory IICF_Rbt_Set
-  imports "Imperative_HOL_Time.RBTree_Impl" 
+  imports "Imperative_HOL_Time.IHT_Red_Black_Tree" 
       "../Intf/IICF_Set"  "NREST.RefineMonadicVCG" "NREST.NREST"
 begin
   

@@ -1,6 +1,6 @@
 section \<open>Implementation of Maps by Arrays\<close>
 theory IICF_ArrayMap_Map
-  imports "../Intf/IICF_Map" "Imperative_HOL_Time.RBTree_Impl"
+  imports "../Intf/IICF_Map" "Imperative_HOL_Time.IHT_Red_Black_Tree"
 begin
 
 (* inspired by Separation_Logic_Imperative_HOL/Examples/Array_Map_Impl *)
@@ -30,7 +30,7 @@ schematic_goal "\<And>x xa. x \<mapsto>\<^sub>a replicate n None * xa \<mapsto>\
  
 lemma new_liam_rule: "<$(n+3)> new_liam n <is_liam n (Map.empty)>"
   unfolding new_liam_def is_liam_def
-  by (sep_auto heap: ref_rule SepAuto_Time.return_rule
+  by (sep_auto heap: ref_rule SLTC.return_rule
         simp: iam_of_list_def)
 
 
@@ -93,10 +93,10 @@ lemma iam_of_list_update: "k < length l \<Longrightarrow> iam_of_list (l[k := So
 
 lemma update_liam_rule: "k<n \<Longrightarrow> <is_liam n M m * $6> update_liam m k v <\<lambda>r. is_liam n (M(k:=Some v)) r >\<^sub>t"
   unfolding update_liam_def is_liam_def
-  apply(sep_auto heap: nth_rule lookup_rule update_rule SepAuto_Time.return_rule)
+  apply(sep_auto heap: nth_rule lookup_rule update_rule SLTC.return_rule)
     apply(auto simp:   zz  card_insert finite_dom_iam_of_list
               set_minus_singleton_eq knotin_dom_iam_of_listI iam_of_list_update )
-  apply(sep_auto heap: SepAuto_Time.return_rule)    
+  apply(sep_auto heap: SLTC.return_rule)    
    apply(auto intro!: card_Suc_Diff1   simp:    iam_of_list_update finite_dom_iam_of_list )
   by(auto simp: iam_of_list_def) 
 
@@ -116,7 +116,7 @@ definition dom_member_liam where
 
 lemma dom_member_liam_rule: "k<n  \<Longrightarrow> <is_liam n M m * $2> dom_member_liam m k <\<lambda>r. is_liam n M m * \<up>(r\<longleftrightarrow>k\<in>dom M)  >\<^sub>t"
   unfolding dom_member_liam_def is_liam_def
-  apply(sep_auto heap: nth_rule SepAuto_Time.return_rule )
+  apply(sep_auto heap: nth_rule SLTC.return_rule )
   by(auto simp: iam_of_list_def)
 
 
@@ -141,7 +141,7 @@ definition nth_liam where
 
 lemma nth_liam_rule: "k<n \<Longrightarrow> k \<in> dom M \<Longrightarrow> <is_liam n M m * $2> nth_liam m k <\<lambda>r. is_liam n M m * \<up>(r=the (M k))>\<^sub>t"
   unfolding nth_liam_def is_liam_def
-  apply(sep_auto heap: nth_rule SepAuto_Time.return_rule )
+  apply(sep_auto heap: nth_rule SLTC.return_rule )
   by(auto simp: iam_of_list_def)
 
 

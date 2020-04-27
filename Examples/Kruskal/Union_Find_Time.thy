@@ -1,13 +1,13 @@
 theory Union_Find_Time
 imports 
-  "Imperative_HOL_Time.Sep_Time_Main" 
+  "Imperative_HOL_Time.SLTC_Main" 
   "../../Refine_Imperative_HOL/Sepref_Additional" 
   Collections.Partial_Equivalence_Relation
   "HOL-Library.Code_Target_Numeral"
   "Imperative_HOL_Time.Asymptotics_1D"
   UnionFind_Impl
 begin
-term "x\<in>\<Theta>\<^sub>2(f)"
+
 notation timeCredit_assn  ("$") 
 no_notation Ref_Time.update ("_ := _" 62) (* to disambiguate with list_update  *)
 

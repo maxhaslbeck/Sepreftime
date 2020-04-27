@@ -1,5 +1,5 @@
 theory IICF_List_Set
-  imports "Imperative_HOL_Time.LinkedList" 
+  imports "Imperative_HOL_Time.IHT_Linked_List" 
       "../Intf/IICF_Set"  "NREST.RefineMonadicVCG"
 begin
  
@@ -123,6 +123,6 @@ lemma mop_set_isempty_rule[sepref_fr_rules]:
   by solve_entails   
     
   
-hide_type LinkedList.node 
+hide_type IHT_Linked_List.node 
 
 end

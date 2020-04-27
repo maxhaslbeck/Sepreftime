@@ -1,5 +1,5 @@
 theory SepLogic_Misc
-imports Imperative_HOL_Time.Sep_Time_Misc NREST.DataRefinement
+imports Imperative_HOL_Time.SLTC_More NREST.DataRefinement
 begin
 
 

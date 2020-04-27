@@ -1,6 +1,6 @@
 section "Implementing List Interface with DynamicArrays"
 theory IICF_DArray_List  
-  imports "../Intf/IICF_List" "Imperative_HOL_Time.DynamicArray2"
+  imports "../Intf/IICF_List" "Imperative_HOL_Time.IHT_Dynamic_Array_More"
 begin
 
 
