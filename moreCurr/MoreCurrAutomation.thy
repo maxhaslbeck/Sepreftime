@@ -16,6 +16,11 @@ lemma Some_le_mm3_Some_conv: "Some t \<le> mm3 t' (Some t'') \<longleftrightarro
 lemma Some_le_emb'_conv: "Some t \<le> emb' Q ft x \<longleftrightarrow> Q x \<and> t \<le> ft x"
   by (auto simp: emb'_def)
 
+
+lemma Some_eq_emb'_conv: "Some t = emb' Q ft x \<longleftrightarrow> Q x \<and> t = ft x"
+        "emb' Q ft x = Some t  \<longleftrightarrow> Q x \<and> t = ft x"
+  by (auto simp: emb'_def)
+
 definition  whileIET :: "('a \<Rightarrow> bool) \<Rightarrow> ('a \<Rightarrow> 'c) \<Rightarrow> ('a \<Rightarrow> bool)
                            \<Rightarrow> ('a \<Rightarrow> ('a,'c::{complete_lattice,plus,zero}) nrest)
                            \<Rightarrow> 'a \<Rightarrow> ('a,'c) nrest" where
@@ -135,6 +140,20 @@ method vcg' methods solver uses rules = repeat_all_new \<open>vcg'_step solver r
 
 
 
+lemma T_g_SPECT2_I[vcg_rules']: 
+  fixes t' :: "'b\<Rightarrow>enat" (* "'b:: {complete_lattice,minus,plus,ord}" *)
+  assumes "(\<And> x. X x \<Longrightarrow> (Some (t' + t x ) \<le> Q x))"
+  shows "Some t' \<le> T_g Q (SPECT (emb' X t))"
+  apply(auto simp: T_g_def)
+  apply(rule Inf_greatest) apply auto
+  unfolding mii_g_def mm_g_def emb'_def apply (auto split: option.splits)
+  subgoal using assms by force
+  subgoal for x tx using assms[of x] apply simp  
+    by (simp add: enat_adjoint le_fun_def)  
+  subgoal for x tx using assms[of x] apply simp  
+    by (metis ab_semigroup_add_class.add_ac(1) add.commute le_iff_add)  
+  done
+
 
 lemma T_g_bindT_I[vcg_rules']: 
   "\<And>t. Some t \<le>  T_g (\<lambda>y. T_g Q (f y) ) M \<Longrightarrow>  Some t \<le> T_g Q (M \<bind> f)"
@@ -224,6 +243,11 @@ lemma bindT_refine_g':
 
 lemma timerefine_ASSERT: "(\<Phi>' \<Longrightarrow> \<Phi>) \<Longrightarrow> ASSERT \<Phi> \<le> timerefine F (ASSERT \<Phi>')"
   by (auto simp: timerefine_def ASSERT_def iASSERT_def RETURNT_def le_fun_def)
+
+
+lemma assumes "(\<And>s t. P s = Some t \<Longrightarrow> \<exists>s'. Some t \<le> Q s' \<and> (s, s') \<in> R)"
+  shows SPECT_refine: "SPECT P \<le> \<Down> R (SPECT Q)"
+  sorry
 
 lemma timerefine_SPECT:
   assumes "\<And>x. P' x = None \<Longrightarrow> P x = None"
@@ -390,6 +414,249 @@ lemma (in enum) Sum_any_to_foldr: "Sum_any f
       = foldr (\<lambda>x a. a + f x) enum 0"
   apply(subst Sum_any.expand_superset[where A=UNIV])
   by (simp_all add: sum_to_foldr)
+
+
+
+
+definition nfoldli where
+  "nfoldli l c f s = RECT (\<lambda>D (l,s). (case l of 
+    [] \<Rightarrow> RETURNT s 
+    | x#ls \<Rightarrow> if c s then do { s\<leftarrow>f x s; D (ls, s)} else RETURNT s
+  )) (l, s)"
+
+
+definition nfoldliIE :: "('d list \<Rightarrow> 'd list \<Rightarrow> 'a \<Rightarrow>  bool) \<Rightarrow> ('b::{complete_lattice,plus,zero}) \<Rightarrow> 'd list \<Rightarrow> ('a \<Rightarrow> bool) \<Rightarrow> ('d \<Rightarrow> 'a \<Rightarrow> ('a,'b) nrest) \<Rightarrow> 'a \<Rightarrow> ('a,'b) nrest" where
+  "nfoldliIE I E l c f s = nfoldli l c f s"
+
+
+
+
+lemma nfoldliIE_rule:
+  assumes I0: "I [] l0 \<sigma>0"
+  assumes IS: "\<And>x l1 l2 \<sigma>. \<lbrakk> l0=l1@x#l2; I l1 (x#l2) \<sigma>; c \<sigma> \<rbrakk> \<Longrightarrow> f x \<sigma> \<le> SPECT (emb (I (l1@[x]) l2) (body_time))"
+  assumes FNC: "\<And>l1 l2 \<sigma>. \<lbrakk> l0=l1@l2; I l1 l2 \<sigma>; \<not>c \<sigma> \<rbrakk> \<Longrightarrow> P \<sigma>"  
+  assumes FC: "\<And>\<sigma>. \<lbrakk> I l0 [] \<sigma> \<rbrakk> \<Longrightarrow> P \<sigma>"  
+  assumes T: "\<And>x. (body_time x * (enat (length l0))) \<le> t x"
+  shows "nfoldliIE I body_time l0 c f \<sigma>0 \<le> SPECT (emb P t)"
+  sorry
+
+
+
+
+lemma T_conseq4:
+  assumes 
+    "T_g Q' f \<ge> Some t'"
+    "\<And>x t'' M. Q' x = Some t'' \<Longrightarrow> (Q x) \<ge> Some ((t - t') + t'')" 
+  shows "T_g Q f \<ge> Some t" sorry
+
+lemma T_conseq6:
+  assumes 
+    "T_g Q f \<ge> Some t'"
+    "\<And>x t'' M. Q x = Some t'' \<Longrightarrow>   t' \<ge> t" 
+  shows "T_g Q f \<ge> Some (t::'a:: {complete_lattice,minus,plus})" 
+  oops
+
+
+ 
+
+definition "monadic_WHILE b f s \<equiv> do {
+  RECT (\<lambda>D s. do { 
+    bv \<leftarrow> b s;
+    if bv then do {
+      s \<leftarrow> f s;
+      D s
+    } else do {RETURNT s}
+  }) s
+}"
+definition monadic_WHILEIE  where
+  "monadic_WHILEIE I E bm c s = monadic_WHILE bm c s" 
+
+lemma monadic_WHILE_refine2: 
+  assumes 
+    "(x, x') \<in> R"
+    "\<And>x x'. (x, x') \<in> R \<Longrightarrow> bm x \<le> \<Down>Id (bm' x')"
+    and "\<And>x x' t. (x, x') \<in> R \<Longrightarrow> nofailT (bm' x') \<Longrightarrow> inresT2 (bm' x') True t \<Longrightarrow> c x \<le> \<Down>R (c' x')"
+  shows "(monadic_WHILE bm c x) \<le> \<Down>R (monadic_WHILE bm' c' x')"
+  sorry
+
+
+
+fun Someplus where
+  "Someplus None _ = None"
+| "Someplus _ None = None"
+| "Someplus (Some a) (Some b) = Some (a+b)"
+
+
+definition mm22 :: "( ('a\<Rightarrow> enat) option) \<Rightarrow> (   ('a\<Rightarrow> enat) option) \<Rightarrow> (   ('a\<Rightarrow> enat) option)" where
+  "mm22 r m = (case m  of None \<Rightarrow> Some \<infinity>
+                                | Some mt \<Rightarrow>
+                                  (case r of None \<Rightarrow> None | Some rt \<Rightarrow> (if mt \<le> rt then Some (rt - mt) else None)))"
+
+
+lemma 
+  fixes s0 :: 'a and I :: "'a \<Rightarrow> bool" and E :: "'a \<Rightarrow> ('c \<Rightarrow> nat)" and t :: "'c \<Rightarrow> enat"
+  assumes
+  step: "(\<And>s. I s \<Longrightarrow> Some 0 \<le> T_g (\<lambda>b. if b then T_g (\<lambda>s'. if I s' \<and> E s' \<le> E s
+                   then Some ((\<lambda>x. enat (E s x - E s' x))) else None)  (c s)
+                    else mm22 (Q s) (Someplus (Some t) (mm3 (enat o (E s0)) (Some (enat o (E s)))))) (bm s))"
+ and  progress: "\<And>s. progress (c s)"
+ and  i: "I s0"
+shows neueWhile_rule': "Some t \<le> T_g Q (monadic_WHILEIE I E bm c s0)"
+  sorry
+
+
+definition "G b d = (if b then Some d else None)"
+definition "H Qs t Es0 Es = mm22 Qs (Someplus (Some t) (mm3 (Es0) (Some (Es))))"
+
+
+lemma 
+  fixes s0 :: 'a and I :: "'a \<Rightarrow> bool" and E :: "'a \<Rightarrow> ('c \<Rightarrow> nat)" and t :: "'c \<Rightarrow> enat"
+  assumes
+  step: "(\<And>s. I s \<Longrightarrow> Some 0 \<le> T_g (\<lambda>b. if b then T_g  (\<lambda>s'. G (I s' \<and> E s' \<le> E s) (E s - E s')) (c s)
+               else H (Q s) t (E s0) (E s))  (bm s))"
+ and  progress: "\<And>s. progress (c s)"
+ and  i: "I s0"
+shows neueWhile_rule'': "Some t \<le> T_g Q (monadic_WHILEIE I E bm c s0)"
+  apply(rule neueWhile_rule')  
+  unfolding monadic_WHILEIE_def 
+  subgoal for s using step[of s] apply (simp add: ) unfolding H_def G_def o_def by (auto cong: if_cong)
+    using assms by auto 
+
+
+
+
+definition [to_relAPP]: "list_set_rel R \<equiv> \<langle>R\<rangle>list_rel O br set distinct"
+
+
+
+lemma le_ASSERTI_f:
+  fixes M :: "(_,_ \<Rightarrow> enat) nrest"
+  shows "(\<Phi> \<Longrightarrow> M \<le> M') \<Longrightarrow> M \<le> ASSERT \<Phi> \<bind> (\<lambda>_. M')"
+  sorry
+
+
+
+
+section "some Monadic Refinement Automation"
+
+
+ML \<open>
+structure Refine = struct
+
+  structure vcg = Named_Thms
+    ( val name = @{binding refine_vcg}
+      val description = "Refinement Framework: " ^ 
+        "Verification condition generation rules (intro)" )
+
+  structure vcg_cons = Named_Thms
+    ( val name = @{binding refine_vcg_cons}
+      val description = "Refinement Framework: " ^
+        "Consequence rules tried by VCG" )
+
+  structure refine0 = Named_Thms
+    ( val name = @{binding refine0}
+      val description = "Refinement Framework: " ^
+        "Refinement rules applied first (intro)" )
+
+  structure refine = Named_Thms
+    ( val name = @{binding refine}
+      val description = "Refinement Framework: Refinement rules (intro)" )
+
+  structure refine2 = Named_Thms
+    ( val name = @{binding refine2}
+      val description = "Refinement Framework: " ^
+        "Refinement rules 2nd stage (intro)" )
+
+  (* If set to true, the product splitter of refine_rcg is disabled. *)
+  val no_prod_split = 
+    Attrib.setup_config_bool @{binding refine_no_prod_split} (K false);
+
+  fun rcg_tac add_thms ctxt = 
+    let 
+      val cons_thms = vcg_cons.get ctxt
+      val ref_thms = (refine0.get ctxt 
+        @ add_thms @ refine.get ctxt @ refine2.get ctxt);
+      val prod_ss = (Splitter.add_split @{thm prod.split} 
+        (put_simpset HOL_basic_ss ctxt));
+      val prod_simp_tac = 
+        if Config.get ctxt no_prod_split then 
+          K no_tac
+        else
+          (simp_tac prod_ss THEN' 
+            REPEAT_ALL_NEW (resolve_tac ctxt @{thms impI allI}));
+    in
+      REPEAT_ALL_NEW_FWD (DETERM o FIRST' [
+        resolve_tac ctxt ref_thms,
+        resolve_tac ctxt cons_thms THEN' resolve_tac ctxt ref_thms,
+        prod_simp_tac
+      ])
+    end;
+
+  fun post_tac ctxt = REPEAT_ALL_NEW_FWD (FIRST' [
+    eq_assume_tac,
+    (*match_tac ctxt thms,*)
+    SOLVED' (Tagged_Solver.solve_tac ctxt)]) 
+         
+
+end;
+\<close>
+setup \<open>Refine.vcg.setup\<close>
+setup \<open>Refine.vcg_cons.setup\<close>
+setup \<open>Refine.refine0.setup\<close>
+setup \<open>Refine.refine.setup\<close>
+setup \<open>Refine.refine2.setup\<close>
+(*setup {* Refine.refine_post.setup *}*)
+
+method_setup refine_rcg = 
+  \<open>Attrib.thms >> (fn add_thms => fn ctxt => SIMPLE_METHOD' (
+    Refine.rcg_tac add_thms ctxt THEN_ALL_NEW_FWD (TRY o Refine.post_tac ctxt)
+  ))\<close> 
+  "Refinement framework: Generate refinement conditions"     
+
+method_setup refine_vcg = 
+  \<open>Attrib.thms >> (fn add_thms => fn ctxt => SIMPLE_METHOD' (
+    Refine.rcg_tac (add_thms @ Refine.vcg.get ctxt) ctxt THEN_ALL_NEW_FWD (TRY o Refine.post_tac ctxt)
+  ))\<close> 
+  "Refinement framework: Generate refinement and verification conditions"
+
+
+
+subsection "setup for refine_vcg"
+ 
+lemma If_refine_plain[refine]: "b = b' \<Longrightarrow>
+  (b \<Longrightarrow> b' \<Longrightarrow> S1 \<le> \<Down> R S1') \<Longrightarrow>
+  (\<not> b \<Longrightarrow> \<not> b' \<Longrightarrow> S2 \<le> \<Down> R S2') \<Longrightarrow> (if b then S1 else S2) \<le> \<Down> R (if b' then S1' else S2')"
+  by auto
+
+lemma Case_option_refine[refine]: "(x,x')\<in> \<langle>S\<rangle>option_rel \<Longrightarrow>
+  (\<And>y y'. (y,y')\<in>S \<Longrightarrow> S2 y  \<le> \<Down> R (S2' y')) \<Longrightarrow> S1 \<le> \<Down> R S1'
+  \<Longrightarrow> (case x of None \<Rightarrow> S1 | Some y \<Rightarrow> S2 y) \<le> \<Down> R (case x' of None \<Rightarrow> S1' | Some y' \<Rightarrow> S2' y')"
+  by(auto split: option.split)
+
+lemma [refine0]: "\<And>S. S \<le> \<Down> Id S" by simp                                          
+lemma refine_plain_ASSERT_bind[refine0]:
+    "\<Phi> \<Longrightarrow> (\<Phi> \<Longrightarrow> S \<le> \<Down> R S') \<Longrightarrow> ASSERT \<Phi> \<bind> (\<lambda>_. S) \<le> \<Down> R S'"
+   sorry
+
+
+lemma le_R_ASSERTI: "(\<Phi> \<Longrightarrow> M \<le> \<Down> R M') \<Longrightarrow>  M \<le> \<Down> R (ASSERT \<Phi> \<bind> (\<lambda>_. M'))"
+  sorry
+
+declare le_R_ASSERTI [refine0]
+
+thm refine0
+
+declare bindT_refine [refine]
+declare WHILET_refine [refine]
+thm refine
+thm refine2
+thm refine_vcg
+
+lemma [refine_vcg_cons]: "m \<le> SPECT \<Phi> \<Longrightarrow> (\<And>x. \<Phi> x \<le> \<Psi> x) \<Longrightarrow> m \<le> SPECT \<Psi>"
+  by (metis dual_order.trans le_funI nres_order_simps(2))  
+thm refine_vcg_cons
+ 
+
 
 
 end
