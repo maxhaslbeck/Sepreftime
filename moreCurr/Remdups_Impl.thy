@@ -12,20 +12,20 @@ section  \<open>Flatten mops\<close>
 
 
 lemma flatCurrs_mop_set_insert:
-  "(\<And>x. g x = f x ()) \<Longrightarrow> flatCurrs (Remdups.mop_set_insert f x C) = mop_set_insert g x C"
-  unfolding Remdups.mop_set_insert_def mop_set_insert_def by(simp add: flatCurrs_SPECT)
+  "(\<And>x. g x = f x ()) \<Longrightarrow> flatCurrs (Monadic_Operations.mop_set_insert f x C) = mop_set_insert g x C"
+  unfolding Monadic_Operations.mop_set_insert_def mop_set_insert_def by(simp add: flatCurrs_SPECT)
 lemma flatCurrs_mop_set_member:
-  "(\<And>x. g x = f x ()) \<Longrightarrow> flatCurrs (Remdups.mop_set_member f x C) = mop_set_member g x C"
-  unfolding Remdups.mop_set_member_def mop_set_member_def by(simp add: flatCurrs_SPECT)
+  "(\<And>x. g x = f x ()) \<Longrightarrow> flatCurrs (Monadic_Operations.mop_set_member f x C) = mop_set_member g x C"
+  unfolding Monadic_Operations.mop_set_member_def mop_set_member_def by(simp add: flatCurrs_SPECT)
 lemma flatCurrs_mop_push_list:
-  "(\<And>x. g x = f x ()) \<Longrightarrow> flatCurrs (Remdups.mop_push_list f x xs) = mop_push_list g x xs"
-  unfolding Remdups.mop_push_list_def mop_push_list_def by(simp add: flatCurrs_SPECT)
+  "(\<And>x. g x = f x ()) \<Longrightarrow> flatCurrs (Monadic_Operations.mop_push_list f x xs) = mop_push_list g x xs"
+  unfolding Monadic_Operations.mop_push_list_def mop_push_list_def by(simp add: flatCurrs_SPECT)
 lemma flatCurrs_mop_set_empty:
-  "(\<And>x. g x = f x ()) \<Longrightarrow> flatCurrs (Remdups.mop_set_empty f    ) = mop_set_empty g    "
-  unfolding Remdups.mop_set_empty_def mop_set_empty_def by(simp add: flatCurrs_SPECT)
+  "(\<And>x. g x = f x ()) \<Longrightarrow> flatCurrs (Monadic_Operations.mop_set_empty f    ) = mop_set_empty g    "
+  unfolding Monadic_Operations.mop_set_empty_def mop_set_empty_def by(simp add: flatCurrs_SPECT)
 lemma flatCurrs_mop_empty_list:
-  "(\<And>x. g x = f x ()) \<Longrightarrow> flatCurrs (Remdups.mop_empty_list f    ) = mop_empty_list g    "
-  unfolding Remdups.mop_empty_list_def mop_empty_list_def by(simp add: flatCurrs_SPECT)
+  "(\<And>x. g x = f x ()) \<Longrightarrow> flatCurrs (Monadic_Operations.mop_empty_list f    ) = mop_empty_list g    "
+  unfolding Monadic_Operations.mop_empty_list_def mop_empty_list_def by(simp add: flatCurrs_SPECT)
 
 lemmas mops = flatCurrs_mop_set_insert flatCurrs_mop_set_member flatCurrs_mop_push_list
             flatCurrs_mop_set_empty flatCurrs_mop_empty_list

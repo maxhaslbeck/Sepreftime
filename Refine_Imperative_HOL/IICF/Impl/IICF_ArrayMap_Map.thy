@@ -94,7 +94,7 @@ lemma iam_of_list_update: "k < length l \<Longrightarrow> iam_of_list (l[k := So
 lemma update_liam_rule: "k<n \<Longrightarrow> <is_liam n M m * $6> update_liam m k v <\<lambda>r. is_liam n (M(k:=Some v)) r >\<^sub>t"
   unfolding update_liam_def is_liam_def
   apply(sep_auto heap: nth_rule lookup_rule update_rule SLTC.return_rule)
-    apply(auto simp:   zz  card_insert finite_dom_iam_of_list
+    apply(auto simp: zz card.insert_remove finite_dom_iam_of_list
               set_minus_singleton_eq knotin_dom_iam_of_listI iam_of_list_update )
   apply(sep_auto heap: SLTC.return_rule)    
    apply(auto intro!: card_Suc_Diff1   simp:    iam_of_list_update finite_dom_iam_of_list )

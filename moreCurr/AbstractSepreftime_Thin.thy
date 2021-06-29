@@ -2,8 +2,7 @@ theory AbstractSepreftime_Thin
   imports "HOL-Library.Extended_Nat" "Refine_Monadic.RefineG_Domain"  Refine_Monadic.Refine_Misc  
   "HOL-Library.Monad_Syntax"   "HOL-Library.Groups_Big_Fun"
   Complex_Main 
-
-(* "HOL-Library.Function_Algebras" *)
+  "HOL-Library.Function_Algebras" 
 
 begin
 

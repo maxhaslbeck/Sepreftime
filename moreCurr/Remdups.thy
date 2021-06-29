@@ -8,19 +8,14 @@ theory Remdups
     "../Refine_Foreach" *)
 (*    "Imperative_HOL_Time.SLTC" *)
   "Automatic_Refinement.Autoref_Tagging"
-    "Imperative_HOL_Time.IHT_Red_Black_Tree"
+    "Imperative_HOL_Time.IHT_Red_Black_Tree" 
+    Monadic_Operations
 begin        
 
 
 hide_const R B
 
 term Autoref_Tagging.APP
-
-definition "mop_empty_list t = SPECT [ [] \<mapsto> t ()]"
-definition mop_set_empty where "mop_set_empty t = SPECT [ {} \<mapsto> t ()]"
-definition mop_set_member where "mop_set_member t x S = SPECT [ x \<in> S \<mapsto> t (x,S)]"
-definition mop_set_insert where "mop_set_insert t x S = SPECT [ insert x S \<mapsto> t (x,S)]"
-definition "mop_push_list t x xs = SPECT [ xs @ [x] \<mapsto> t (x,xs)]"
 
 definition "rd_inv as \<equiv> (\<lambda>(xs,ys,S). (\<exists>zs. as = zs@xs \<and> S = set ys \<and> distinct ys \<and> set zs = set ys))"
 

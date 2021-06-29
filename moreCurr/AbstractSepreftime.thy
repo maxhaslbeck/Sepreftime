@@ -1034,9 +1034,8 @@ definition "infinity_fun \<equiv> (\<lambda>_. \<infinity>)"
 instance
   apply(intro_classes) .  
 end
-
 definition mm_g :: "( 'a \<Rightarrow> ('d::{minus,ord,top}) option) \<Rightarrow> ( 'a \<Rightarrow> 'd option) \<Rightarrow> ( 'a \<Rightarrow> 'd option)" where
-  "mm_g R m = (\<lambda>x. (case m x of None \<Rightarrow> Some \<top>
+  "mm_g R m = (\<lambda>x. (case m x of None \<Rightarrow> Some top
                                 | Some mt \<Rightarrow>
                                   (case R x of None \<Rightarrow> None | Some rt \<Rightarrow> (if mt \<le> rt then  Some (rt - mt) else None))))"
 
@@ -1278,7 +1277,7 @@ thm mm_antimono
 lemma mm2_antimono: "x \<le> y \<Longrightarrow> mm2 q x \<ge> mm2 q y"
   unfolding mm2_def apply (auto split: option.splits)  
   using helper2_r by blast 
-
+              
 lemma mm2_contiuous2: "\<forall>x\<in>X. t \<le> mm2 q x \<Longrightarrow> t \<le> mm2 q (Sup X)"  
   unfolding mm2_def apply(auto simp: everywhereNone bot_option_def less_eq_option_None_is_None' split: option.splits if_splits)
   subgoal  
